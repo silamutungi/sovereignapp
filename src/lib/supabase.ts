@@ -4,10 +4,13 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 
 if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY in .env')
+  console.warn('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY — waitlist submissions will fail')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
+export const supabase = createClient(
+  supabaseUrl ?? 'https://placeholder.supabase.co',
+  supabaseKey ?? 'placeholder'
+)
 
 export async function joinWaitlist(email: string, source = 'landing'): Promise<{ error: string | null }> {
   const { error } = await supabase.from('waitlist').insert([{ email, source }])
