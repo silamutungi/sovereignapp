@@ -515,7 +515,7 @@ export async function sendWelcomeEmail(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'Sovereign <noreply@sovereignapp.dev>',
+      from: 'Sovereign <onboarding@resend.dev>',
       to: [email],
       subject: 'Your app is live — you own everything',
       text: body,
