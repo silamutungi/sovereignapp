@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;0,900;1,400;1,700&family=DM+Mono:wght@300;400;500&display=swap');
+
+:root {
+  --paper:  #f2efe8;
+  --paper2: #edeae1;
+  --ink:    #0e0d0b;
+  --rule:   #ccc8bf;
+  --text-primary:  #0e0d0b;
+  --text-mid:      #6b6760;
+  --text-dim:      #6b6862;
+  --text-on-dark-primary: rgba(255,255,255,1.00);
+  --text-on-dark-high:    rgba(255,255,255,0.90);
+  --text-on-dark-mid:     rgba(255,255,255,0.75);
+  --text-on-dark-body:    rgba(255,255,255,0.65);
+  --text-on-dark-dim:     rgba(255,255,255,0.55);
+  --green:      #c8f060;
+  --green-dark: #3b6d11;
+  --green-bg:   #f4fce0;
+  --red:        #d63b2f;
+  --red-bg:     #fcebeb;
+  --red-text:   #a32d2d;
+  --font-serif: 'Playfair Display', serif;
+  --font-mono:  'DM Mono', monospace;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 150ms;
+  --duration-mid:  300ms;
+  --duration-slow: 550ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
