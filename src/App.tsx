@@ -193,7 +193,11 @@ function NdevPanel({ locale }: { locale: Locale }) {
   const [phIdx, setPhIdx] = useState(0)
   const [building, setBuilding] = useState(false)
   const [stepIdx, setStepIdx] = useState(0)
-  const [done, setDone] = useState(false)
+  // 'idle' | 'building' | 'email' | 'success'
+  const [stage, setStage] = useState<'idle' | 'building' | 'email' | 'success'>('idle')
+  const [email, setEmail] = useState('')
+  const [emailError, setEmailError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   // Rotate placeholder
   useEffect(() => {
@@ -203,8 +207,9 @@ function NdevPanel({ locale }: { locale: Locale }) {
   }, [value])
 
   const handleBuild = useCallback(() => {
-    if (building || done) return
+    if (building || stage !== 'idle') return
     setBuilding(true)
+    setStage('building')
     setStepIdx(0)
     let idx = 0
     const advance = () => {
@@ -213,12 +218,29 @@ function NdevPanel({ locale }: { locale: Locale }) {
         setStepIdx(idx)
         setTimeout(advance, 650)
       } else {
-        setDone(true)
         setBuilding(false)
+        setStage('email')
       }
     }
     setTimeout(advance, 650)
-  }, [building, done])
+  }, [building, stage])
+
+  const handleEmailSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email.includes('@')) {
+      setEmailError('Please enter a real email address.')
+      return
+    }
+    setEmailError(null)
+    setSubmitting(true)
+    const { error } = await joinWaitlist(email, value || 'ndev')
+    setSubmitting(false)
+    if (error) {
+      setEmailError(error)
+    } else {
+      setStage('success')
+    }
+  }, [email, value])
 
   const CHIPS = ['chip.1', 'chip.2', 'chip.3', 'chip.4']
 
@@ -228,45 +250,73 @@ function NdevPanel({ locale }: { locale: Locale }) {
       <p className="ndev-sub">{t(locale, 'ndev.sub')}</p>
 
       <div className="pbox">
-        <div className="chips">
-          {CHIPS.map((k) => (
-            <button key={k} className="chip" onClick={() => setValue(t(locale, k))}>
-              {t(locale, k)}
+        {stage === 'idle' || stage === 'building' ? (
+          <>
+            <div className="chips">
+              {CHIPS.map((k) => (
+                <button key={k} className="chip" onClick={() => setValue(t(locale, k))}>
+                  {t(locale, k)}
+                </button>
+              ))}
+            </div>
+
+            <textarea
+              className="ndev-ta"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder={PLACEHOLDERS[phIdx]}
+              rows={4}
+              aria-label={t(locale, 'ndev.h')}
+            />
+
+            <div className="ai-badge" aria-hidden="true">
+              <span className="aidot" />
+              {t(locale, 'ndev.badge')}
+            </div>
+
+            {stage === 'building' && (
+              <p className="build-status" aria-live="polite" aria-atomic="true">
+                {t(locale, BUILD_STEPS_KEYS[stepIdx])}
+              </p>
+            )}
+
+            <button
+              className="gobtn"
+              onClick={handleBuild}
+              disabled={building}
+              aria-label={t(locale, 'ndev.btn')}
+            >
+              {building ? '…' : t(locale, 'ndev.btn')}
             </button>
-          ))}
-        </div>
-
-        <textarea
-          className="ndev-ta"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder={PLACEHOLDERS[phIdx]}
-          rows={4}
-          aria-label={t(locale, 'ndev.h')}
-        />
-
-        <div className="ai-badge" aria-hidden="true">
-          <span className="aidot" />
-          {t(locale, 'ndev.badge')}
-        </div>
-
-        {building && (
-          <p className="build-status" aria-live="polite" aria-atomic="true">
-            {t(locale, BUILD_STEPS_KEYS[stepIdx])}
-          </p>
+          </>
+        ) : stage === 'email' ? (
+          <div className="ndev-email-capture" role="region" aria-label="Email capture">
+            <p className="ndev-email-h">We'll build this with you.</p>
+            <p className="ndev-email-sub">Enter your email. You'll be first to know when it's ready.</p>
+            <form onSubmit={handleEmailSubmit} noValidate>
+              <input
+                type="email"
+                className="ndev-email-input"
+                placeholder="your@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                required
+                aria-label="Your email address"
+              />
+              {emailError && (
+                <p className="ndev-email-err" role="alert">{emailError}</p>
+              )}
+              <button type="submit" className="ndev-email-btn" disabled={submitting}>
+                {submitting ? '…' : "I'm in →"}
+              </button>
+            </form>
+          </div>
+        ) : (
+          <div className="ndev-success" role="status" aria-live="polite">
+            ✓ You're on the list. We'll be in touch soon.
+          </div>
         )}
-        {done && (
-          <p className="build-status done" aria-live="polite">{t(locale, 'build.done')}</p>
-        )}
-
-        <button
-          className="gobtn"
-          onClick={handleBuild}
-          disabled={building}
-          aria-label={t(locale, 'ndev.btn')}
-        >
-          {building ? '…' : t(locale, 'ndev.btn')}
-        </button>
       </div>
 
       <p className="ndev-note">{t(locale, 'ndev.note')}</p>
