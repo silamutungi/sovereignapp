@@ -78,11 +78,10 @@ describe('provisionGitHub', () => {
 // ─── 2. provisionVercel ───────────────────────────────────────────────────────
 
 describe('provisionVercel', () => {
-  const skip = !VERCEL_TOKEN || !githubResult.repoUrl
-
   it('creates a Vercel project and triggers a deployment', async () => {
-    if (skip) {
-      console.log('⏭  Skipped — set VERCEL_TOKEN and run provisionGitHub first')
+    // Evaluated inside the callback so githubResult is populated by the time this runs
+    if (!VERCEL_TOKEN || !githubResult.repoUrl) {
+      console.log('⏭  Skipped — set VERCEL_TOKEN (and GITHUB_TOKEN so the repo exists)')
       return
     }
 
@@ -175,35 +174,12 @@ describe('sendWelcomeEmail', () => {
 })
 
 // ─── Cleanup ──────────────────────────────────────────────────────────────────
-// Deletes the test GitHub repo after all tests complete.
+// Logs the test repo URL for manual deletion.
+// Automated deletion requires the `delete_repo` GitHub token scope —
+// to keep token permissions minimal we skip the API delete and just print the URL.
 
-afterAll(async () => {
-  if (!GITHUB_TOKEN || !githubResult.success) return
-
-  // Get the authenticated user's login
-  const userRes = await fetch('https://api.github.com/user', {
-    headers: {
-      Authorization: `Bearer ${GITHUB_TOKEN}`,
-      Accept: 'application/vnd.github+json',
-    },
-  })
-  const user = await userRes.json() as { login: string }
-
-  const deleteRes = await fetch(
-    `https://api.github.com/repos/${user.login}/${TEST_PROJECT}`,
-    {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${GITHUB_TOKEN}`,
-        Accept: 'application/vnd.github+json',
-      },
-    },
-  )
-
-  if (deleteRes.status === 204) {
-    console.log(`\n🗑  Cleaned up test repo: ${user.login}/${TEST_PROJECT}`)
-  } else {
-    console.warn(`\n⚠  Could not delete test repo ${TEST_PROJECT} (status ${deleteRes.status})`)
-    console.warn(`   Delete it manually at: ${githubResult.repoUrl}`)
-  }
+afterAll(() => {
+  if (!githubResult.success) return
+  console.log(`\n📌 Test repo created — delete it manually when done:`)
+  console.log(`   ${githubResult.repoUrl}`)
 })
