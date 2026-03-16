@@ -17,74 +17,84 @@ function waitlistHtml(email: string): string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
   <title>You're on the Sovereign waitlist</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      background-color: #0e0d0b !important;
+      color: #f2efe8 !important;
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background:#0e0d0b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0e0d0b;padding:40px 16px;">
+<body style="margin:0;padding:0;background-color:#0e0d0b !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#f2efe8 !important;">
+  <div style="background-color:#0e0d0b !important;color:#f2efe8 !important;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#0e0d0b !important;padding:40px 16px;">
     <tr>
-      <td align="center">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;">
+      <td align="center" style="background-color:#0e0d0b !important;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#0e0d0b !important;">
 
           <!-- Wordmark -->
           <tr>
-            <td style="padding:0 0 36px 0;text-align:center;">
-              <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#c8f060;">SOVEREIGN</span>
+            <td style="padding:0 0 36px 0;text-align:center;background-color:#0e0d0b !important;">
+              <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#c8f060 !important;">SOVEREIGN</span>
             </td>
           </tr>
 
           <!-- Headline -->
           <tr>
-            <td style="padding:0 0 12px 0;text-align:center;">
-              <h1 style="margin:0;font-size:48px;font-weight:800;line-height:1;color:#f2efe8;letter-spacing:-0.02em;">You're in.</h1>
+            <td style="padding:0 0 12px 0;text-align:center;background-color:#0e0d0b !important;">
+              <h1 style="margin:0;font-size:48px;font-weight:800;line-height:1;color:#f2efe8 !important;letter-spacing:-0.02em;">You're in.</h1>
             </td>
           </tr>
 
           <!-- Subheadline -->
           <tr>
-            <td style="padding:0 0 32px 0;text-align:center;">
-              <p style="margin:0;font-size:16px;line-height:1.6;color:#6b6862;">We'll build your first app the moment we launch.</p>
+            <td style="padding:0 0 32px 0;text-align:center;background-color:#0e0d0b !important;">
+              <p style="margin:0;font-size:16px;line-height:1.6;color:#6b6862 !important;">We'll build your first app the moment we launch.</p>
             </td>
           </tr>
 
           <!-- Divider -->
           <tr>
-            <td style="padding:0 0 32px 0;">
+            <td style="padding:0 0 32px 0;background-color:#0e0d0b !important;">
               <div style="height:1px;background:rgba(200,240,96,0.2);"></div>
             </td>
           </tr>
 
           <!-- Body copy -->
           <tr>
-            <td style="padding:0 0 36px 0;text-align:center;">
-              <p style="margin:0;font-size:15px;line-height:1.75;color:#f2efe8;">No credits. No overages. No surprises.<br/>Just your app, your code, your infrastructure —<br/>owned by you from day one.</p>
+            <td style="padding:0 0 36px 0;text-align:center;background-color:#0e0d0b !important;">
+              <p style="margin:0;font-size:15px;line-height:1.75;color:#f2efe8 !important;">No credits. No overages. No surprises.<br/>Just your app, your code, your infrastructure —<br/>owned by you from day one.</p>
             </td>
           </tr>
 
           <!-- CTA button -->
           <tr>
-            <td style="padding:0 0 40px 0;text-align:center;">
-              <a href="https://sovereignapp.dev" style="display:inline-block;background:#c8f060;color:#0e0d0b;font-size:14px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:6px;letter-spacing:0.01em;">Visit Sovereign →</a>
+            <td style="padding:0 0 40px 0;text-align:center;background-color:#0e0d0b !important;">
+              <a href="https://sovereignapp.dev" style="display:inline-block;background:#c8f060;color:#0e0d0b !important;-webkit-text-fill-color:#0e0d0b;font-size:14px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:6px;letter-spacing:0.01em;">Visit Sovereign →</a>
             </td>
           </tr>
 
           <!-- Divider -->
           <tr>
-            <td style="padding:0 0 28px 0;">
+            <td style="padding:0 0 28px 0;background-color:#0e0d0b !important;">
               <div style="height:1px;background:rgba(200,240,96,0.2);"></div>
             </td>
           </tr>
 
           <!-- Social proof -->
           <tr>
-            <td style="padding:0 0 40px 0;text-align:center;">
-              <p style="margin:0;font-size:13px;line-height:1.7;color:#6b6862;">Tell one person frustrated with Lovable or Cursor.<br/>That's how we grow.</p>
+            <td style="padding:0 0 40px 0;text-align:center;background-color:#0e0d0b !important;">
+              <p style="margin:0;font-size:13px;line-height:1.7;color:#6b6862 !important;">Tell one person frustrated with Lovable or Cursor.<br/>That's how we grow.</p>
             </td>
           </tr>
 
           <!-- Footer -->
           <tr>
-            <td style="text-align:center;">
-              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862;">© 2026 Sovereign &nbsp;·&nbsp; <a href="https://sovereignapp.dev" style="color:#6b6862;text-decoration:none;">sovereignapp.dev</a> &nbsp;·&nbsp; Built without permission</p>
+            <td style="text-align:center;background-color:#0e0d0b !important;">
+              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862 !important;">© 2026 Sovereign &nbsp;·&nbsp; <a href="https://sovereignapp.dev" style="color:#6b6862 !important;text-decoration:none;">sovereignapp.dev</a> &nbsp;·&nbsp; Built without permission</p>
             </td>
           </tr>
 
@@ -92,6 +102,7 @@ function waitlistHtml(email: string): string {
       </td>
     </tr>
   </table>
+  </div>
 </body>
 </html>`
 }
@@ -102,71 +113,81 @@ function appLaunchHtml(projectName: string, liveUrl: string, repoUrl: string): s
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
   <title>Your app is live.</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      background-color: #0e0d0b !important;
+      color: #f2efe8 !important;
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background:#0e0d0b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0e0d0b;padding:40px 16px;">
+<body style="margin:0;padding:0;background-color:#0e0d0b !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#f2efe8 !important;">
+  <div style="background-color:#0e0d0b !important;color:#f2efe8 !important;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#0e0d0b !important;padding:40px 16px;">
     <tr>
-      <td align="center">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;">
+      <td align="center" style="background-color:#0e0d0b !important;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#0e0d0b !important;">
 
           <!-- Wordmark -->
           <tr>
-            <td style="padding:0 0 36px 0;text-align:center;">
-              <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#c8f060;">SOVEREIGN</span>
+            <td style="padding:0 0 36px 0;text-align:center;background-color:#0e0d0b !important;">
+              <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#c8f060 !important;">SOVEREIGN</span>
             </td>
           </tr>
 
           <!-- Headline -->
           <tr>
-            <td style="padding:0 0 12px 0;text-align:center;">
-              <h1 style="margin:0;font-size:48px;font-weight:800;line-height:1;color:#f2efe8;letter-spacing:-0.02em;">Your app is live.</h1>
+            <td style="padding:0 0 12px 0;text-align:center;background-color:#0e0d0b !important;">
+              <h1 style="margin:0;font-size:48px;font-weight:800;line-height:1;color:#f2efe8 !important;letter-spacing:-0.02em;">Your app is live.</h1>
             </td>
           </tr>
 
           <!-- App name subheadline -->
           <tr>
-            <td style="padding:0 0 32px 0;text-align:center;">
-              <p style="margin:0;font-size:18px;font-weight:600;color:#c8f060;letter-spacing:0.01em;">${projectName}</p>
+            <td style="padding:0 0 32px 0;text-align:center;background-color:#0e0d0b !important;">
+              <p style="margin:0;font-size:18px;font-weight:600;color:#c8f060 !important;letter-spacing:0.01em;">${projectName}</p>
             </td>
           </tr>
 
           <!-- Divider -->
           <tr>
-            <td style="padding:0 0 32px 0;">
+            <td style="padding:0 0 32px 0;background-color:#0e0d0b !important;">
               <div style="height:1px;background:rgba(200,240,96,0.2);"></div>
             </td>
           </tr>
 
           <!-- Body copy -->
           <tr>
-            <td style="padding:0 0 36px 0;text-align:center;">
-              <p style="margin:0;font-size:15px;line-height:1.75;color:#f2efe8;">Sovereign has stepped back. This is yours now.<br/>Your code. Your infrastructure. Your future.</p>
+            <td style="padding:0 0 36px 0;text-align:center;background-color:#0e0d0b !important;">
+              <p style="margin:0;font-size:15px;line-height:1.75;color:#f2efe8 !important;">Sovereign has stepped back. This is yours now.<br/>Your code. Your infrastructure. Your future.</p>
             </td>
           </tr>
 
           <!-- CTA buttons -->
           <tr>
-            <td style="padding:0 0 40px 0;text-align:center;">
+            <td style="padding:0 0 40px 0;text-align:center;background-color:#0e0d0b !important;">
               <!--[if mso]><table role="presentation" align="center" cellpadding="0" cellspacing="0"><tr><td style="padding:0 8px 0 0;"><![endif]-->
-              <a href="${liveUrl}" style="display:inline-block;background:#c8f060;color:#0e0d0b;font-size:14px;font-weight:700;text-decoration:none;padding:14px 28px;border-radius:6px;margin:0 6px 12px;letter-spacing:0.01em;">View Live App →</a>
+              <a href="${liveUrl}" style="display:inline-block;background:#c8f060;color:#0e0d0b !important;-webkit-text-fill-color:#0e0d0b;font-size:14px;font-weight:700;text-decoration:none;padding:14px 28px;border-radius:6px;margin:0 6px 12px;letter-spacing:0.01em;">View Live App →</a>
               <!--[if mso]></td><td style="padding:0 0 0 8px;"><![endif]-->
-              <a href="${repoUrl}" style="display:inline-block;background:transparent;color:#c8f060;font-size:14px;font-weight:700;text-decoration:none;padding:13px 28px;border-radius:6px;border:1px solid rgba(200,240,96,0.4);margin:0 6px 12px;letter-spacing:0.01em;">View on GitHub →</a>
+              <a href="${repoUrl}" style="display:inline-block;background:#0e0d0b;color:#c8f060 !important;-webkit-text-fill-color:#c8f060;font-size:14px;font-weight:700;text-decoration:none;padding:13px 28px;border-radius:6px;border:1px solid rgba(200,240,96,0.4);margin:0 6px 12px;letter-spacing:0.01em;">View on GitHub →</a>
               <!--[if mso]></td></tr></table><![endif]-->
             </td>
           </tr>
 
           <!-- Divider -->
           <tr>
-            <td style="padding:0 0 28px 0;">
+            <td style="padding:0 0 28px 0;background-color:#0e0d0b !important;">
               <div style="height:1px;background:rgba(200,240,96,0.2);"></div>
             </td>
           </tr>
 
           <!-- Footer -->
           <tr>
-            <td style="text-align:center;">
-              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862;">© 2026 Sovereign &nbsp;·&nbsp; <a href="https://sovereignapp.dev" style="color:#6b6862;text-decoration:none;">sovereignapp.dev</a> &nbsp;·&nbsp; Built without permission</p>
+            <td style="text-align:center;background-color:#0e0d0b !important;">
+              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862 !important;">© 2026 Sovereign &nbsp;·&nbsp; <a href="https://sovereignapp.dev" style="color:#6b6862 !important;text-decoration:none;">sovereignapp.dev</a> &nbsp;·&nbsp; Built without permission</p>
             </td>
           </tr>
 
@@ -174,6 +195,7 @@ function appLaunchHtml(projectName: string, liveUrl: string, repoUrl: string): s
       </td>
     </tr>
   </table>
+  </div>
 </body>
 </html>`
 }
