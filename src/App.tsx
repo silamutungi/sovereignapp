@@ -526,6 +526,25 @@ function Waitlist({ locale }: { locale: Locale }) {
       setError(err)
     } else {
       setSuccess(true)
+      void fetch('/api/send-welcome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          projectName: 'Sovereign',
+          liveUrl: 'https://sovereignapp.dev',
+          repoUrl: 'https://github.com/silamutungi/sovereignapp',
+          subject: "You're on the Sovereign waitlist",
+          body: [
+            "You're in. We'll email you the moment Sovereign is ready to build your first app.",
+            '',
+            "While you wait — tell one person who's frustrated with Lovable or Cursor. That's all we ask.",
+            '',
+            '— The Sovereign team',
+            'sovereignapp.dev',
+          ].join('\n'),
+        }),
+      })
     }
   }, [email, locale])
 

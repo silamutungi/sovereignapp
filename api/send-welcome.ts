@@ -34,14 +34,15 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
-    const { email, projectName, liveUrl, repoUrl } = body ?? {}
+    const { email, projectName, liveUrl, repoUrl, subject: subjectOverride, body: bodyOverride } = body ?? {}
 
     if (!email || !projectName) {
       res.status(400).json({ error: '`email` and `projectName` are required' })
       return
     }
 
-    const emailBody = [
+    const subject = subjectOverride ?? 'Your app is live — you own everything'
+    const emailBody = bodyOverride ?? [
       `Your project "${projectName}" is live.`,
       ``,
       `Live URL:  ${liveUrl ?? ''}`,
@@ -62,7 +63,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       body: JSON.stringify({
         from: 'Sovereign <noreply@sovereignapp.dev>',
         to: [email],
-        subject: 'Your app is live — you own everything',
+        subject,
         text: emailBody,
       }),
     })
