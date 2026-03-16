@@ -3,26 +3,44 @@
 // POST /api/run-build
 // Body: { id: buildId }
 //
-// Runs the full provisioning sequence for a build that has both
-// github_token and vercel_token stored (status === 'queued').
-// Writes step updates to the builds table throughout so the /building
-// page can display real-time progress via polling.
+// Runs the full provisioning sequence for a build that has status === 'queued'.
+// Writes step updates to the builds table throughout so the /building page
+// can display real-time progress via polling.
 //
-// Steps:
-//   1. GitHub repo creation + template push
-//   2. Vercel project + deployment
-//   3. Welcome email via Resend
+// ── Why this function runs synchronously ──────────────────────────────────────
+// Earlier versions sent a 202 response early and then continued work.
+// Vercel (Lambda) terminates the process as soon as the response is flushed,
+// so code after res.send() is NOT guaranteed to run. The function must stay
+// alive until all provisioning is complete. The /building page fires this
+// fetch and immediately starts polling /api/build-status — it does not wait
+// for the run-build response.
 //
-// Supabase provisioning is intentionally skipped for the web flow
-// (requires a management key the user doesn't have at sign-up time).
+// ── Timeout budget ────────────────────────────────────────────────────────────
+// Hobby plan: 10s hard limit (won't work — use Pro).
+// Pro plan: maxDuration up to 60s.
+// Each external fetch: 10s timeout via AbortController.
+// Overall provisioning: 50s deadline (leaves 10s margin for final DB write).
 //
 // Self-contained: no imports from src/ or server/.
 
-// Increase the Vercel function timeout. Pro/Enterprise supports up to 300s.
-// Hobby plan is limited to 60s — GitHub + Vercel deploy typically fits within that.
-export const maxDuration = 300
+export const maxDuration = 60
 
-// ── Supabase helper ────────────────────────────────────────────────────────
+// ── Fetch with timeout ────────────────────────────────────────────────────────
+
+function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timer))
+}
+
+const NET = 10_000 // 10s per individual network call
+
+// ── Supabase helpers ──────────────────────────────────────────────────────────
 
 interface BuildRecord {
   id: string
@@ -39,8 +57,12 @@ interface BuildRecord {
   error: string | null
 }
 
-async function getBuild(supabaseUrl: string, serviceKey: string, id: string): Promise<BuildRecord | null> {
-  const res = await fetch(
+async function getBuild(
+  supabaseUrl: string,
+  serviceKey: string,
+  id: string,
+): Promise<BuildRecord | null> {
+  const res = await fetchWithTimeout(
     `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(id)}&select=*`,
     {
       headers: {
@@ -49,6 +71,7 @@ async function getBuild(supabaseUrl: string, serviceKey: string, id: string): Pr
         Accept: 'application/json',
       },
     },
+    NET,
   )
   if (!res.ok) return null
   const rows = await res.json() as BuildRecord[]
@@ -61,7 +84,7 @@ async function updateBuild(
   id: string,
   patch: Partial<BuildRecord> & { updated_at?: string },
 ): Promise<void> {
-  await fetch(
+  await fetchWithTimeout(
     `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(id)}`,
     {
       method: 'PATCH',
@@ -72,10 +95,11 @@ async function updateBuild(
       },
       body: JSON.stringify({ ...patch, updated_at: new Date().toISOString() }),
     },
+    NET,
   )
 }
 
-// ── GitHub provisioning (self-contained) ──────────────────────────────────
+// ── GitHub provisioning ───────────────────────────────────────────────────────
 
 function toBase64(str: string): string {
   return btoa(unescape(encodeURIComponent(str)))
@@ -87,16 +111,20 @@ async function ghFetch(
   method = 'GET',
   body?: unknown,
 ): Promise<{ ok: boolean; status: number; data: Record<string, unknown> }> {
-  const res = await fetch(`https://api.github.com${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      'Content-Type': 'application/json',
+  const res = await fetchWithTimeout(
+    `https://api.github.com${path}`,
+    {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': 'application/json',
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
     },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  })
+    NET,
+  )
   const data = await res.json() as Record<string, unknown>
   return { ok: res.ok, status: res.status, data }
 }
@@ -115,10 +143,7 @@ function buildStarterFiles(projectName: string): Record<string, string> {
         build: 'tsc -b && vite build',
         preview: 'vite preview',
       },
-      dependencies: {
-        react: '^19.0.0',
-        'react-dom': '^19.0.0',
-      },
+      dependencies: { react: '^19.0.0', 'react-dom': '^19.0.0' },
       devDependencies: {
         '@types/react': '^19.0.0',
         '@types/react-dom': '^19.0.0',
@@ -133,7 +158,7 @@ function buildStarterFiles(projectName: string): Record<string, string> {
       '<html lang="en">',
       '  <head>',
       '    <meta charset="UTF-8" />',
-      `    <meta name="viewport" content="width=device-width, initial-scale=1.0" />`,
+      '    <meta name="viewport" content="width=device-width, initial-scale=1.0" />',
       `    <title>${projectName}</title>`,
       '  </head>',
       '  <body>',
@@ -147,9 +172,7 @@ function buildStarterFiles(projectName: string): Record<string, string> {
       "import { defineConfig } from 'vite'",
       "import react from '@vitejs/plugin-react'",
       '',
-      'export default defineConfig({',
-      '  plugins: [react()],',
-      '})',
+      'export default defineConfig({ plugins: [react()] })',
     ].join('\n'),
 
     'tsconfig.json': JSON.stringify(
@@ -194,7 +217,7 @@ function buildStarterFiles(projectName: string): Record<string, string> {
       "    <main style={{ fontFamily: 'monospace', padding: '2rem' }}>",
       `      <h1>${projectName}</h1>`,
       '      <p>Your app. Your code. Your infrastructure.</p>',
-      '      <p style={{ color: \'#6b6862\', fontSize: \'0.875rem\' }}>',
+      "      <p style={{ color: '#6b6862', fontSize: '0.875rem' }}>",
       "        Built with{' '}",
       "        <a href=\"https://sovereignapp.dev\" style={{ color: 'inherit' }}>",
       '          Sovereign',
@@ -214,14 +237,14 @@ async function provisionGitHub(
   token: string,
   projectName: string,
 ): Promise<{ ok: true; repoUrl: string; cloneUrl: string } | { ok: false; error: string }> {
-  // Verify token + get user login
+  console.log('[run-build] GitHub: verifying token')
   const { ok: userOk, data: user } = await ghFetch('/user', token)
   if (!userOk) {
     return { ok: false, error: `GitHub auth failed: ${String(user.message ?? 'unknown')}` }
   }
   const owner = user.login as string
+  console.log('[run-build] GitHub: creating repo for', owner)
 
-  // Create repo
   const { ok: repoOk, status: repoStatus, data: repo } = await ghFetch(
     '/user/repos', token, 'POST',
     {
@@ -237,27 +260,36 @@ async function provisionGitHub(
     }
     return { ok: false, error: `Failed to create repo: ${String(repo.message ?? JSON.stringify(repo.errors))}` }
   }
+  console.log('[run-build] GitHub: repo created, pushing files concurrently')
 
-  // Push starter files
+  // Push all starter files concurrently — cuts sequential ~27s down to ~5s
   const files = buildStarterFiles(projectName)
-  for (const [path, content] of Object.entries(files)) {
-    const { ok, data } = await ghFetch(
-      `/repos/${owner}/${projectName}/contents/${path}`,
-      token, 'PUT',
-      {
-        message: path === '.gitignore' ? 'Initial commit' : `Add ${path}`,
-        content: toBase64(content),
-      },
-    )
-    if (!ok) {
-      return { ok: false, error: `Failed to push ${path}: ${String(data.message ?? JSON.stringify(data))}` }
-    }
+  const fileEntries = Object.entries(files)
+  const pushResults = await Promise.all(
+    fileEntries.map(([path, content]) =>
+      ghFetch(
+        `/repos/${owner}/${projectName}/contents/${path}`,
+        token, 'PUT',
+        {
+          message: path === '.gitignore' ? 'Initial commit' : `Add ${path}`,
+          content: toBase64(content),
+        },
+      ),
+    ),
+  )
+
+  const failedIdx = pushResults.findIndex((r) => !r.ok)
+  if (failedIdx !== -1) {
+    const failedPath = fileEntries[failedIdx][0]
+    const failedData = pushResults[failedIdx].data
+    return { ok: false, error: `Failed to push ${failedPath}: ${String(failedData.message ?? JSON.stringify(failedData))}` }
   }
 
+  console.log('[run-build] GitHub: all files pushed')
   return { ok: true, repoUrl: repo.html_url as string, cloneUrl: repo.clone_url as string }
 }
 
-// ── Vercel provisioning (self-contained) ──────────────────────────────────
+// ── Vercel provisioning ───────────────────────────────────────────────────────
 
 async function vercelFetch(
   path: string,
@@ -265,14 +297,18 @@ async function vercelFetch(
   method = 'GET',
   body?: unknown,
 ): Promise<{ ok: boolean; status: number; data: Record<string, unknown> }> {
-  const res = await fetch(`https://api.vercel.com${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+  const res = await fetchWithTimeout(
+    `https://api.vercel.com${path}`,
+    {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
     },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  })
+    NET,
+  )
   const data = await res.json() as Record<string, unknown>
   return { ok: res.ok, status: res.status, data }
 }
@@ -286,7 +322,7 @@ async function provisionVercel(
   if (!match) return { ok: false, error: `Invalid GitHub repo URL: ${githubRepoUrl}` }
   const [, githubOrg, githubRepo] = match
 
-  // Create Vercel project linked to the GitHub repo
+  console.log('[run-build] Vercel: creating project')
   const { ok: projOk, data: project } = await vercelFetch(
     '/v9/projects', token, 'POST',
     {
@@ -304,8 +340,8 @@ async function provisionVercel(
   }
 
   const projectId = project.id as string
+  console.log('[run-build] Vercel: triggering deployment for project', projectId)
 
-  // Trigger production deployment
   const { ok: deployOk, data: deployment } = await vercelFetch(
     '/v13/deployments', token, 'POST',
     {
@@ -320,10 +356,12 @@ async function provisionVercel(
     return { ok: false, error: `Vercel project created but deployment failed: ${String(msg)}` }
   }
 
-  return { ok: true, deployUrl: `https://${String(deployment.url)}` }
+  const deployUrl = `https://${String(deployment.url)}`
+  console.log('[run-build] Vercel: deployment triggered at', deployUrl)
+  return { ok: true, deployUrl }
 }
 
-// ── Email (self-contained) ─────────────────────────────────────────────────
+// ── Email ─────────────────────────────────────────────────────────────────────
 
 async function sendLaunchEmail(
   resendKey: string,
@@ -333,22 +371,25 @@ async function sendLaunchEmail(
   repoUrl: string,
 ): Promise<void> {
   try {
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${resendKey}`,
-        'Content-Type': 'application/json',
+    await fetchWithTimeout(
+      'https://api.resend.com/emails',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${resendKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'Sovereign <noreply@sovereignapp.dev>',
+          to: [email],
+          subject: 'Your app is live — you own everything',
+          html: buildLaunchEmailHtml(appName, liveUrl, repoUrl),
+        }),
       },
-      body: JSON.stringify({
-        from: 'Sovereign <noreply@sovereignapp.dev>',
-        to: [email],
-        subject: 'Your app is live — you own everything',
-        html: buildLaunchEmailHtml(appName, liveUrl, repoUrl),
-      }),
-    })
+      NET,
+    )
   } catch (err) {
-    // Email failure is non-fatal — log and continue
-    console.warn('[run-build] email send failed:', err)
+    console.warn('[run-build] email send failed (non-fatal):', err)
   }
 }
 
@@ -399,7 +440,9 @@ function buildLaunchEmailHtml(appName: string, liveUrl: string, repoUrl: string)
 </html>`
 }
 
-// ── Handler ────────────────────────────────────────────────────────────────
+// ── Handler ───────────────────────────────────────────────────────────────────
+
+const PROVISION_TIMEOUT_MS = 50_000 // 50s — leaves 10s margin within the 60s maxDuration
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function handler(req: any, res: any): Promise<void> {
@@ -432,15 +475,16 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
-    // ── Fetch build record ─────────────────────────────────────────────────
+    console.log('[run-build] fetching build', buildId)
     const build = await getBuild(supabaseUrl, serviceKey, buildId)
     if (!build) {
       res.status(404).json({ error: 'Build not found' })
       return
     }
 
-    // Idempotency guard: only run if queued (prevents double-trigger from StrictMode)
+    // Idempotency guard — prevents double-trigger from React StrictMode
     if (build.status !== 'queued') {
+      console.log('[run-build] skipping — status is', build.status)
       res.status(200).json({ ok: true, skipped: true, status: build.status })
       return
     }
@@ -450,73 +494,87 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
-    // Respond immediately so the browser doesn't wait on the long-running work.
-    // The build continues after the response is sent.
-    res.status(202).json({ ok: true, buildId })
+    // ── Run provisioning synchronously ──────────────────────────────────────
+    // The function MUST stay alive until work is complete.
+    // Sending a response early would cause Vercel/Lambda to kill the process.
+    // The /building page fires this fetch and immediately starts polling
+    // /api/build-status — it does not wait for this response.
+    const step = (s: string) => {
+      console.log('[run-build] step:', s)
+      return updateBuild(supabaseUrl, serviceKey, buildId, { status: 'building', step: s })
+    }
 
-    // ── Run provisioning (after response flushed) ──────────────────────────
     try {
-      const step = (s: string) =>
-        updateBuild(supabaseUrl, serviceKey, buildId, { status: 'building', step: s })
+      await Promise.race([
+        // ── Provisioning work ──────────────────────────────────────────────
+        (async () => {
+          await step('Reading your idea…')
 
-      await step('Reading your idea…')
+          // Step 1 — GitHub
+          await step('Creating your GitHub repo…')
+          const ghResult = await provisionGitHub(build.github_token, build.app_name)
+          if (!ghResult.ok) {
+            const ghError = ghResult.error
+            await updateBuild(supabaseUrl, serviceKey, buildId, {
+              status: 'failed', step: 'GitHub failed', error: ghError,
+            })
+            return
+          }
+          await updateBuild(supabaseUrl, serviceKey, buildId, {
+            status: 'building',
+            step: `Repo created at ${ghResult.repoUrl}`,
+            repo_url: ghResult.repoUrl,
+          })
 
-      // Step 1 — GitHub
-      await step('Creating your GitHub repo…')
-      const ghResult = await provisionGitHub(build.github_token, build.app_name)
-      if (!ghResult.ok) {
-        const ghError = ghResult.error
-        await updateBuild(supabaseUrl, serviceKey, buildId, {
-          status: 'failed', step: 'GitHub failed', error: ghError,
-        })
-        return
-      }
-      await updateBuild(supabaseUrl, serviceKey, buildId, {
-        status: 'building',
-        step: `Repo created at ${ghResult.repoUrl}`,
-        repo_url: ghResult.repoUrl,
-      })
+          // Step 2 — Vercel
+          await step('Deploying to Vercel…')
+          const vcResult = await provisionVercel(build.vercel_token, build.app_name, ghResult.repoUrl)
+          if (!vcResult.ok) {
+            const vcError = vcResult.error
+            await updateBuild(supabaseUrl, serviceKey, buildId, {
+              status: 'failed', step: 'Vercel deploy failed', error: vcError,
+            })
+            return
+          }
+          await updateBuild(supabaseUrl, serviceKey, buildId, {
+            status: 'building',
+            step: `Live at ${vcResult.deployUrl}`,
+            deploy_url: vcResult.deployUrl,
+          })
 
-      // Step 2 — Vercel
-      await step('Deploying to Vercel…')
-      const vcResult = await provisionVercel(build.vercel_token, build.app_name, ghResult.repoUrl)
-      if (!vcResult.ok) {
-        const vcError = vcResult.error
-        await updateBuild(supabaseUrl, serviceKey, buildId, {
-          status: 'failed', step: 'Vercel deploy failed', error: vcError,
-        })
-        return
-      }
-      await updateBuild(supabaseUrl, serviceKey, buildId, {
-        status: 'building',
-        step: `Live at ${vcResult.deployUrl}`,
-        deploy_url: vcResult.deployUrl,
-      })
+          // Step 3 — Email (non-fatal)
+          await step('Sending your live URL…')
+          if (resendKey) {
+            await sendLaunchEmail(resendKey, build.email, build.app_name, vcResult.deployUrl, ghResult.repoUrl)
+          }
 
-      // Step 3 — Email
-      await step('Sending your live URL…')
-      if (resendKey) {
-        await sendLaunchEmail(resendKey, build.email, build.app_name, vcResult.deployUrl, ghResult.repoUrl)
-      }
+          await updateBuild(supabaseUrl, serviceKey, buildId, { status: 'done', step: 'done' })
+          console.log('[run-build] done')
+        })(),
 
-      // Done
-      await updateBuild(supabaseUrl, serviceKey, buildId, {
-        status: 'done',
-        step: 'done',
-      })
-    } catch (buildErr) {
-      console.error('[run-build] provisioning error:', buildErr)
+        // ── Hard deadline ──────────────────────────────────────────────────
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`Provisioning timed out after ${PROVISION_TIMEOUT_MS / 1000}s`)),
+            PROVISION_TIMEOUT_MS,
+          ),
+        ),
+      ])
+    } catch (provisionErr) {
+      console.error('[run-build] provisioning error:', provisionErr)
       await updateBuild(supabaseUrl, serviceKey, buildId, {
         status: 'failed',
-        step: 'Unexpected error',
-        error: buildErr instanceof Error ? buildErr.message : String(buildErr),
-      }).catch(() => {/* ignore secondary error */})
+        step: 'Build failed',
+        error: provisionErr instanceof Error ? provisionErr.message : String(provisionErr),
+      }).catch(() => {/* ignore secondary write error */})
     }
+
+    // Respond after work is complete (or after error is written to DB)
+    res.status(200).json({ ok: true, buildId })
   } catch (err) {
     console.error('[run-build] unhandled exception:', err)
-    // res may already be sent; only write if headers not sent
     try {
       res.status(500).json({ error: err instanceof Error ? err.message : String(err) })
-    } catch {/* already responded */}
+    } catch {/* headers already sent */}
   }
 }
