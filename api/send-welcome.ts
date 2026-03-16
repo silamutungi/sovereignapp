@@ -3,12 +3,11 @@
 // POST /api/send-welcome
 // Body: { email, projectName, liveUrl, repoUrl }
 // Returns: { ok: true } | { error: string }
-
-import { sendWelcome } from '../server/send-welcome.js'
+//
+// Self-contained: no imports from src/ or server/.
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function handler(req: any, res: any): Promise<void> {
-  // DEBUG: confirm env var is present at runtime (first 4 chars only)
   const keyHint = process.env.RESEND_API_KEY
     ? `set (${process.env.RESEND_API_KEY.slice(0, 4)}…)`
     : 'NOT SET'
@@ -17,6 +16,12 @@ export default async function handler(req: any, res: any): Promise<void> {
   try {
     if (req.method !== 'POST') {
       res.status(405).json({ error: 'Method not allowed' })
+      return
+    }
+
+    const resendKey = process.env.RESEND_API_KEY
+    if (!resendKey) {
+      res.status(500).json({ error: 'RESEND_API_KEY is not set' })
       return
     }
 
@@ -36,16 +41,37 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
-    const result = await sendWelcome({
-      email,
-      projectName,
-      liveUrl: liveUrl ?? '',
-      repoUrl: repoUrl ?? '',
+    const emailBody = [
+      `Your project "${projectName}" is live.`,
+      ``,
+      `Live URL:  ${liveUrl ?? ''}`,
+      `GitHub:    ${repoUrl ?? ''}`,
+      ``,
+      `Sovereign has stepped back. This is yours now.`,
+      ``,
+      `— The Sovereign team`,
+      `sovereignapp.dev`,
+    ].join('\n')
+
+    const resendRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${resendKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Sovereign <noreply@sovereignapp.dev>',
+        to: [email],
+        subject: 'Your app is live — you own everything',
+        text: emailBody,
+      }),
     })
 
-    if (!result.success) {
-      console.error('[send-welcome] sendWelcome failed:', result.error)
-      res.status(500).json({ error: result.error })
+    if (!resendRes.ok) {
+      const err = await resendRes.json() as Record<string, unknown>
+      const msg = String(err.message ?? `Resend error ${resendRes.status}`)
+      console.error('[send-welcome] Resend error:', resendRes.status, msg, JSON.stringify(err))
+      res.status(500).json({ error: msg })
       return
     }
 
