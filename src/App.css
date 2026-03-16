@@ -529,6 +529,158 @@
   animation: fadeIn 300ms ease both;
 }
 
+/* ── Generate Flow ───────────────────────────────────────────────────────── */
+.gen-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 48px 20px;
+  animation: fadeIn 300ms ease both;
+}
+
+.gen-loading p {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-mid);
+}
+
+.gen-spinner {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--rule);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.gen-result {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: riseIn 0.4s var(--ease-out) both;
+}
+
+.gen-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.gen-swatch {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.gen-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.gen-appname {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--ink);
+  line-height: 1.1;
+}
+
+.gen-tagline {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-mid);
+  line-height: 1.5;
+}
+
+.gen-preview-wrap {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  height: 360px;
+}
+
+.gen-preview {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+.gen-live-msg {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  letter-spacing: 0.03em;
+}
+
+.gen-email-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--rule);
+  padding-top: 16px;
+}
+
+.gen-email-lbl {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-mid);
+}
+
+.gen-connect {
+  border-top: 1px solid var(--rule);
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: riseIn 0.3s var(--ease-out) both;
+}
+
+.gen-connect-lbl {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-mid);
+  text-align: center;
+}
+
+.gen-connect-btns {
+  display: flex;
+  gap: 10px;
+}
+
+.gen-oauth-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  min-height: 44px;
+  text-decoration: none;
+  transition: background var(--duration-fast), opacity var(--duration-fast);
+}
+
+.gen-oauth-btn:hover {
+  background: var(--paper2);
+  opacity: 0.9;
+}
+
 /* ── Stats ───────────────────────────────────────────────────────────────── */
 .stats {
   display: grid;

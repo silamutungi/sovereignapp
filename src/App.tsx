@@ -186,63 +186,78 @@ const PLACEHOLDERS = [
   'A todo app with team collaboration…',
 ]
 
-const BUILD_STEPS_KEYS = ['build.step1', 'build.step2', 'build.step3', 'build.step4', 'build.step5']
+interface AppSpec {
+  appName: string
+  tagline: string
+  primaryColor: string
+  appType: 'landing-page' | 'saas' | 'waitlist'
+  template: string
+}
 
 function NdevPanel({ locale }: { locale: Locale }) {
   const [value, setValue] = useState('')
   const [phIdx, setPhIdx] = useState(0)
-  const [building, setBuilding] = useState(false)
-  const [stepIdx, setStepIdx] = useState(0)
-  // 'idle' | 'building' | 'email' | 'success'
-  const [stage, setStage] = useState<'idle' | 'building' | 'email' | 'success'>('idle')
+  const [stage, setStage] = useState<'idle' | 'generating' | 'result' | 'connect'>('idle')
+  const [spec, setSpec] = useState<AppSpec | null>(null)
+  const [generateError, setGenerateError] = useState<string | null>(null)
   const [email, setEmail] = useState('')
   const [emailError, setEmailError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
 
-  // Rotate placeholder
   useEffect(() => {
     if (value) return
     const id = setInterval(() => setPhIdx((i) => (i + 1) % PLACEHOLDERS.length), 3500)
     return () => clearInterval(id)
   }, [value])
 
-  const handleBuild = useCallback(() => {
-    if (building || stage !== 'idle') return
-    setBuilding(true)
-    setStage('building')
-    setStepIdx(0)
-    let idx = 0
-    const advance = () => {
-      idx++
-      if (idx < BUILD_STEPS_KEYS.length) {
-        setStepIdx(idx)
-        setTimeout(advance, 650)
-      } else {
-        setBuilding(false)
-        setStage('email')
+  const handleBuild = useCallback(async () => {
+    if (stage !== 'idle') return
+    setGenerateError(null)
+    setStage('generating')
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idea: value.trim() }),
+      })
+      const data = await res.json() as AppSpec & { error?: string }
+      if (!res.ok || data.error) {
+        setGenerateError(data.error ?? 'Something went wrong. Please try again.')
+        setStage('idle')
+        return
       }
+      setSpec(data)
+      setStage('result')
+    } catch {
+      setGenerateError('Network error. Please try again.')
+      setStage('idle')
     }
-    setTimeout(advance, 650)
-  }, [building, stage])
+  }, [stage, value])
 
-  const handleEmailSubmit = useCallback(async (e: React.FormEvent) => {
+  const handleEmailSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault()
     if (!email.includes('@')) {
       setEmailError('Please enter a real email address.')
       return
     }
     setEmailError(null)
-    setSubmitting(true)
-    const { error } = await joinWaitlist(email, value || 'ndev')
-    setSubmitting(false)
-    if (error) {
-      setEmailError(error)
-    } else {
-      setStage('success')
-    }
-  }, [email, value])
+    // Fire-and-forget — don't block the connect screen on email delivery
+    void fetch('/api/send-welcome', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        projectName: spec?.appName ?? '',
+        liveUrl: 'https://sovereignapp.dev',
+        repoUrl: 'https://github.com/silamutungi/sovereignapp',
+      }),
+    })
+    setStage('connect')
+  }, [email, spec])
 
   const CHIPS = ['chip.1', 'chip.2', 'chip.3', 'chip.4']
+
+  const githubUrl = `https://github.com/login/oauth/authorize?client_id=${import.meta.env.VITE_GITHUB_CLIENT_ID}&scope=repo`
+  const vercelUrl = `https://vercel.com/oauth/authorize?client_id=${import.meta.env.VITE_VERCEL_CLIENT_ID}`
 
   return (
     <section className="ndev-panel" aria-label="No-code path">
@@ -250,7 +265,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
       <p className="ndev-sub">{t(locale, 'ndev.sub')}</p>
 
       <div className="pbox">
-        {stage === 'idle' || stage === 'building' ? (
+        {stage === 'idle' && (
           <>
             <div className="chips">
               {CHIPS.map((k) => (
@@ -259,7 +274,6 @@ function NdevPanel({ locale }: { locale: Locale }) {
                 </button>
               ))}
             </div>
-
             <textarea
               className="ndev-ta"
               value={value}
@@ -268,53 +282,114 @@ function NdevPanel({ locale }: { locale: Locale }) {
               rows={4}
               aria-label={t(locale, 'ndev.h')}
             />
-
             <div className="ai-badge" aria-hidden="true">
               <span className="aidot" />
               {t(locale, 'ndev.badge')}
             </div>
-
-            {stage === 'building' && (
-              <p className="build-status" aria-live="polite" aria-atomic="true">
-                {t(locale, BUILD_STEPS_KEYS[stepIdx])}
-              </p>
+            {generateError && (
+              <p className="ndev-email-err" role="alert">{generateError}</p>
             )}
-
             <button
               className="gobtn"
-              onClick={handleBuild}
-              disabled={building}
+              onClick={() => { void handleBuild() }}
+              disabled={!value.trim()}
               aria-label={t(locale, 'ndev.btn')}
             >
-              {building ? '…' : t(locale, 'ndev.btn')}
+              {t(locale, 'ndev.btn')}
             </button>
           </>
-        ) : stage === 'email' ? (
-          <div className="ndev-email-capture" role="region" aria-label="Email capture">
-            <p className="ndev-email-h">We'll build this with you.</p>
-            <p className="ndev-email-sub">Enter your email. You'll be first to know when it's ready.</p>
-            <form onSubmit={handleEmailSubmit} noValidate>
-              <input
-                type="email"
-                className="ndev-email-input"
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                required
-                aria-label="Your email address"
-              />
-              {emailError && (
-                <p className="ndev-email-err" role="alert">{emailError}</p>
-              )}
-              <button type="submit" className="ndev-email-btn" disabled={submitting}>
-                {submitting ? '…' : "I'm in →"}
-              </button>
-            </form>
+        )}
+
+        {stage === 'generating' && (
+          <div className="gen-loading" role="status" aria-live="polite">
+            <span className="gen-spinner" aria-hidden="true" />
+            <p>Generating your app…</p>
           </div>
-        ) : (
-          <div className="ndev-success" role="status" aria-live="polite">
-            ✓ You're on the list. We'll be in touch soon.
+        )}
+
+        {(stage === 'result' || stage === 'connect') && spec && (
+          <div className="gen-result">
+            <div className="gen-header">
+              <div
+                className="gen-swatch"
+                style={{ background: spec.primaryColor }}
+                aria-label={`Brand color: ${spec.primaryColor}`}
+              />
+              <div className="gen-identity">
+                <p className="gen-appname">{spec.appName}</p>
+                <p className="gen-tagline">{spec.tagline}</p>
+              </div>
+            </div>
+
+            <div className="gen-preview-wrap" style={{ borderColor: spec.primaryColor + '55' }}>
+              <iframe
+                className="gen-preview"
+                srcDoc={spec.template}
+                title={`Preview of ${spec.appName}`}
+                sandbox="allow-same-origin"
+              />
+            </div>
+
+            <p className="gen-live-msg" style={{ color: spec.primaryColor }}>
+              ✦ This is your app — let's make it live
+            </p>
+
+            {stage === 'result' && (
+              <form className="gen-email-form" onSubmit={handleEmailSubmit} noValidate>
+                <label htmlFor="gen-email" className="gen-email-lbl">
+                  Where should we send your live URL?
+                </label>
+                <input
+                  id="gen-email"
+                  type="email"
+                  className="ndev-email-input"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  required
+                  aria-label="Your email address"
+                />
+                {emailError && (
+                  <p className="ndev-email-err" role="alert">{emailError}</p>
+                )}
+                <button
+                  type="submit"
+                  className="gobtn"
+                  style={{ background: spec.primaryColor }}
+                >
+                  Continue →
+                </button>
+              </form>
+            )}
+
+            {stage === 'connect' && (
+              <div className="gen-connect">
+                <p className="gen-connect-lbl">Connect your accounts to deploy in 60 seconds</p>
+                <div className="gen-connect-btns">
+                  <a
+                    href={githubUrl}
+                    className="gen-oauth-btn"
+                    style={{ borderColor: spec.primaryColor + '66' }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+                    </svg>
+                    Connect GitHub
+                  </a>
+                  <a
+                    href={vercelUrl}
+                    className="gen-oauth-btn"
+                    style={{ borderColor: spec.primaryColor + '66' }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M12 1L24 22H0L12 1z"/>
+                    </svg>
+                    Connect Vercel
+                  </a>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
