@@ -1,12 +1,22 @@
 @import './tokens.css';
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
+
+/* Prevent horizontal overflow on all screen sizes */
+html {
+  overflow-x: hidden;
+  /* Prevent iOS bounce/wobble when keyboard opens */
+  height: -webkit-fill-available;
+  /* Remove smooth scroll — causes layout jump when keyboard opens on mobile */
+}
 body {
   font-family: var(--font-mono);
   background: var(--paper);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
 }
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0;
