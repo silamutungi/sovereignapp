@@ -500,6 +500,9 @@
   font-size: 11px;
   color: var(--red-text);
   margin-bottom: 8px;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .ndev-email-btn {
@@ -1004,6 +1007,9 @@
   font-size: 11px;
   color: var(--red);
   margin-bottom: 10px;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .wlbtn {
@@ -1085,6 +1091,15 @@
 .flink:hover { color: var(--ink); }
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
+
+/* 600px — nav collapses to logo + CTA only */
+@media (max-width: 600px) {
+  .nav { padding: 12px 16px; }
+  .nav-link:not(.nav-cta) { display: none; }
+  .lang-bar { padding: 7px 16px; }
+}
+
+/* 768px — major layout shifts */
 @media (max-width: 768px) {
   .hero-h { font-size: 38px; }
   .toggle-lbl { display: none; }
@@ -1093,11 +1108,30 @@
   .stat:nth-child(2) { border-right: none; }
   .plans { grid-template-columns: 1fr; }
   .footer { flex-direction: column; text-align: center; }
+  /* Headings */
+  .wlh { font-size: 34px; }
+  .pricing-h { font-size: 32px; }
+  /* Generate flow */
+  .gen-preview-wrap { height: 280px; }
+  .gen-connect-btns { flex-direction: column; }
 }
 
+/* 480px — tight mobile, reduce all horizontal padding to 16px */
 @media (max-width: 480px) {
+  .hero { padding: 56px 16px 48px; }
   .hero-h { font-size: 30px; }
+  .dev-panel { padding: 40px 16px; }
+  .ndev-panel { padding: 40px 16px; }
+  .pricing { padding: 48px 16px; }
+  .wl { padding: 60px 16px; }
+  .footer { padding: 20px 16px; }
+  /* Stats: single column */
   .stats { grid-template-columns: 1fr; }
-  .stat { border-right: none; border-bottom: 1px solid var(--rule); }
+  .stat { border-right: none; border-bottom: 1px solid var(--rule); padding: 28px 16px; }
   .stat:last-child { border-bottom: none; }
+  /* Headings */
+  .wlh { font-size: 28px; }
+  .pricing-h { font-size: 26px; }
+  /* Generate flow */
+  .gen-preview-wrap { height: 220px; }
 }
