@@ -494,6 +494,19 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
+    // ── Derive a unique repo name ────────────────────────────────────────────
+    // Append the first 6 chars of the buildId (UUID without hyphens) to make
+    // the GitHub repo name unique per build attempt. This prevents "reference
+    // already exists" errors when a previous failed attempt left a repo with
+    // the same name. The app_name is also slugified for GitHub compatibility.
+    const nameSlug = build.app_name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+    const buildSuffix = buildId.replace(/-/g, '').slice(0, 6)
+    const repoName = `${nameSlug}-${buildSuffix}`
+    console.log('[run-build] repo name:', repoName)
+
     // ── Run provisioning synchronously ──────────────────────────────────────
     // The function MUST stay alive until work is complete.
     // Sending a response early would cause Vercel/Lambda to kill the process.
@@ -512,7 +525,7 @@ export default async function handler(req: any, res: any): Promise<void> {
 
           // Step 1 — GitHub
           await step('Creating your GitHub repo…')
-          const ghResult = await provisionGitHub(build.github_token, build.app_name)
+          const ghResult = await provisionGitHub(build.github_token, repoName)
           if (!ghResult.ok) {
             const ghError = ghResult.error
             await updateBuild(supabaseUrl, serviceKey, buildId, {
@@ -528,7 +541,7 @@ export default async function handler(req: any, res: any): Promise<void> {
 
           // Step 2 — Vercel
           await step('Deploying to Vercel…')
-          const vcResult = await provisionVercel(build.vercel_token, build.app_name, ghResult.repoUrl)
+          const vcResult = await provisionVercel(build.vercel_token, repoName, ghResult.repoUrl)
           if (!vcResult.ok) {
             const vcError = vcResult.error
             await updateBuild(supabaseUrl, serviceKey, buildId, {
