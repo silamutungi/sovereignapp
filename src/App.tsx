@@ -204,6 +204,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
   const [emailError, setEmailError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
+  const [rateLimited, setRateLimited] = useState(false)
 
   useEffect(() => {
     if (value) return
@@ -219,9 +220,17 @@ function NdevPanel({ locale }: { locale: Locale }) {
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idea: value.trim() }),
+        // Pass email when available so the daily rate limit can be enforced.
+        body: JSON.stringify({ idea: value.trim(), ...(email ? { email } : {}) }),
       })
       const data = await res.json() as AppSpec & { error?: string }
+      if (res.status === 429) {
+        setGenerateError(data.error === 'too_many_requests'
+          ? (data as unknown as { message: string }).message
+          : 'Too many requests. Try again later.')
+        setStage('idle')
+        return
+      }
       if (!res.ok || data.error) {
         setGenerateError(data.error ?? 'Something went wrong. Please try again.')
         setStage('idle')
@@ -233,7 +242,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
       setGenerateError('Network error. Please try again.')
       setStage('idle')
     }
-  }, [stage, value])
+  }, [stage, value, email])
 
   const handleEmailSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault()
@@ -278,7 +287,12 @@ function NdevPanel({ locale }: { locale: Locale }) {
           template: 'react-vite-ts',
         }),
       })
-      const data = await res.json() as { buildId?: string; error?: string }
+      const data = await res.json() as { buildId?: string; error?: string; message?: string }
+      if (data.error === 'rate_limited') {
+        setRateLimited(true)
+        setStarting(false)
+        return
+      }
       if (!data.buildId) {
         setStartError(data.error ?? 'Could not start build. Please try again.')
         setStarting(false)
@@ -402,7 +416,26 @@ function NdevPanel({ locale }: { locale: Locale }) {
               </form>
             )}
 
-            {stage === 'connect' && (
+            {stage === 'connect' && rateLimited && (
+              <div className="gen-connect" role="alert">
+                <p className="gen-connect-lbl" style={{ color: 'var(--ink)', fontWeight: 500 }}>
+                  You've used your 3 free builds. Upgrade to Pro to keep building.
+                </p>
+                <a
+                  href="/#pricing"
+                  className="gobtn"
+                  style={{ display: 'block', textAlign: 'center', textDecoration: 'none', background: 'var(--green)', color: 'var(--ink)', marginTop: '12px' }}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })
+                  }}
+                >
+                  Upgrade to Pro →
+                </a>
+              </div>
+            )}
+
+            {stage === 'connect' && !rateLimited && (
               <div className="gen-connect">
                 <p className="gen-connect-lbl">Connect your accounts to deploy in 60 seconds</p>
                 {startError && (
@@ -498,6 +531,7 @@ function Pricing({ locale }: { locale: Locale }) {
 
   return (
     <section
+      id="pricing"
       ref={ref as React.RefObject<HTMLElement>}
       className={`pricing reveal${inView ? ' in' : ''}`}
       aria-labelledby="pricing-heading"

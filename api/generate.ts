@@ -38,9 +38,11 @@ export default async function handler(req: any, res: any): Promise<void> {
   }
 
   let idea: string
+  let email: string
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
-    idea = (body?.idea as string | undefined)?.trim() ?? ''
+    idea  = (body?.idea  as string | undefined)?.trim() ?? ''
+    email = (body?.email as string | undefined)?.trim() ?? ''
   } catch {
     res.status(400).json({ error: 'Invalid JSON body' })
     return
@@ -49,6 +51,41 @@ export default async function handler(req: any, res: any): Promise<void> {
   if (!idea) {
     res.status(400).json({ error: '`idea` is required' })
     return
+  }
+
+  // ── Rate limit: max 10 generate calls per email per 24 hours ──────────────
+  // Only enforced when the caller supplies an email address.
+  if (email) {
+    const supabaseUrl = process.env.SUPABASE_URL
+    const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (supabaseUrl && serviceKey) {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+      const countRes = await fetch(
+        `${supabaseUrl}/rest/v1/builds` +
+          `?email=eq.${encodeURIComponent(email)}` +
+          `&created_at=gt.${encodeURIComponent(since)}` +
+          `&select=id`,
+        {
+          headers: {
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+            Prefer: 'count=exact',
+            Range: '0-0',
+          },
+        },
+      )
+      const contentRange = countRes.headers.get('content-range') ?? ''
+      const countMatch = contentRange.match(/\/(\d+)$/)
+      const todayCount = countMatch ? parseInt(countMatch[1], 10) : 0
+
+      if (todayCount >= 10) {
+        res.status(429).json({
+          error: 'too_many_requests',
+          message: 'Too many requests today. Try again tomorrow.',
+        })
+        return
+      }
+    }
   }
 
   try {

@@ -59,6 +59,33 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
+    // ── Rate limit: max 3 completed builds per email ───────────────────────
+    // Note: completed builds have status = 'done' in this codebase.
+    const countRes = await fetch(
+      `${supabaseUrl}/rest/v1/builds?email=eq.${encodeURIComponent(email)}&status=eq.done&select=id`,
+      {
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          Prefer: 'count=exact',
+          Range: '0-0',
+        },
+      },
+    )
+    // Content-Range: 0-0/N  (or */N when range exceeds results)
+    const contentRange = countRes.headers.get('content-range') ?? ''
+    const countMatch = contentRange.match(/\/(\d+)$/)
+    const completedBuilds = countMatch ? parseInt(countMatch[1], 10) : 0
+
+    if (completedBuilds >= 3) {
+      res.status(429).json({
+        error: 'rate_limited',
+        message: 'You have used all 3 free builds. Upgrade to Pro for unlimited builds.',
+        upgradeUrl: 'https://sovereignapp.dev/#pricing',
+      })
+      return
+    }
+
     const insertRes = await fetch(`${supabaseUrl}/rest/v1/builds`, {
       method: 'POST',
       headers: {
