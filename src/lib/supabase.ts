@@ -12,6 +12,13 @@ export const supabase = createClient(
   supabaseKey ?? 'placeholder'
 )
 
+// Required Supabase RLS policy — run once in the SQL editor:
+//
+//   CREATE POLICY "Allow anonymous inserts" ON waitlist
+//   FOR INSERT TO anon
+//   WITH CHECK (true);
+//
+// Without this, anon-key inserts fail with "row-level security policy" error.
 export async function joinWaitlist(email: string, source = 'landing'): Promise<{ error: string | null }> {
   const { error } = await supabase.from('waitlist').insert([{ email, source }])
   if (error) {
