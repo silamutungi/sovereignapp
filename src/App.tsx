@@ -430,6 +430,16 @@ function Stats({ locale }: { locale: Locale }) {
 function Pricing({ locale }: { locale: Locale }) {
   const { ref, inView } = useInView()
 
+  const scrollToWaitlist = useCallback(() => {
+    const section = document.querySelector('#waitlist')
+    section?.scrollIntoView({ behavior: 'smooth' })
+    // Focus the email input after scroll completes
+    setTimeout(() => {
+      const input = document.querySelector<HTMLInputElement>('#wl-email')
+      input?.focus()
+    }, 500)
+  }, [])
+
   return (
     <section
       ref={ref as React.RefObject<HTMLElement>}
@@ -456,7 +466,7 @@ function Pricing({ locale }: { locale: Locale }) {
             <li className="off">{t(locale, 'plan.free.f4')}</li>
             <li className="off">{t(locale, 'plan.free.f5')}</li>
           </ul>
-          <button className="pbtn">{t(locale, 'plan.free.btn')}</button>
+          <button className="pbtn" onClick={scrollToWaitlist}>{t(locale, 'plan.free.btn')}</button>
           <p className="pnote">{t(locale, 'plan.free.note')}</p>
         </article>
 
@@ -473,7 +483,7 @@ function Pricing({ locale }: { locale: Locale }) {
             <li>{t(locale, 'plan.pro.f4')}</li>
             <li>{t(locale, 'plan.pro.f5')}</li>
           </ul>
-          <button className="pbtn">{t(locale, 'plan.pro.btn')}</button>
+          <button className="pbtn" onClick={scrollToWaitlist}>{t(locale, 'plan.pro.btn')}</button>
           <p className="pnote">{t(locale, 'plan.pro.note')}</p>
         </article>
 
@@ -488,7 +498,7 @@ function Pricing({ locale }: { locale: Locale }) {
             <li>{t(locale, 'plan.team.f3')}</li>
             <li>{t(locale, 'plan.team.f4')}</li>
           </ul>
-          <button className="pbtn">{t(locale, 'plan.team.btn')}</button>
+          <button className="pbtn" onClick={scrollToWaitlist}>{t(locale, 'plan.team.btn')}</button>
           <p className="pnote">{t(locale, 'plan.team.note')}</p>
         </article>
       </div>
