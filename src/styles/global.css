@@ -2,19 +2,22 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* Prevent horizontal overflow on all screen sizes */
 html {
+  /* max-width + position:relative establishes a clipping root for overflow-x */
+  max-width: 100vw;
   overflow-x: hidden;
-  /* Prevent iOS bounce/wobble when keyboard opens */
-  height: -webkit-fill-available;
-  /* Remove smooth scroll — causes layout jump when keyboard opens on mobile */
+  position: relative;
+  /* NOTE: do NOT add height/-webkit-fill-available here — it triggers an iOS
+     Safari repaint that causes the page-shift-left bug when the keyboard opens */
 }
 body {
   font-family: var(--font-mono);
   background: var(--paper);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
+  max-width: 100vw;
   overflow-x: hidden;
+  position: relative;
   min-height: 100vh;
   min-height: -webkit-fill-available;
 }
