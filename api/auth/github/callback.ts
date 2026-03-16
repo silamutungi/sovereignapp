@@ -36,13 +36,16 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
-    const clientId     = process.env.GITHUB_CLIENT_ID
-    const clientSecret = process.env.GITHUB_CLIENT_SECRET
-    const supabaseUrl  = process.env.SUPABASE_URL
-    const serviceKey   = process.env.SUPABASE_SERVICE_ROLE_KEY
-    const vercelClientId = process.env.VERCEL_CLIENT_ID
+    const clientId           = process.env.GITHUB_CLIENT_ID
+    const clientSecret       = process.env.GITHUB_CLIENT_SECRET
+    const supabaseUrl        = process.env.SUPABASE_URL
+    const serviceKey         = process.env.SUPABASE_SERVICE_ROLE_KEY
+    // VERCEL_INTEGRATION_SLUG is the slug from the Vercel marketplace listing,
+    // e.g. "sovereign-app". Used in the /integrations/<slug>/new authorization
+    // URL. The oac_* client ID is only needed server-side for token exchange.
+    const vercelIntegrationSlug = process.env.VERCEL_INTEGRATION_SLUG
 
-    if (!clientId || !clientSecret || !supabaseUrl || !serviceKey || !vercelClientId) {
+    if (!clientId || !clientSecret || !supabaseUrl || !serviceKey || !vercelIntegrationSlug) {
       res.status(500).send('Server misconfiguration — missing environment variable')
       return
     }
@@ -100,12 +103,14 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
-    // ── 3. Redirect to Vercel OAuth ────────────────────────────────────────
+    // ── 3. Redirect to Vercel integration authorization ───────────────────
+    // Vercel marketplace integrations use /integrations/<slug>/new, NOT
+    // /oauth/authorize?client_id=. The oac_* client ID only appears
+    // server-side during the token exchange in /api/auth/vercel/callback.
     const vercelRedirectUri = `${siteBase()}/api/auth/vercel/callback`
     const vercelOAuthUrl =
-      `https://vercel.com/oauth/authorize` +
-      `?client_id=${encodeURIComponent(vercelClientId)}` +
-      `&redirect_uri=${encodeURIComponent(vercelRedirectUri)}` +
+      `https://vercel.com/integrations/${encodeURIComponent(vercelIntegrationSlug)}/new` +
+      `?redirect_uri=${encodeURIComponent(vercelRedirectUri)}` +
       `&state=${encodeURIComponent(buildId)}`
 
     res.writeHead(302, { Location: vercelOAuthUrl })
