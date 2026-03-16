@@ -10,3 +10,5 @@ dist
 
 # misc
 .DS_Store
+.env.test
+.env.*.local
