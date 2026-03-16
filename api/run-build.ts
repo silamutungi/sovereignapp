@@ -465,8 +465,9 @@ export default async function handler(req: any, res: any): Promise<void> {
       await step('Creating your GitHub repo…')
       const ghResult = await provisionGitHub(build.github_token, build.app_name)
       if (!ghResult.ok) {
+        const ghError = ghResult.error
         await updateBuild(supabaseUrl, serviceKey, buildId, {
-          status: 'failed', step: 'GitHub failed', error: ghResult.error,
+          status: 'failed', step: 'GitHub failed', error: ghError,
         })
         return
       }
@@ -480,8 +481,9 @@ export default async function handler(req: any, res: any): Promise<void> {
       await step('Deploying to Vercel…')
       const vcResult = await provisionVercel(build.vercel_token, build.app_name, ghResult.repoUrl)
       if (!vcResult.ok) {
+        const vcError = vcResult.error
         await updateBuild(supabaseUrl, serviceKey, buildId, {
-          status: 'failed', step: 'Vercel deploy failed', error: vcResult.error,
+          status: 'failed', step: 'Vercel deploy failed', error: vcError,
         })
         return
       }
