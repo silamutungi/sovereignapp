@@ -236,7 +236,7 @@ function buildStarterFiles(projectName: string): Record<string, string> {
 async function provisionGitHub(
   token: string,
   projectName: string,
-): Promise<{ ok: true; repoUrl: string; cloneUrl: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; repoUrl: string; cloneUrl: string; owner: string } | { ok: false; error: string }> {
   console.log('[run-build] GitHub: verifying token')
   const { ok: userOk, data: user } = await ghFetch('/user', token)
   if (!userOk) {
@@ -260,33 +260,77 @@ async function provisionGitHub(
     }
     return { ok: false, error: `Failed to create repo: ${String(repo.message ?? JSON.stringify(repo.errors))}` }
   }
-  console.log('[run-build] GitHub: repo created, pushing files concurrently')
+  console.log('[run-build] GitHub: repo created, building tree')
 
-  // Push all starter files concurrently — cuts sequential ~27s down to ~5s
+  // ── Use Git Trees API for a single atomic commit ─────────────────────────
+  // The Contents API (PUT /contents/:path) creates one commit per file.
+  // When pushed concurrently on an empty repo, every request races to be the
+  // first commit; all but one fail with "reference already exists".
+  // Solution: create all blobs in parallel, then a single tree + commit + ref.
+
   const files = buildStarterFiles(projectName)
-  const fileEntries = Object.entries(files)
-  const pushResults = await Promise.all(
-    fileEntries.map(([path, content]) =>
-      ghFetch(
-        `/repos/${owner}/${projectName}/contents/${path}`,
-        token, 'PUT',
-        {
-          message: path === '.gitignore' ? 'Initial commit' : `Add ${path}`,
-          content: toBase64(content),
-        },
-      ),
-    ),
+  const blobResults = await Promise.all(
+    Object.entries(files).map(async ([path, content]) => {
+      const { ok, data } = await ghFetch(
+        `/repos/${owner}/${projectName}/git/blobs`,
+        token, 'POST',
+        { content: toBase64(content), encoding: 'base64' },
+      )
+      if (!ok) throw new Error(`Failed to create blob for ${path}: ${String(data.message ?? JSON.stringify(data))}`)
+      return { path, sha: data.sha as string }
+    }),
   )
 
-  const failedIdx = pushResults.findIndex((r) => !r.ok)
-  if (failedIdx !== -1) {
-    const failedPath = fileEntries[failedIdx][0]
-    const failedData = pushResults[failedIdx].data
-    return { ok: false, error: `Failed to push ${failedPath}: ${String(failedData.message ?? JSON.stringify(failedData))}` }
+  const { ok: treeOk, data: tree } = await ghFetch(
+    `/repos/${owner}/${projectName}/git/trees`,
+    token, 'POST',
+    {
+      tree: blobResults.map(({ path, sha }) => ({
+        path,
+        mode: '100644',
+        type: 'blob',
+        sha,
+      })),
+    },
+  )
+  if (!treeOk) {
+    return { ok: false, error: `Failed to create git tree: ${String(tree.message ?? JSON.stringify(tree))}` }
   }
 
-  console.log('[run-build] GitHub: all files pushed')
-  return { ok: true, repoUrl: repo.html_url as string, cloneUrl: repo.clone_url as string }
+  const { ok: commitOk, data: commit } = await ghFetch(
+    `/repos/${owner}/${projectName}/git/commits`,
+    token, 'POST',
+    {
+      message: 'Initial commit — built with Sovereign',
+      tree: tree.sha as string,
+      parents: [],
+    },
+  )
+  if (!commitOk) {
+    return { ok: false, error: `Failed to create commit: ${String(commit.message ?? JSON.stringify(commit))}` }
+  }
+
+  const { ok: refOk, data: refData } = await ghFetch(
+    `/repos/${owner}/${projectName}/git/refs`,
+    token, 'POST',
+    { ref: 'refs/heads/main', sha: commit.sha as string },
+  )
+  if (!refOk) {
+    return { ok: false, error: `Failed to create branch ref: ${String(refData.message ?? JSON.stringify(refData))}` }
+  }
+
+  console.log('[run-build] GitHub: initial commit pushed via tree API')
+  return { ok: true, repoUrl: repo.html_url as string, cloneUrl: repo.clone_url as string, owner }
+}
+
+// ── GitHub cleanup ────────────────────────────────────────────────────────────
+
+async function deleteGitHubRepo(token: string, owner: string, repoName: string): Promise<void> {
+  console.log('[run-build] GitHub: deleting repo', `${owner}/${repoName}`)
+  const { ok, status } = await ghFetch(`/repos/${owner}/${repoName}`, token, 'DELETE')
+  if (!ok && status !== 404) {
+    console.warn('[run-build] GitHub: repo delete failed (non-fatal), status', status)
+  }
 }
 
 // ── Vercel provisioning ───────────────────────────────────────────────────────
@@ -544,6 +588,8 @@ export default async function handler(req: any, res: any): Promise<void> {
           const vcResult = await provisionVercel(build.vercel_token, repoName, ghResult.repoUrl)
           if (!vcResult.ok) {
             const vcError = vcResult.error
+            // Clean up the GitHub repo so the user can retry cleanly
+            await deleteGitHubRepo(build.github_token, ghResult.owner, repoName)
             await updateBuild(supabaseUrl, serviceKey, buildId, {
               status: 'failed', step: 'Vercel deploy failed', error: vcError,
             })
