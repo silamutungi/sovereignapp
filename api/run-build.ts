@@ -335,41 +335,32 @@ async function provisionVercel(
   if (!match) return { ok: false, error: `Invalid GitHub repo URL: ${githubRepoUrl}` }
   const [, githubOrg, githubRepo] = match
 
-  console.log('[run-build] Vercel: creating project')
-  const { ok: projOk, data: project } = await vercelFetch(
-    '/v9/projects', token, 'POST',
+  // Integration OAuth tokens are scoped to the integration and cannot use
+  // /v9/projects (returns "You don't have permission to create the project").
+  // /v1/integrations/deploy is the correct endpoint for integration tokens:
+  // it creates the project AND triggers the first deployment in one call.
+  console.log('[run-build] Vercel: calling /v1/integrations/deploy for', `${githubOrg}/${githubRepo}`)
+  const { ok: deployOk, status: deployStatus, data: deployment } = await vercelFetch(
+    '/v1/integrations/deploy', token, 'POST',
     {
-      name: repoName,
-      framework: 'vite',
       gitRepository: { type: 'github', repo: `${githubOrg}/${githubRepo}` },
-      buildCommand: 'npm run build',
-      outputDirectory: 'dist',
-      installCommand: 'npm install',
-    },
-  )
-  if (!projOk) {
-    const msg = (project.error as Record<string, unknown>)?.message ?? JSON.stringify(project)
-    return { ok: false, error: `Failed to create Vercel project: ${String(msg)}` }
-  }
-
-  const projectId = project.id as string
-  console.log('[run-build] Vercel: triggering deployment for project', projectId)
-
-  const { ok: deployOk, data: deployment } = await vercelFetch(
-    '/v13/deployments', token, 'POST',
-    {
       name: repoName,
-      project: projectId,
-      gitSource: { type: 'github', org: githubOrg, repo: githubRepo, ref: 'main' },
-      target: 'production',
     },
   )
+  console.log('[run-build] Vercel: /v1/integrations/deploy status', deployStatus, 'response:', JSON.stringify(deployment))
+
   if (!deployOk) {
-    const msg = (deployment.error as Record<string, unknown>)?.message ?? JSON.stringify(deployment)
-    return { ok: false, error: `Vercel project created but deployment failed: ${String(msg)}` }
+    const msg = (deployment.error as Record<string, unknown>)?.message
+      ?? (deployment.message as string | undefined)
+      ?? JSON.stringify(deployment)
+    return { ok: false, error: `Vercel deploy failed (${deployStatus}): ${String(msg)}` }
   }
 
-  const deployUrl = `https://${String(deployment.url)}`
+  // Response shape: { id, url, ... } — url is the deployment hostname (no protocol)
+  const rawUrl = (deployment.url ?? deployment.deploymentUrl) as string | undefined
+  const deployUrl = rawUrl
+    ? (rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`)
+    : `https://${repoName}.vercel.app`
   console.log('[run-build] Vercel: deployment triggered at', deployUrl)
   return { ok: true, deployUrl }
 }

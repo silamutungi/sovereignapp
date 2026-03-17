@@ -60,9 +60,20 @@ export default async function handler(req: any, res: any): Promise<void> {
 
     const tokenData = await tokenRes.json() as {
       access_token?: string
+      token_type?: string
+      team_id?: string
+      user_id?: string
+      scope?: string
       error?: string
       error_description?: string
     }
+
+    // Log everything except the actual token value — reveals scopes/team context
+    console.log('[vercel/callback] token exchange status:', tokenRes.status)
+    console.log('[vercel/callback] token response (redacted):', JSON.stringify({
+      ...tokenData,
+      access_token: tokenData.access_token ? '[REDACTED]' : undefined,
+    }))
 
     if (!tokenData.access_token) {
       const msg = tokenData.error_description ?? tokenData.error ?? 'unknown'
