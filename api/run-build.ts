@@ -257,23 +257,29 @@ async function provisionGitHub(
     }
     return { ok: false, error: `Failed to create repo: ${String(repo.message ?? JSON.stringify(repo.errors))}` }
   }
-  console.log('[run-build] GitHub: repo created, building tree')
+  console.log('[run-build] GitHub: repo created, waiting 2s for API initialization')
+
+  // GitHub needs a moment to fully initialize the git database for a newly
+  // created empty repo before the Git Data API (blobs/trees) will accept calls.
+  // Without this delay, blob creation returns "Git Repository is empty".
+  await new Promise((resolve) => setTimeout(resolve, 2000))
+
+  console.log('[run-build] GitHub: creating blobs')
 
   // ── Use Git Trees API for a single atomic commit ─────────────────────────
-  // The Contents API (PUT /contents/:path) creates one commit per file.
-  // When pushed concurrently on an empty repo, every request races to be the
-  // first commit; all but one fail with "reference already exists".
-  // Solution: create all blobs in parallel, then a single tree + commit + ref.
+  // Create all blobs in parallel, then one tree + commit + ref.
 
   const files = buildStarterFiles(projectName)
   const blobResults = await Promise.all(
     Object.entries(files).map(async ([path, content]) => {
+      console.log('[run-build] GitHub: creating blob for', path)
       const { ok, data } = await ghFetch(
         `/repos/${owner}/${projectName}/git/blobs`,
         token, 'POST',
         { content, encoding: 'utf-8' },
       )
       if (!ok) throw new Error(`Failed to create blob for ${path}: ${String(data.message ?? JSON.stringify(data))}`)
+      console.log('[run-build] GitHub: blob ok for', path, 'sha:', data.sha)
       return { path, sha: data.sha as string }
     }),
   )
