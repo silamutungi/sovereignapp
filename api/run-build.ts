@@ -494,7 +494,9 @@ export default async function handler(req: any, res: any): Promise<void> {
       res.status(404).json({ error: 'Build not found' })
       return
     }
-    console.log('[run-build] build fetched, github_token present:', !!build.github_token, 'vercel_token present:', !!build.vercel_token, 'status:', build.status)
+    console.log('[run-build] build status:', build.status,
+      'github_token:', build.github_token ? 'SET' : 'NULL',
+      'vercel_token:', build.vercel_token ? 'SET' : 'NULL')
 
     // Idempotency guard — prevents double-trigger from React StrictMode
     if (build.status !== 'queued') {
@@ -504,6 +506,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     }
 
     if (!build.github_token || !build.vercel_token) {
+      console.log('[run-build] missing tokens — github_token:', build.github_token ? 'SET' : 'NULL', 'vercel_token:', build.vercel_token ? 'SET' : 'NULL')
       res.status(400).json({ error: 'Build is missing OAuth tokens — complete both OAuth steps first' })
       return
     }
