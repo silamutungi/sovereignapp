@@ -101,9 +101,6 @@ async function updateBuild(
 
 // ── GitHub provisioning ───────────────────────────────────────────────────────
 
-function toBase64(str: string): string {
-  return btoa(unescape(encodeURIComponent(str)))
-}
 
 async function ghFetch(
   path: string,
@@ -274,7 +271,7 @@ async function provisionGitHub(
       const { ok, data } = await ghFetch(
         `/repos/${owner}/${projectName}/git/blobs`,
         token, 'POST',
-        { content: toBase64(content), encoding: 'base64' },
+        { content, encoding: 'utf-8' },
       )
       if (!ok) throw new Error(`Failed to create blob for ${path}: ${String(data.message ?? JSON.stringify(data))}`)
       return { path, sha: data.sha as string }
