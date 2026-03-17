@@ -25,6 +25,8 @@
 
 export const maxDuration = 60
 
+// v4 — git trees API, utf-8 blobs, 2s init delay, token presence logging
+
 // ── Fetch with timeout ────────────────────────────────────────────────────────
 
 function fetchWithTimeout(
@@ -528,6 +530,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       res.status(404).json({ error: 'Build not found' })
       return
     }
+    console.log('[run-build] build fetched, github_token present:', !!build.github_token, 'vercel_token present:', !!build.vercel_token, 'status:', build.status)
 
     // Idempotency guard — prevents double-trigger from React StrictMode
     if (build.status !== 'queued') {
