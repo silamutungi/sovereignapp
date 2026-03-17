@@ -103,6 +103,9 @@ async function updateBuild(
 
 // ── GitHub provisioning ───────────────────────────────────────────────────────
 
+function toBase64(str: string): string {
+  return Buffer.from(str, 'utf-8').toString('base64')
+}
 
 async function ghFetch(
   path: string,
@@ -259,72 +262,33 @@ async function provisionGitHub(
     }
     return { ok: false, error: `Failed to create repo: ${String(repo.message ?? JSON.stringify(repo.errors))}` }
   }
-  console.log('[run-build] GitHub: repo created, waiting 2s for API initialization')
+  console.log('[run-build] GitHub: repo created, pushing files via Contents API')
 
-  // GitHub needs a moment to fully initialize the git database for a newly
-  // created empty repo before the Git Data API (blobs/trees) will accept calls.
-  // Without this delay, blob creation returns "Git Repository is empty".
-  await new Promise((resolve) => setTimeout(resolve, 2000))
-
-  console.log('[run-build] GitHub: creating blobs')
-
-  // ── Use Git Trees API for a single atomic commit ─────────────────────────
-  // Create all blobs in parallel, then one tree + commit + ref.
+  // ── Push files sequentially via Contents API ──────────────────────────────
+  // The Git Data API (blobs/trees) returns "Git Repository is empty" on newly
+  // created repos even after delays — it's unreliable for empty repos.
+  // The Contents API (PUT /contents/:path) creates a file + commit in one call
+  // and works correctly on empty repos. Must be sequential: each call creates
+  // a new commit which moves HEAD, so concurrent calls would race and conflict.
 
   const files = buildStarterFiles(projectName)
-  const blobResults = await Promise.all(
-    Object.entries(files).map(async ([path, content]) => {
-      console.log('[run-build] GitHub: creating blob for', path)
-      const { ok, data } = await ghFetch(
-        `/repos/${owner}/${projectName}/git/blobs`,
-        token, 'POST',
-        { content, encoding: 'utf-8' },
-      )
-      if (!ok) throw new Error(`Failed to create blob for ${path}: ${String(data.message ?? JSON.stringify(data))}`)
-      console.log('[run-build] GitHub: blob ok for', path, 'sha:', data.sha)
-      return { path, sha: data.sha as string }
-    }),
-  )
-
-  const { ok: treeOk, data: tree } = await ghFetch(
-    `/repos/${owner}/${projectName}/git/trees`,
-    token, 'POST',
-    {
-      tree: blobResults.map(({ path, sha }) => ({
-        path,
-        mode: '100644',
-        type: 'blob',
-        sha,
-      })),
-    },
-  )
-  if (!treeOk) {
-    return { ok: false, error: `Failed to create git tree: ${String(tree.message ?? JSON.stringify(tree))}` }
+  for (const [filePath, content] of Object.entries(files)) {
+    console.log('[run-build] GitHub: pushing', filePath)
+    const { ok, data } = await ghFetch(
+      `/repos/${owner}/${projectName}/contents/${filePath}`,
+      token, 'PUT',
+      {
+        message: filePath === '.gitignore' ? 'Initial commit — built with Sovereign' : `Add ${filePath}`,
+        content: toBase64(content),
+      },
+    )
+    if (!ok) {
+      return { ok: false, error: `Failed to push ${filePath}: ${String(data.message ?? JSON.stringify(data))}` }
+    }
+    console.log('[run-build] GitHub: pushed', filePath)
   }
 
-  const { ok: commitOk, data: commit } = await ghFetch(
-    `/repos/${owner}/${projectName}/git/commits`,
-    token, 'POST',
-    {
-      message: 'Initial commit — built with Sovereign',
-      tree: tree.sha as string,
-      parents: [],
-    },
-  )
-  if (!commitOk) {
-    return { ok: false, error: `Failed to create commit: ${String(commit.message ?? JSON.stringify(commit))}` }
-  }
-
-  const { ok: refOk, data: refData } = await ghFetch(
-    `/repos/${owner}/${projectName}/git/refs`,
-    token, 'POST',
-    { ref: 'refs/heads/main', sha: commit.sha as string },
-  )
-  if (!refOk) {
-    return { ok: false, error: `Failed to create branch ref: ${String(refData.message ?? JSON.stringify(refData))}` }
-  }
-
-  console.log('[run-build] GitHub: initial commit pushed via tree API')
+  console.log('[run-build] GitHub: all files pushed')
   return { ok: true, repoUrl: repo.html_url as string, cloneUrl: repo.clone_url as string, owner }
 }
 
