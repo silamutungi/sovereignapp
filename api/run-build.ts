@@ -472,6 +472,7 @@ export default async function handler(req: any, res: any): Promise<void> {
 
           // Step 1 — GitHub
           await step('Creating your GitHub repo…')
+          console.log('[run-build] template length:', build.template?.length ?? 0)
           const ghResult = await provisionGitHub(build.github_token, repoName, build.template)
           if (!ghResult.ok) {
             const ghError = ghResult.error

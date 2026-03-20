@@ -284,7 +284,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
           email,
           appName:  spec.appName,
           idea:     value.trim(),
-          template: 'react-vite-ts',
+          template: spec.template,
         }),
       })
       const data = await res.json() as { buildId?: string; error?: string; message?: string }
