@@ -131,113 +131,20 @@ async function ghFetch(
   return { ok: res.ok, status: res.status, data }
 }
 
-function buildStarterFiles(projectName: string): Record<string, string> {
+function buildStaticFiles(template: string): Record<string, string> {
   return {
-    '.gitignore': 'node_modules\ndist\n.env\n.env.local\n*.local\n',
-
-    'package.json': JSON.stringify({
-      name: projectName,
-      private: true,
-      version: '0.0.0',
-      type: 'module',
-      scripts: {
-        dev: 'vite',
-        build: 'tsc -b && vite build',
-        preview: 'vite preview',
-      },
-      dependencies: { react: '^19.0.0', 'react-dom': '^19.0.0' },
-      devDependencies: {
-        '@types/react': '^19.0.0',
-        '@types/react-dom': '^19.0.0',
-        '@vitejs/plugin-react': '^4.3.4',
-        typescript: '~5.6.2',
-        vite: '^6.0.0',
-      },
-    }, null, 2),
-
-    'index.html': [
-      '<!doctype html>',
-      '<html lang="en">',
-      '  <head>',
-      '    <meta charset="UTF-8" />',
-      '    <meta name="viewport" content="width=device-width, initial-scale=1.0" />',
-      `    <title>${projectName}</title>`,
-      '  </head>',
-      '  <body>',
-      '    <div id="root"></div>',
-      '    <script type="module" src="/src/main.tsx"></script>',
-      '  </body>',
-      '</html>',
-    ].join('\n'),
-
-    'vite.config.ts': [
-      "import { defineConfig } from 'vite'",
-      "import react from '@vitejs/plugin-react'",
-      '',
-      'export default defineConfig({ plugins: [react()] })',
-    ].join('\n'),
-
-    'tsconfig.json': JSON.stringify(
-      { files: [], references: [{ path: './tsconfig.app.json' }] },
+    'index.html': template,
+    'vercel.json': JSON.stringify(
+      { rewrites: [{ source: '/(.*)', destination: '/index.html' }] },
       null, 2,
     ),
-
-    'tsconfig.app.json': JSON.stringify({
-      compilerOptions: {
-        target: 'ES2020',
-        useDefineForClassFields: true,
-        lib: ['ES2020', 'DOM', 'DOM.Iterable'],
-        module: 'ESNext',
-        skipLibCheck: true,
-        moduleResolution: 'bundler',
-        allowImportingTsExtensions: true,
-        verbatimModuleSyntax: true,
-        moduleDetection: 'force',
-        noEmit: true,
-        jsx: 'react-jsx',
-        strict: true,
-        noUnusedLocals: true,
-        noUnusedParameters: true,
-        noFallthroughCasesInSwitch: true,
-      },
-      include: ['src'],
-    }, null, 2),
-
-    'src/main.tsx': [
-      "import { StrictMode } from 'react'",
-      "import { createRoot } from 'react-dom/client'",
-      "import App from './App.tsx'",
-      '',
-      "createRoot(document.getElementById('root')!).render(",
-      '  <StrictMode><App /></StrictMode>,',
-      ')',
-    ].join('\n'),
-
-    'src/App.tsx': [
-      'function App() {',
-      '  return (',
-      "    <main style={{ fontFamily: 'monospace', padding: '2rem' }}>",
-      `      <h1>${projectName}</h1>`,
-      '      <p>Your app. Your code. Your infrastructure.</p>',
-      "      <p style={{ color: '#6b6862', fontSize: '0.875rem' }}>",
-      "        Built with{' '}",
-      "        <a href=\"https://sovereignapp.dev\" style={{ color: 'inherit' }}>",
-      '          Sovereign',
-      '        </a>',
-      "        {' '}— you own everything.",
-      '      </p>',
-      '    </main>',
-      '  )',
-      '}',
-      '',
-      'export default App',
-    ].join('\n'),
   }
 }
 
 async function provisionGitHub(
   token: string,
   projectName: string,
+  template: string,
 ): Promise<{ ok: true; repoUrl: string; cloneUrl: string; owner: string } | { ok: false; error: string }> {
   console.log('[run-build] GitHub: verifying token')
   const { ok: userOk, data: user } = await ghFetch('/user', token)
@@ -271,7 +178,7 @@ async function provisionGitHub(
   // and works correctly on empty repos. Must be sequential: each call creates
   // a new commit which moves HEAD, so concurrent calls would race and conflict.
 
-  const files = buildStarterFiles(projectName)
+  const files = buildStaticFiles(template)
   for (const [filePath, content] of Object.entries(files)) {
     console.log('[run-build] GitHub: pushing', filePath)
     const { ok, data } = await ghFetch(
@@ -565,7 +472,7 @@ export default async function handler(req: any, res: any): Promise<void> {
 
           // Step 1 — GitHub
           await step('Creating your GitHub repo…')
-          const ghResult = await provisionGitHub(build.github_token, repoName)
+          const ghResult = await provisionGitHub(build.github_token, repoName, build.template)
           if (!ghResult.ok) {
             const ghError = ghResult.error
             await updateBuild(supabaseUrl, serviceKey, buildId, {
