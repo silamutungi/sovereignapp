@@ -296,6 +296,28 @@ Complete flow verified in production: idea input → Claude generates app spec w
 All fixes from this session confirmed working: complete Vite scaffold, Node 20 via engines field, nodeVersion removed from Vercel API call, meaningful error logging on ERROR state, url.parse fully removed.
 First successful end-to-end build: 2026-03-20.
 
+**Shared server utilities belong in api/, not src/lib/**
+Wrong assumption: A utility used only by API routes (e.g. sendMagicLink) can live in src/lib/.
+Correct behaviour: src/ is compiled by Vite with tsconfig.app.json (no Node types, no process). API utilities must live in api/ with underscore prefix to match the _rateLimit.ts pattern.
+Fix: Created api/_sendMagicLink.ts. Any future server-only utility goes in api/_utilityName.ts, not src/lib/.
+Learned: 2026-03-20.
+
+**@vercel/node types not installed — use any for req/res in API routes**
+Wrong assumption: New API routes can import VercelRequest/VercelResponse from @vercel/node.
+Correct behaviour: @vercel/node is not in devDependencies. All existing API routes use eslint-disable-next-line @typescript-eslint/no-explicit-any and declare req: any, res: any.
+Fix: Follow the existing pattern. Never import from @vercel/node without installing it first.
+Learned: 2026-03-20.
+
+**Routing is in main.tsx, not App.tsx**
+Wrong assumption: Adding a new page route requires editing App.tsx.
+Correct behaviour: BrowserRouter + Routes are in src/main.tsx. New routes go there.
+Fix: Added /dashboard route to main.tsx alongside /building. Never modify App.tsx for routing.
+Learned: 2026-03-20.
+
+**Magic link auth shipped — sessionStorage only, never localStorage**
+Dashboard Phase 2 shipped. Magic link flow: POST /api/auth/magic-link → email sent → GET /api/auth/verify-token?token= → sessionStorage.setItem('sovereign_user', JSON.stringify({ email })) → dashboard loads. Token is 64-char random hex (256-bit). One-time use enforced server-side. 24h expiry enforced server-side. Never use localStorage for auth state on Sovereign.
+Decided: 2026-03-20.
+
 **Pre-dashboard dogfood audit — 2026-03-20**
 Security and infrastructure audit completed before dashboard build. All items passed or fixed. RLS confirmed on waitlist, builds, magic_links. React Error Boundary added. Rate limiting verified on all 7 API routes. Health endpoint live at /api/health. CI/CD workflow added. deleted_at and next_steps columns added to builds. Codebase is ready for dashboard build.
 Decided: 2026-03-20.
