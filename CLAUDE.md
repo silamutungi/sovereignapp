@@ -46,3 +46,44 @@ Accessibility is built in by default. Every UI element must meet WCAG AA contras
 - Deploy to Vercel and point sovereignapp.dev DNS
 - Wire Stripe for Pro plan ($19/mo) and Team plan ($49/mo)
 - Build Phase 2: npx sovereign-app@latest CLI
+
+## Phase 4 — CLI Features
+
+### Figma Design System Import
+
+Three levels of depth, shipped in sequence:
+
+**Level 1 — Token extraction (v1, buildable in days)**
+- User provides Figma file URL + personal access token
+- Sovereign calls Figma REST API, reads all color styles, text styles, spacing values
+- Converts to src/styles/tokens.css in the user's repo
+- CSS custom properties: --color-primary, --color-surface, font families, sizes, weights, line heights
+- Covers 80% of what developers need from a design handoff
+
+**Level 2 — Component detection (v2, buildable in weeks)**
+- Detect the 5 most common components in the Figma file: button, input, card, navbar, modal
+- Generate typed React components from each
+- Components land in src/components/ in the user's repo
+- Developer owns the output — no Sovereign dependency
+
+**Level 3 — Full layout translation (v3, buildable in months)**
+- Read entire Figma node tree (frames, auto-layout, instances)
+- Solve four hard problems:
+  1. Layout translation — auto-layout → CSS flexbox/grid, infer layout even when auto-layout wasn't used
+  2. Component recognition — map visual patterns to semantic HTML and React components
+  3. Responsive intent — infer mobile behavior from desktop-only frames
+  4. Code quality — post-process raw output through Claude API to produce clean, semantic, accessible React + Tailwind
+- Claude API is the primary translation layer (not just cleanup)
+- This is Sovereign's answer to Figma Make and Builder.io
+- Competitive angle: they use AI as a cleanup pass, Sovereign uses it as the core engine
+
+**CLI flow (Phase 4):**
+npx sovereign-app@latest
+→ "Do you have a Figma design system? (y/n)"
+→ Paste Figma file URL
+→ Paste Figma personal access token
+→ Sovereign extracts tokens → tokens.css committed to repo
+→ (Level 2+) Components generated → src/components/
+
+**Key principle:**
+Everything extracted from Figma lives in the user's repo in standard files they own. No Sovereign lock-in. If they stop using Sovereign, their tokens and components remain unchanged.
