@@ -258,6 +258,14 @@ STANDING RULE: Every time a bug is fixed, a wrong assumption is corrected, or an
 
 If Claude Code is about to do something and there is a relevant lesson here that contradicts it — stop, follow the lesson, do not repeat the mistake.
 
+### Accessibility & Contrast
+
+**#6b6862 only works on paper, not dark backgrounds**
+Wrong assumption: --text-dim (#6b6862) and --text-mid (#6b6760) can be used for muted text anywhere.
+Correct behaviour: these only pass WCAG AA on the paper background (#f2efe8). On dark (#0e0d0b) they fail completely.
+Fix: dark bg secondary text = #c8c4bc (11:1 contrast on ink). Paper bg secondary text = #6b6862 (4.5:1 on paper). Never use #6b6862 on any dark section.
+Learned: 2026-03-20.
+
 ### Deployment & Build
 
 **nodeVersion is not a valid Vercel project creation field**
