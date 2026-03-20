@@ -236,6 +236,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
         setStage('idle')
         return
       }
+      console.log('[generate] template length:', data.template?.length ?? 0)
       setSpec(data)
       setStage('result')
     } catch {
@@ -363,11 +364,23 @@ function NdevPanel({ locale }: { locale: Locale }) {
         {(stage === 'result' || stage === 'connect') && spec && (
           <div className="gen-result">
             <div className="gen-header">
-              <div
-                className="gen-swatch"
-                style={{ background: spec.primaryColor }}
-                aria-label={`Brand color: ${spec.primaryColor}`}
-              />
+              {(() => {
+                const isLight = parseInt(spec.primaryColor.replace('#', ''), 16) > 0x888888
+                const textColor = isLight ? '#0e0d0b' : '#f2efe8'
+                return (
+                  <div
+                    className="gen-swatch"
+                    style={{
+                      background: spec.primaryColor,
+                      border: `2px solid ${spec.primaryColor}`,
+                      color: textColor,
+                    }}
+                    aria-label={`Brand color: ${spec.primaryColor}`}
+                  >
+                    {spec.primaryColor}
+                  </div>
+                )
+              })()}
               <div className="gen-identity">
                 <p className="gen-appname">{spec.appName}</p>
                 <p className="gen-tagline">{spec.tagline}</p>

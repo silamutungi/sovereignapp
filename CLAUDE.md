@@ -39,6 +39,9 @@ Self-hosted AI dev environment bootstrapper. Tagline: "Build without permission.
 - VITE_SUPABASE_ANON_KEY
 Both in .env (already set up, not committed)
 
+## Accessibility
+Accessibility is built in by default. Every UI element must meet WCAG AA contrast ratio (4.5:1 for text, 3:1 for UI components). Never use light text on light backgrounds or dark text on dark backgrounds. Always test color combinations before shipping.
+
 ## Next steps
 - Deploy to Vercel and point sovereignapp.dev DNS
 - Wire Stripe for Pro plan ($19/mo) and Team plan ($49/mo)
