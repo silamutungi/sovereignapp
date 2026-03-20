@@ -546,6 +546,10 @@ function Pricing({ locale }: { locale: Locale }) {
     }, 500)
   }, [])
 
+  const scrollToBuildFlow = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
+
   return (
     <section
       id="pricing"
@@ -570,10 +574,9 @@ function Pricing({ locale }: { locale: Locale }) {
             <li>{t(locale, 'plan.free.f1')}</li>
             <li>{t(locale, 'plan.free.f2')}</li>
             <li>{t(locale, 'plan.free.f3')}</li>
-            <li className="off">{t(locale, 'plan.free.f4')}</li>
-            <li className="off">{t(locale, 'plan.free.f5')}</li>
+            <li>{t(locale, 'plan.free.f4')}</li>
           </ul>
-          <button className="pbtn" onClick={scrollToWaitlist}>{t(locale, 'plan.free.btn')}</button>
+          <button className="pbtn" onClick={scrollToBuildFlow}>{t(locale, 'plan.free.btn')}</button>
           <p className="pnote">{t(locale, 'plan.free.note')}</p>
         </article>
 
@@ -588,7 +591,6 @@ function Pricing({ locale }: { locale: Locale }) {
             <li>{t(locale, 'plan.pro.f2')}</li>
             <li>{t(locale, 'plan.pro.f3')}</li>
             <li>{t(locale, 'plan.pro.f4')}</li>
-            <li>{t(locale, 'plan.pro.f5')}</li>
           </ul>
           <button className="pbtn" onClick={scrollToWaitlist}>{t(locale, 'plan.pro.btn')}</button>
           <p className="pnote">{t(locale, 'plan.pro.note')}</p>
