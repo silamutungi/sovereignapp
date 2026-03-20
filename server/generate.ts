@@ -88,7 +88,21 @@ export async function generateAppSpec(idea: string): Promise<GenerateResult> {
 
 Idea: "${idea}"
 
-Make the appName memorable and specific to this idea. Write a tagline that could go on a YC application. Choose a primaryColor that reflects the app's personality. Build a beautiful template that could be shown to investors today.`,
+Make the appName memorable and specific to this idea. Write a tagline that could go on a YC application. Choose a primaryColor that reflects the app's personality. Build a beautiful template that could be shown to investors today.
+
+ACCESSIBILITY REQUIREMENTS — non-negotiable:
+- All text must meet WCAG AA contrast ratio (4.5:1 minimum)
+- Never place light text on light backgrounds
+- Never place dark text on dark backgrounds
+- If primaryColor is light (luminance > 0.4), use #0e0d0b for text on that color, never white or light gray
+- If primaryColor is dark (luminance < 0.4), use #f2efe8 for text on that color, never black or dark gray
+- Button text must always contrast against button background
+- Input placeholder text must be at least #767676 on white
+- Focus states must be visible — use a 2px outline in the primaryColor or a contrasting color
+- Never use color alone to convey information
+- All interactive elements must be at least 44x44px touch target
+- Every image must have descriptive alt text
+- All form inputs must have visible labels, not just placeholders`,
         },
       ],
     })
