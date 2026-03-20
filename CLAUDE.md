@@ -140,3 +140,24 @@ RLS with explicit policies on every Supabase table, no direct client-to-database
 ## Sovereign Standards Engine
 
 Every generated app is classified as SIMPLE, STANDARD, or COMPLEX based on the idea input. This determines which of the 14 expert standards are activated. Tier 1 (design, accessibility, SEO, performance, content, legal) applies to every app. Tier 2 (security, analytics, onboarding, email, i18n) activates for apps with user accounts or public products. Tier 3 (rate limiting, data backup, CI/CD) activates for complex multi-user or financial apps. The business intelligence layer (monitoring, domain readiness, referral hooks, audit log, billing) activates based on app context. Every app also gets a nextSteps array of 3 tailored recommendations returned in the JSON response — these are rendered as chips in the dashboard.
+
+## Hard-Won Lessons
+
+### Deployment & Build
+
+**Generated repos need all 6 files — not just 2**
+buildStaticFiles was only pushing index.html and vercel.json. Vercel framework: vite + npm run build requires package.json or it exits with error code 1 immediately. Every generated repo must push exactly these 6 files in one commit:
+1. package.json — vite ^5, build/dev/preview scripts
+2. index.html — sanitized template, localhost script and link tags stripped before push
+3. vite.config.js — minimal, outDir: dist
+4. .gitignore — node_modules/, dist/, .env
+5. README.md — ownership messaging, live URL, GitHub link, run locally instructions
+6. vercel.json — SPA rewrite rule
+Learned: 2026-03-20.
+
+**Fetch real error from Vercel on ERROR state**
+When deployment polling detects state: ERROR, call GET /v2/deployments/{uid}/events and extract the last 5 error/stderr lines. Save the actual build failure reason to builds.error in Supabase. Never surface the generic "Vercel deployment ended with state: ERROR" — the real error is always more useful for debugging.
+Learned: 2026-03-20.
+
+**url.parse() fully removed — confirmed clean**
+All instances of url.parse() removed across the entire api/ directory. Use WHATWG URL API exclusively: new URL(string, base) + searchParams.get('param'). Status: confirmed absent as of 2026-03-20.
