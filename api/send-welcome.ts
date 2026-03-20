@@ -5,8 +5,8 @@
 //   - subject + body override the defaults (used for waitlist signups)
 //   - omit subject/body to send the app-launch email
 // Returns: { ok: true } | { error: string }
-//
-// Self-contained: no imports from src/ or server/.
+
+import { sendMagicLink } from './_sendMagicLink'
 
 import { checkRateLimit } from './_rateLimit'
 
@@ -186,6 +186,15 @@ function appLaunchHtml(projectName: string, liveUrl: string, repoUrl: string): s
             </td>
           </tr>
 
+          <!-- Dashboard link -->
+          <tr>
+            <td style="padding:0 0 20px 0;text-align:center;background-color:#0e0d0b !important;">
+              <p style="margin:0;font-size:12px;color:#6b6862 !important;">
+                <a href="https://sovereignapp.dev/dashboard" style="color:#8ab800 !important;text-decoration:none;">Manage all your apps →</a>
+              </p>
+            </td>
+          </tr>
+
           <!-- Footer -->
           <tr>
             <td style="text-align:center;background-color:#0e0d0b !important;">
@@ -270,6 +279,17 @@ export default async function handler(req: any, res: any): Promise<void> {
       console.error('[send-welcome] Resend error:', resendRes.status, msg, JSON.stringify(err))
       res.status(500).json({ error: msg })
       return
+    }
+
+    // Send magic link so the user can access their dashboard
+    // Non-fatal — welcome email already sent, magic link failure should not fail the build
+    if (!isWaitlist) {
+      try {
+        await sendMagicLink(email)
+        console.log('[send-welcome] Magic link sent to:', email)
+      } catch (mlErr) {
+        console.error('[send-welcome] Magic link error:', mlErr)
+      }
     }
 
     res.status(200).json({ ok: true })
