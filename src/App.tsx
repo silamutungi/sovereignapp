@@ -384,7 +384,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
                 className="gen-preview"
                 srcDoc={spec.template}
                 title={`Preview of ${spec.appName}`}
-                sandbox="allow-same-origin"
+                sandbox="allow-same-origin allow-scripts"
               />
               <div className="gen-preview-fade" aria-hidden="true">
                 <span className="gen-preview-hint">Scroll to see more ↓</span>
@@ -414,13 +414,22 @@ function NdevPanel({ locale }: { locale: Locale }) {
                 {emailError && (
                   <p className="ndev-email-err" role="alert">{emailError}</p>
                 )}
-                <button
-                  type="submit"
-                  className="gobtn"
-                  style={{ background: spec.primaryColor }}
-                >
-                  Continue →
-                </button>
+                {(() => {
+                  const isLight = parseInt(spec.primaryColor.replace('#', ''), 16) > 0x888888
+                  return (
+                    <button
+                      type="submit"
+                      className="gobtn"
+                      style={{
+                        background: spec.primaryColor,
+                        color: isLight ? '#0e0d0b' : '#f2efe8',
+                      }}
+                      disabled={!email.trim()}
+                    >
+                      Continue →
+                    </button>
+                  )
+                })()}
               </form>
             )}
 
