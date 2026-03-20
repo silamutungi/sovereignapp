@@ -1,3 +1,70 @@
+# SOVEREIGN SELF-IMPROVING SYSTEM
+
+Sovereign gets smarter with every session. This is not optional. This is how Sovereign stays ahead.
+
+## The Rule
+
+Every Claude Code session must end with this checklist:
+
+  [ ] Did anything break? → Add to Hard-Won Lessons
+  [ ] Did an API behave unexpectedly? → Add to Hard-Won Lessons
+  [ ] Did a fix reveal a wrong assumption? → Add to Hard-Won Lessons
+  [ ] Was a new architectural decision made? → Add to Hard-Won Lessons
+  [ ] Was a new standard or rule agreed? → Add to Hard-Won Lessons
+  [ ] Did a third-party service have an undocumented limitation? → Add to Hard-Won Lessons
+
+If the answer to any of these is yes, update CLAUDE.md in the same session before pushing. Never defer.
+
+## Why This Matters
+
+Every lesson not written down will be repeated.
+Every bug not documented will be reintroduced.
+Every decision not recorded will be relitigated.
+
+Claude Code has no memory between sessions except what lives in CLAUDE.md. This file is the only continuity between sessions. Treat it as the most important file in the entire codebase.
+
+## Format for New Lessons
+
+**[Bold title — what went wrong or what was learned]**
+One sentence: what the wrong assumption was.
+One sentence: what the correct behaviour is.
+One sentence: the exact fix or rule going forward.
+Learned: [YYYY-MM-DD].
+
+## Format for New Decisions
+
+**[Bold title — what was decided]**
+Context: why this decision was needed.
+Decision: exactly what was agreed.
+Rationale: why this approach over alternatives.
+Decided: [YYYY-MM-DD].
+
+## What Gets Added to the Standards Engine
+
+If a lesson reveals that every generated app should behave differently — for example, a security vulnerability pattern, a Vercel API quirk that affects all builds, or a Supabase configuration that should always be set — it gets added in two places:
+
+1. Hard-Won Lessons in CLAUDE.md (for Claude Code's operational memory)
+
+2. The generation system prompt in api/generate.ts and server/generate.ts (so every future generated app inherits the fix)
+
+The lesson goes in CLAUDE.md.
+The rule goes in the generation prompt.
+Both get updated in the same session.
+
+## The Compounding Effect
+
+Session 1:  CLAUDE.md has 10 lessons
+Session 10: CLAUDE.md has 40 lessons
+Session 50: CLAUDE.md has 150 lessons
+
+Each session starts smarter than the last.
+Each generated app is more robust than the last.
+Each bug fixed makes every future app safer.
+
+This is Sovereign's structural advantage over every competitor. They build and forget. Sovereign builds and remembers.
+
+---
+
 # ⚠ SOVEREIGN — CONFIDENTIALITY RULES
 
 These rules apply to every Claude Code session, every commit, and every file in this repository.
@@ -150,7 +217,9 @@ If Claude Code is about to do something and there is a relevant lesson here that
 ### Deployment & Build
 
 **nodeVersion is not a valid Vercel project creation field**
-The Vercel POST /v9/projects API rejects nodeVersion with a 400: should NOT have additional property nodeVersion. Node version is set via the engines field in package.json instead: { engines: { node: '20.x' } }. Never pass nodeVersion in the project creation payload.
+Wrong assumption: nodeVersion could be passed in the POST /v9/projects payload to control Node version.
+Correct behaviour: Vercel rejects this with 400 — should NOT have additional property nodeVersion.
+Fix: set Node version via engines field in the generated package.json instead: { engines: { node: '20.x' } }. Never pass nodeVersion in the project creation payload.
 Learned: 2026-03-20.
 
 **Generated repos need all 6 files — not just 2**
