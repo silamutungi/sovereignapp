@@ -39,17 +39,61 @@ Decision: exactly what was agreed.
 Rationale: why this approach over alternatives.
 Decided: [YYYY-MM-DD].
 
-## What Gets Added to the Standards Engine
+## What Gets Added Where
 
-If a lesson reveals that every generated app should behave differently — for example, a security vulnerability pattern, a Vercel API quirk that affects all builds, or a Supabase configuration that should always be set — it gets added in two places:
+Every lesson gets triaged into one or more of these four destinations. Ask this question for each lesson: "Who does this affect?"
 
-1. Hard-Won Lessons in CLAUDE.md (for Claude Code's operational memory)
+DESTINATION 1 — CLAUDE.md Hard-Won Lessons
+Who: Claude Code building and maintaining Sovereign
+When: Always — every lesson goes here first
+What: Operational memory, API quirks, build failures, architecture decisions, environment config
 
-2. The generation system prompt in api/generate.ts and server/generate.ts (so every future generated app inherits the fix)
+DESTINATION 2 — Generation prompt (api/generate.ts + server/generate.ts)
+Who: Every app Sovereign generates for users
+When: When the lesson reveals a pattern that every generated app should follow
+Examples:
+- Security vulnerability in generated code
+- Vercel/GitHub/Supabase API behaviour affecting generated app structure
+- Package or dependency issue in generated scaffold
+- File that must always be included in generated repos
+- Configuration that must always be set a certain way
+Rule: If fixing it in Sovereign's own code would also fix it in every generated app — it goes here too
 
-The lesson goes in CLAUDE.md.
-The rule goes in the generation prompt.
-Both get updated in the same session.
+DESTINATION 3 — Generated app CLAUDE.md template
+Who: The user's own Claude Code sessions on their app
+When: When the lesson is useful for anyone maintaining a Sovereign-generated app
+What: A CLAUDE.md is scaffolded into every generated repo. Lessons relevant to generated apps go into the CLAUDE.md template so users inherit them too
+Examples:
+- How to safely update dependencies in a Vite app
+- How to add a new Supabase table with correct RLS
+- How to add a new API route following Sovereign's security patterns
+
+DESTINATION 4 — SECURITY.md
+Who: Anyone auditing a Sovereign-generated app
+When: When the lesson is a security pattern that should be publicly documented
+Examples:
+- RLS policy patterns
+- Never use url.parse()
+- Safe ways to handle OAuth tokens
+
+## The Triage Decision Tree
+
+After fixing any bug or making any decision, ask:
+
+1. Does this affect how Sovereign itself is built?
+   YES → Add to CLAUDE.md Hard-Won Lessons
+
+2. Does this affect the structure or config of every app Sovereign generates?
+   YES → Add to generation prompt in api/generate.ts and server/generate.ts
+
+3. Would a user maintaining their generated app benefit from knowing this?
+   YES → Add to the CLAUDE.md template that gets scaffolded into generated repos
+
+4. Is this a security pattern that should be public?
+   YES → Add to SECURITY.md
+
+One lesson can go to all four destinations.
+Most lessons go to at least two.
 
 ## The Compounding Effect
 
@@ -238,3 +282,7 @@ Learned: 2026-03-20.
 
 **url.parse() fully removed — confirmed clean**
 All instances of url.parse() removed across the entire api/ directory. Use WHATWG URL API exclusively: new URL(string, base) + searchParams.get('param'). Status: confirmed absent as of 2026-03-20.
+
+**Lessons flow to four destinations, not just one**
+When a bug is fixed or decision made, triage it: (1) CLAUDE.md — always, for Sovereign's own builds; (2) Generation prompt — if every generated app is affected; (3) Generated app CLAUDE.md template — if users maintaining their app would benefit; (4) SECURITY.md — if it is a security pattern. One lesson can go to all four destinations.
+Decided: 2026-03-20.

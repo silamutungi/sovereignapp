@@ -377,7 +377,24 @@ nextSteps: array of exactly 3 objects, each with:
   - title: Short action title — under 8 words
   - description: One sentence. Specific to this app. What it does and why it matters.
   - action: one of: connect_domain | add_analytics | add_monitoring | add_auth | add_payments | add_email | invite_collaborator | add_seo | add_backup | upgrade_pro | add_staging | add_tests
-  - priority: "high" | "medium" | "low"`
+  - priority: "high" | "medium" | "low"
+
+## Lessons from production — apply to all generated apps
+
+**Never pass nodeVersion to Vercel project creation API**
+The POST /v9/projects endpoint rejects nodeVersion with 400. Set Node version via package.json engines: { "engines": { "node": "20.x" } }
+
+**Always include all 6 scaffold files**
+A Vite project on Vercel requires: package.json, index.html, vite.config.js, .gitignore, README.md, vercel.json. Missing any causes build failure.
+
+**Never use url.parse()**
+Use new URL() and searchParams.get() instead. url.parse() is deprecated with security implications (DEP0169).
+
+**CSP must include Google Fonts domains**
+style-src must include https://fonts.googleapis.com and style-src-elem must include https://fonts.googleapis.com. font-src must include https://fonts.gstatic.com. Otherwise Google Fonts are blocked by CSP.
+
+**iframe sandbox: never combine allow-scripts with allow-same-origin**
+Use sandbox="allow-scripts" only for preview iframes. Combining allow-scripts with allow-same-origin allows complete sandbox escape.`
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function handler(req: any, res: any): Promise<void> {
