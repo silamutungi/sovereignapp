@@ -27,7 +27,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     }
 
     const dbRes = await fetch(
-      `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&select=status,step,app_name,repo_url,deploy_url,error`,
+      `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&deleted_at=is.null&select=status,step,app_name,repo_url,deploy_url,error`,
       {
         headers: {
           apikey: serviceKey,

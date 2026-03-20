@@ -436,6 +436,7 @@ export default async function handler(req: any, res: any): Promise<void> {
         `${supabaseUrl}/rest/v1/builds` +
           `?email=eq.${encodeURIComponent(email)}` +
           `&created_at=gt.${encodeURIComponent(since)}` +
+          `&deleted_at=is.null` +
           `&select=id`,
         {
           headers: {

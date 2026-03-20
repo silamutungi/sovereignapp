@@ -296,6 +296,53 @@ Complete flow verified in production: idea input → Claude generates app spec w
 All fixes from this session confirmed working: complete Vite scaffold, Node 20 via engines field, nodeVersion removed from Vercel API call, meaningful error logging on ERROR state, url.parse fully removed.
 First successful end-to-end build: 2026-03-20.
 
+**Pre-dashboard dogfood audit — 2026-03-20**
+Security and infrastructure audit completed before dashboard build. All items passed or fixed. RLS confirmed on waitlist, builds, magic_links. React Error Boundary added. Rate limiting verified on all 7 API routes. Health endpoint live at /api/health. CI/CD workflow added. deleted_at and next_steps columns added to builds. Codebase is ready for dashboard build.
+Decided: 2026-03-20.
+
 **Lessons flow to four destinations, not just one**
 When a bug is fixed or decision made, triage it: (1) CLAUDE.md — always, for Sovereign's own builds; (2) Generation prompt — if every generated app is affected; (3) Generated app CLAUDE.md template — if users maintaining their app would benefit; (4) SECURITY.md — if it is a security pattern. One lesson can go to all four destinations.
 Decided: 2026-03-20.
+
+## Supabase Schema — SQL Run in Production
+
+All statements below must be run in the Supabase SQL Editor.
+Run each one and confirm success before proceeding to the next.
+
+### 2026-03-20 — Pre-dashboard dogfood audit
+
+```sql
+-- ── waitlist table — enable RLS ────────────────────────────────────────────
+ALTER TABLE waitlist ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY IF NOT EXISTS "anon_insert_waitlist"
+ON waitlist FOR INSERT
+TO anon
+WITH CHECK (true);
+
+-- ── builds table — enable RLS (service role only, no anon policies) ────────
+ALTER TABLE builds ENABLE ROW LEVEL SECURITY;
+-- Service role key bypasses RLS automatically.
+-- All builds access goes through api/ routes using service role key.
+
+-- ── builds table — add missing columns ────────────────────────────────────
+ALTER TABLE builds ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;
+ALTER TABLE builds ADD COLUMN IF NOT EXISTS next_steps JSONB DEFAULT NULL;
+
+-- ── magic_links table — create if not exists ───────────────────────────────
+CREATE TABLE IF NOT EXISTS magic_links (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  email      TEXT        NOT NULL,
+  token      TEXT        NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used       BOOLEAN     DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  deleted_at TIMESTAMPTZ DEFAULT NULL
+);
+
+ALTER TABLE magic_links ENABLE ROW LEVEL SECURITY;
+-- No public policies — service role only.
+
+CREATE INDEX IF NOT EXISTS magic_links_token_idx ON magic_links(token);
+CREATE INDEX IF NOT EXISTS magic_links_email_idx ON magic_links(email);
+```
