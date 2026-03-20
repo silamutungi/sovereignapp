@@ -93,7 +93,7 @@ export default async function handler(req: any, res: any): Promise<void> {
 
     const response = await client.messages.create({
       model: 'claude-opus-4-6',
-      max_tokens: 8192,
+      max_tokens: 16000,
       tools: [
         {
           name: 'generate_app_spec',
@@ -160,6 +160,8 @@ ACCESSIBILITY REQUIREMENTS — non-negotiable:
       ],
     })
 
+    console.log('[generate] stop_reason:', response.stop_reason, 'input_tokens:', response.usage.input_tokens, 'output_tokens:', response.usage.output_tokens)
+
     const toolBlock = response.content.find(
       (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
     )
@@ -168,6 +170,13 @@ ACCESSIBILITY REQUIREMENTS — non-negotiable:
     }
 
     const spec = toolBlock.input as AppSpec
+    console.log('[generate] spec keys:', Object.keys(spec))
+    console.log('[generate] template present:', !!spec.template, 'length:', spec.template?.length ?? 0)
+
+    if (!spec.template) {
+      throw new Error(`template missing from tool output — stop_reason: ${response.stop_reason}, output_tokens: ${response.usage.output_tokens}`)
+    }
+
     res.status(200).json({
       appName: spec.appName,
       tagline: spec.tagline,
