@@ -21,11 +21,15 @@
 // Each external fetch: 10s timeout via AbortController.
 // Overall provisioning: 50s deadline (leaves 10s margin for final DB write).
 //
+// ── Deployment approach ───────────────────────────────────────────────────────
+// Integration OAuth tokens can create Vercel projects but cannot call
+// /v13/deployments directly (403 insufficient permissions).
+// Instead: create Vercel project (linked to GitHub) → push files to GitHub
+// → Vercel auto-deploys via GitHub integration → poll for READY status.
+//
 // Self-contained: no imports from src/ or server/.
 
 export const maxDuration = 60
-
-// v4 — git trees API, utf-8 blobs, 2s init delay, token presence logging
 
 // ── Fetch with timeout ────────────────────────────────────────────────────────
 
@@ -38,6 +42,10 @@ function fetchWithTimeout(
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   return fetch(url, { ...options, signal: controller.signal })
     .finally(() => clearTimeout(timer))
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 const NET = 10_000 // 10s per individual network call
@@ -101,7 +109,7 @@ async function updateBuild(
   )
 }
 
-// ── GitHub provisioning ───────────────────────────────────────────────────────
+// ── GitHub helpers ────────────────────────────────────────────────────────────
 
 function toBase64(str: string): string {
   return Buffer.from(str, 'utf-8').toString('base64')
@@ -141,11 +149,14 @@ function buildStaticFiles(template: string): Record<string, string> {
   }
 }
 
-async function provisionGitHub(
+// ── Step 1: Create GitHub repo (no file push yet) ─────────────────────────────
+// Files are pushed AFTER the Vercel project is created so that the GitHub
+// push triggers Vercel's auto-deploy via the already-established GitHub link.
+
+async function createGitHubRepo(
   token: string,
   projectName: string,
-  template: string,
-): Promise<{ ok: true; repoUrl: string; cloneUrl: string; owner: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; repoUrl: string; owner: string } | { ok: false; error: string }> {
   console.log('[run-build] GitHub: verifying token')
   const { ok: userOk, data: user } = await ghFetch('/user', token)
   if (!userOk) {
@@ -169,15 +180,24 @@ async function provisionGitHub(
     }
     return { ok: false, error: `Failed to create repo: ${String(repo.message ?? JSON.stringify(repo.errors))}` }
   }
-  console.log('[run-build] GitHub: repo created, pushing files via Contents API')
 
-  // ── Push files sequentially via Contents API ──────────────────────────────
-  // The Git Data API (blobs/trees) returns "Git Repository is empty" on newly
-  // created repos even after delays — it's unreliable for empty repos.
-  // The Contents API (PUT /contents/:path) creates a file + commit in one call
-  // and works correctly on empty repos. Must be sequential: each call creates
-  // a new commit which moves HEAD, so concurrent calls would race and conflict.
+  console.log('[run-build] GitHub: repo created', repo.html_url)
+  return { ok: true, repoUrl: repo.html_url as string, owner }
+}
 
+// ── Step 3: Push files to GitHub (triggers Vercel auto-deploy) ───────────────
+// Must be called AFTER the Vercel project is created and linked to the repo.
+// The GitHub integration detects this push and triggers an automatic deployment.
+
+async function pushFilesToGitHub(
+  token: string,
+  owner: string,
+  projectName: string,
+  template: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  // The Contents API creates a file + commit in one call and works correctly
+  // on empty repos. Must be sequential: each commit moves HEAD, so concurrent
+  // calls would race and conflict.
   const files = buildStaticFiles(template)
   for (const [filePath, content] of Object.entries(files)) {
     console.log('[run-build] GitHub: pushing', filePath)
@@ -185,7 +205,7 @@ async function provisionGitHub(
       `/repos/${owner}/${projectName}/contents/${filePath}`,
       token, 'PUT',
       {
-        message: filePath === '.gitignore' ? 'Initial commit — built with Sovereign' : `Add ${filePath}`,
+        message: `Add ${filePath}`,
         content: toBase64(content),
       },
     )
@@ -195,8 +215,8 @@ async function provisionGitHub(
     console.log('[run-build] GitHub: pushed', filePath)
   }
 
-  console.log('[run-build] GitHub: all files pushed')
-  return { ok: true, repoUrl: repo.html_url as string, cloneUrl: repo.clone_url as string, owner }
+  console.log('[run-build] GitHub: all files pushed — Vercel auto-deploy triggered')
+  return { ok: true }
 }
 
 // ── GitHub cleanup ────────────────────────────────────────────────────────────
@@ -209,7 +229,7 @@ async function deleteGitHubRepo(token: string, owner: string, repoName: string):
   }
 }
 
-// ── Vercel provisioning ───────────────────────────────────────────────────────
+// ── Vercel helpers ────────────────────────────────────────────────────────────
 
 async function vercelFetch(
   path: string,
@@ -233,20 +253,23 @@ async function vercelFetch(
   return { ok: res.ok, status: res.status, data }
 }
 
-async function provisionVercel(
+// ── Step 2: Create Vercel project (linked to GitHub, no deploy trigger) ───────
+// Integration OAuth tokens cannot call /v13/deployments (403).
+// Vercel auto-deploys when the GitHub integration detects a push — that push
+// happens in step 3 (pushFilesToGitHub), after this project is created.
+
+async function createVercelProject(
   token: string,
   repoName: string,
   githubRepoUrl: string,
-): Promise<{ ok: true; deployUrl: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; projectId: string; teamId: string | undefined } | { ok: false; error: string }> {
   const match = githubRepoUrl.match(/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?$/)
   if (!match) return { ok: false, error: `Invalid GitHub repo URL: ${githubRepoUrl}` }
   const [, githubOrg, githubRepo] = match
 
   // ── Resolve teamId ────────────────────────────────────────────────────────
   // Integration OAuth tokens for team accounts require ?teamId=<id> on every
-  // API call, otherwise /v9/projects returns 403 "You don't have permission".
-  // Fetch the Vercel user to get their defaultTeamId, then append it as a
-  // query param to all subsequent calls.
+  // API call, otherwise /v9/projects returns 403.
   console.log('[run-build] Vercel: fetching user info to resolve teamId')
   const { ok: userOk, data: vcUser } = await vercelFetch('/v2/user', token)
   if (!userOk) {
@@ -277,31 +300,73 @@ async function provisionVercel(
 
   const projectId = project.id as string
   console.log('[run-build] Vercel: project created', projectId)
+  return { ok: true, projectId, teamId }
+}
 
-  // ── Trigger deployment ────────────────────────────────────────────────────
-  console.log('[run-build] Vercel: triggering deployment, endpoint: /v13/deployments' + teamQ)
-  const { ok: deployOk, status: deployStatus, data: deployment } = await vercelFetch(
-    `/v13/deployments${teamQ}`, token, 'POST',
-    {
-      name: repoName,
-      project: projectId,
-      gitSource: { type: 'github', org: githubOrg, repo: githubRepo, ref: 'main' },
-      target: 'production',
-    },
-  )
-  console.log('[run-build] Vercel: /v13/deployments status', deployStatus, JSON.stringify(deployment))
-  if (!deployOk) {
-    const msg = (deployment.error as Record<string, unknown>)?.message ?? JSON.stringify(deployment)
-    return { ok: false, error: `Vercel project created but deploy failed (${deployStatus}): ${String(msg)}` }
+// ── Step 4: Poll Vercel deployments API until READY ───────────────────────────
+// After the GitHub push triggers an auto-deploy, poll until Vercel reports
+// READY (or ERROR). Polls every 3s up to maxMs. On timeout, returns the
+// best-effort alias URL so the build record is not left without a URL.
+
+interface VercelDeployment {
+  state?: string
+  url?: string
+  alias?: string[]
+}
+
+async function waitForVercelDeployment(
+  token: string,
+  projectId: string,
+  teamId: string | undefined,
+  fallbackUrl: string,
+  maxMs: number,
+): Promise<{ ok: true; deployUrl: string } | { ok: false; error: string }> {
+  const teamParam = teamId ? `&teamId=${encodeURIComponent(teamId)}` : ''
+  const pollPath  = `/v6/deployments?projectId=${encodeURIComponent(projectId)}&limit=1${teamParam}`
+
+  const deadline = Date.now() + maxMs
+  let lastUrl = fallbackUrl
+
+  while (Date.now() < deadline) {
+    await sleep(3_000)
+    console.log('[run-build] Vercel: polling deployment status…')
+
+    const { ok, data } = await vercelFetch(pollPath, token)
+    if (!ok) {
+      console.warn('[run-build] Vercel: poll request failed, retrying')
+      continue
+    }
+
+    const deployments = data.deployments as VercelDeployment[] | undefined
+    const d = deployments?.[0]
+
+    if (!d) {
+      // Vercel hasn't detected the push yet — keep polling
+      console.log('[run-build] Vercel: no deployments yet, waiting…')
+      continue
+    }
+
+    // Prefer the first production alias, fall back to the raw deployment URL
+    const rawUrl = (d.alias && d.alias.length > 0) ? d.alias[0] : d.url
+    if (rawUrl) {
+      lastUrl = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`
+    }
+
+    console.log('[run-build] Vercel: deployment state:', d.state, 'url:', lastUrl)
+
+    if (d.state === 'READY') {
+      return { ok: true, deployUrl: lastUrl }
+    }
+    if (d.state === 'ERROR' || d.state === 'CANCELED') {
+      return { ok: false, error: `Vercel deployment ended with state: ${d.state}` }
+    }
+    // BUILDING or QUEUED — keep polling
   }
 
-  // deployment.url is the hostname without protocol, e.g. "my-app-abc123.vercel.app"
-  const rawUrl = deployment.url as string | undefined
-  const deployUrl = rawUrl
-    ? (rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`)
-    : `https://${repoName}.vercel.app`
-  console.log('[run-build] Vercel: deployment triggered at', deployUrl)
-  return { ok: true, deployUrl }
+  // Timed out but we have a URL — the deployment will finish on Vercel's side.
+  // Return best-effort so the build record is not left without a URL.
+  console.warn('[run-build] Vercel: poll timed out — returning best-effort URL:', lastUrl)
+  return { ok: true, deployUrl: lastUrl }
 }
 
 // ── Email ─────────────────────────────────────────────────────────────────────
@@ -443,9 +508,7 @@ export default async function handler(req: any, res: any): Promise<void> {
 
     // ── Derive a unique repo name ────────────────────────────────────────────
     // Append the first 6 chars of the buildId (UUID without hyphens) to make
-    // the GitHub repo name unique per build attempt. This prevents "reference
-    // already exists" errors when a previous failed attempt left a repo with
-    // the same name. The app_name is also slugified for GitHub compatibility.
+    // the GitHub repo name unique per build attempt.
     const nameSlug = build.app_name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
@@ -455,10 +518,6 @@ export default async function handler(req: any, res: any): Promise<void> {
     console.log('[run-build] repo name:', repoName)
 
     // ── Run provisioning synchronously ──────────────────────────────────────
-    // The function MUST stay alive until work is complete.
-    // Sending a response early would cause Vercel/Lambda to kill the process.
-    // The /building page fires this fetch and immediately starts polling
-    // /api/build-status — it does not wait for this response.
     const step = (s: string) => {
       console.log('[run-build] step:', s)
       return updateBuild(supabaseUrl, serviceKey, buildId, { status: 'building', step: s })
@@ -470,14 +529,14 @@ export default async function handler(req: any, res: any): Promise<void> {
         (async () => {
           await step('Reading your idea…')
 
-          // Step 1 — GitHub
+          // ── Step 1: Create GitHub repo (no file push yet) ─────────────
+          // Files are pushed in step 3, AFTER the Vercel project is created,
+          // so the GitHub push triggers Vercel's auto-deploy.
           await step('Creating your GitHub repo…')
-          console.log('[run-build] template length:', build.template?.length ?? 0)
-          const ghResult = await provisionGitHub(build.github_token, repoName, build.template)
+          const ghResult = await createGitHubRepo(build.github_token, repoName)
           if (!ghResult.ok) {
-            const ghError = ghResult.error
             await updateBuild(supabaseUrl, serviceKey, buildId, {
-              status: 'failed', step: 'GitHub failed', error: ghError,
+              status: 'failed', step: 'GitHub failed', error: ghResult.error,
             })
             return
           }
@@ -487,28 +546,68 @@ export default async function handler(req: any, res: any): Promise<void> {
             repo_url: ghResult.repoUrl,
           })
 
-          // Step 2 — Vercel
-          await step('Deploying to Vercel…')
-          const vcResult = await provisionVercel(build.vercel_token, repoName, ghResult.repoUrl)
+          // ── Step 2: Create Vercel project (linked to GitHub repo) ─────
+          // Integration OAuth tokens cannot trigger /v13/deployments (403).
+          // Creating the project establishes the GitHub link so that the
+          // push in step 3 triggers an automatic deployment.
+          await step('Connecting Vercel to your repo…')
+          const vcResult = await createVercelProject(build.vercel_token, repoName, ghResult.repoUrl)
           if (!vcResult.ok) {
-            const vcError = vcResult.error
-            // Clean up the GitHub repo so the user can retry cleanly
             await deleteGitHubRepo(build.github_token, ghResult.owner, repoName)
             await updateBuild(supabaseUrl, serviceKey, buildId, {
-              status: 'failed', step: 'Vercel deploy failed', error: vcError,
+              status: 'failed', step: 'Vercel setup failed', error: vcResult.error,
             })
             return
           }
+
+          // ── Step 3: Push files to GitHub → triggers Vercel auto-deploy ─
+          await step('Pushing your app files…')
+          console.log('[run-build] template length:', build.template?.length ?? 0)
+          const pushResult = await pushFilesToGitHub(
+            build.github_token, ghResult.owner, repoName, build.template,
+          )
+          if (!pushResult.ok) {
+            await deleteGitHubRepo(build.github_token, ghResult.owner, repoName)
+            await updateBuild(supabaseUrl, serviceKey, buildId, {
+              status: 'failed', step: 'File push failed', error: pushResult.error,
+            })
+            return
+          }
+
+          // ── Step 4: Poll Vercel until deployment is READY ─────────────
+          // Budget: PROVISION_TIMEOUT_MS minus time already spent (~20s).
+          // Remaining ~30s ≈ 10 polls at 3s each.
+          // For simple static apps Vercel typically completes in 20-40s.
+          // On timeout, best-effort URL is returned — deploy finishes async.
+          await step('Deploying to Vercel…')
+          const fallbackUrl = `https://${repoName}.vercel.app`
+          const pollBudgetMs = 32_000 // 32s of polling within the overall 50s budget
+          const deployResult = await waitForVercelDeployment(
+            build.vercel_token, vcResult.projectId, vcResult.teamId,
+            fallbackUrl, pollBudgetMs,
+          )
+
+          if (!deployResult.ok) {
+            // Deployment errored on Vercel's side
+            await updateBuild(supabaseUrl, serviceKey, buildId, {
+              status: 'failed', step: 'Vercel deploy failed', error: deployResult.error,
+            })
+            return
+          }
+
           await updateBuild(supabaseUrl, serviceKey, buildId, {
             status: 'building',
-            step: `Live at ${vcResult.deployUrl}`,
-            deploy_url: vcResult.deployUrl,
+            step: `Live at ${deployResult.deployUrl}`,
+            deploy_url: deployResult.deployUrl,
           })
 
-          // Step 3 — Email (non-fatal)
+          // ── Step 5: Send launch email (non-fatal) ─────────────────────
           await step('Sending your live URL…')
           if (resendKey) {
-            await sendLaunchEmail(resendKey, build.email, build.app_name, vcResult.deployUrl, ghResult.repoUrl)
+            await sendLaunchEmail(
+              resendKey, build.email, build.app_name,
+              deployResult.deployUrl, ghResult.repoUrl,
+            )
           }
 
           await updateBuild(supabaseUrl, serviceKey, buildId, { status: 'done', step: 'done' })
