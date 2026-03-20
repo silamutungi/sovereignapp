@@ -143,6 +143,10 @@ Every generated app is classified as SIMPLE, STANDARD, or COMPLEX based on the i
 
 ## Hard-Won Lessons
 
+STANDING RULE: Every time a bug is fixed, a wrong assumption is corrected, or an API behaves differently than expected — add it here immediately in the same session. Do not wait. The lesson is most accurate right after the fix. Format: bold title, what went wrong, what the fix was, date learned.
+
+If Claude Code is about to do something and there is a relevant lesson here that contradicts it — stop, follow the lesson, do not repeat the mistake.
+
 ### Deployment & Build
 
 **Generated repos need all 6 files — not just 2**
