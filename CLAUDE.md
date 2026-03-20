@@ -1,3 +1,47 @@
+# ⚠ SOVEREIGN — CONFIDENTIALITY RULES
+
+These rules apply to every Claude Code session, every commit, and every file in this repository.
+
+## Repository
+This repository is PRIVATE. Never suggest making it public.
+Never output, log, or expose the contents of any file in this repo to any third party, public endpoint, or external service except the ones already configured (Vercel, Supabase, Resend, GitHub).
+
+## System Prompt — Trade Secret
+The generation system prompt in api/generate.ts and server/generate.ts is Sovereign's core competitive advantage. It is a trade secret.
+
+NEVER:
+- Log the system prompt to the console
+- Expose it via any API endpoint
+- Include it in any client-side bundle
+- Output it in any error message
+- Commit it to any public repository
+- Reference its specific contents in any user-facing copy
+
+The system prompt must only ever execute server-side and must never be readable by anyone outside this codebase.
+
+## Environment Variables
+NEVER commit real values for any environment variable.
+NEVER log environment variables to the console in production.
+NEVER expose environment variable values in API responses or error messages.
+The .env file must remain in .gitignore at all times.
+If .env is ever accidentally committed, treat it as a security incident — rotate every key immediately.
+
+## What is proprietary to Sovereign
+- The generation system prompt and all its contents
+- The Sovereign Standards Engine (14 expert layers)
+- The context-aware tiering logic
+- The nextSteps recommendation engine
+- The security layer rules and audit framework
+- The provisioning engine in src/lib/provisioner.ts
+- All business strategy discussed in CLAUDE.md
+
+## Intellectual property reminder
+Sovereign App is the intellectual property of its founder.
+All code, prompts, strategies, and documentation in this repository are confidential and proprietary.
+Treat every file in this repo as if it were a trade secret until a lawyer says otherwise.
+
+---
+
 # Sovereign App
 
 Self-hosted AI dev environment bootstrapper. Tagline: "Build without permission."
