@@ -139,9 +139,67 @@ async function ghFetch(
   return { ok: res.ok, status: res.status, data }
 }
 
-function buildStaticFiles(template: string): Record<string, string> {
+// Remove localhost and relative-path script/link tags that won't resolve in
+// the deployed repo. Google Fonts and other CDN links are left intact.
+function sanitizeTemplate(html: string): string {
+  html = html.replace(
+    /<script\b[^>]*\bsrc=["'](?:https?:\/\/localhost[^"']*|\/[^"']*)[^>]*>\s*<\/script>/gi,
+    '',
+  )
+  html = html.replace(
+    /<link\b[^>]*\bhref=["'](?:https?:\/\/localhost[^"']*|\/[^"']*)[^>]*\/?>/gi,
+    '',
+  )
+  return html
+}
+
+function buildStaticFiles(
+  template: string,
+  appName: string,
+  appSlug: string,
+): Record<string, string> {
+  const sanitized = sanitizeTemplate(template)
   return {
-    'index.html': template,
+    'package.json': JSON.stringify({
+      name: appSlug,
+      version: '0.1.0',
+      private: true,
+      scripts: { dev: 'vite', build: 'vite build', preview: 'vite preview' },
+      devDependencies: { vite: '^5.0.0' },
+    }, null, 2),
+    'index.html': sanitized,
+    'vite.config.js': [
+      "import { defineConfig } from 'vite'",
+      '',
+      'export default defineConfig({',
+      '  build: {',
+      "    outDir: 'dist'",
+      '  }',
+      '})',
+      '',
+    ].join('\n'),
+    '.gitignore': 'node_modules/\ndist/\n.env\n.env.local\n.vercel/\n',
+    'README.md': [
+      `# ${appName}`,
+      '',
+      'Built with [Sovereign](https://sovereignapp.dev).',
+      '',
+      '## Run locally',
+      '```bash',
+      'npm install',
+      'npm run dev',
+      '```',
+      '',
+      '## Deploy',
+      '',
+      'This app auto-deploys to Vercel on every push to main.',
+      '',
+      '## You own everything',
+      '',
+      'Your code is in this repo. Your deployment is on your Vercel account.',
+      'Sovereign provisioned it — you own it.',
+      '',
+    ].join('\n'),
     'vercel.json': JSON.stringify(
       { rewrites: [{ source: '/(.*)', destination: '/index.html' }] },
       null, 2,
@@ -194,11 +252,13 @@ async function pushFilesToGitHub(
   owner: string,
   projectName: string,
   template: string,
+  appName: string,
+  appSlug: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   // The Contents API creates a file + commit in one call and works correctly
   // on empty repos. Must be sequential: each commit moves HEAD, so concurrent
   // calls would race and conflict.
-  const files = buildStaticFiles(template)
+  const files = buildStaticFiles(template, appName, appSlug)
   for (const [filePath, content] of Object.entries(files)) {
     console.log('[run-build] GitHub: pushing', filePath)
     const { ok, data } = await ghFetch(
@@ -290,6 +350,7 @@ async function createVercelProject(
       buildCommand: 'npm run build',
       outputDirectory: 'dist',
       installCommand: 'npm install',
+      nodeVersion: '20.x',
     },
   )
   console.log('[run-build] Vercel: /v9/projects status', projStatus, JSON.stringify(project))
@@ -309,9 +370,44 @@ async function createVercelProject(
 // best-effort alias URL so the build record is not left without a URL.
 
 interface VercelDeployment {
+  uid?: string
   state?: string
   url?: string
   alias?: string[]
+}
+
+// Fetch the last few error lines from a deployment's build log.
+// Uses a short timeout so a log API failure never blocks the main path.
+async function fetchDeploymentError(
+  token: string,
+  deploymentId: string,
+  teamId: string | undefined,
+): Promise<string> {
+  try {
+    const teamParam = teamId ? `?teamId=${encodeURIComponent(teamId)}` : ''
+    const res = await fetchWithTimeout(
+      `https://api.vercel.com/v2/deployments/${deploymentId}/events${teamParam}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+      5_000,
+    )
+    if (!res.ok) return ''
+    const text = await res.text()
+    // Events are newline-delimited JSON objects with { type, payload: { text } }
+    const errorLines: string[] = []
+    for (const line of text.split('\n')) {
+      if (!line.trim()) continue
+      try {
+        const ev = JSON.parse(line) as { type?: string; payload?: { text?: string } }
+        if (ev.type === 'error' || ev.type === 'stderr') {
+          const msg = ev.payload?.text?.trim()
+          if (msg) errorLines.push(msg)
+        }
+      } catch { /* not JSON — skip */ }
+    }
+    return errorLines.slice(-5).join('\n')
+  } catch {
+    return ''
+  }
 }
 
 async function waitForVercelDeployment(
@@ -358,7 +454,12 @@ async function waitForVercelDeployment(
       return { ok: true, deployUrl: lastUrl }
     }
     if (d.state === 'ERROR' || d.state === 'CANCELED') {
-      return { ok: false, error: `Vercel deployment ended with state: ${d.state}` }
+      let errorMsg = `Vercel deployment ended with state: ${d.state}`
+      if (d.uid) {
+        const logs = await fetchDeploymentError(token, d.uid, teamId)
+        if (logs) errorMsg = `Build failed:\n${logs}`
+      }
+      return { ok: false, error: errorMsg }
     }
     // BUILDING or QUEUED — keep polling
   }
@@ -565,6 +666,7 @@ export default async function handler(req: any, res: any): Promise<void> {
           console.log('[run-build] template length:', build.template?.length ?? 0)
           const pushResult = await pushFilesToGitHub(
             build.github_token, ghResult.owner, repoName, build.template,
+            build.app_name, nameSlug,
           )
           if (!pushResult.ok) {
             await deleteGitHubRepo(build.github_token, ghResult.owner, repoName)
