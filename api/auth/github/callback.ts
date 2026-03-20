@@ -9,6 +9,8 @@
 //
 // Self-contained: no imports from src/ or server/.
 
+import { checkRateLimit, getClientIp } from '../../_rateLimit'
+
 function siteBase(): string {
   // VERCEL_ENV is set by the Vercel runtime. Absent in local dev.
   if (process.env.VERCEL_ENV === 'production') return 'https://sovereignapp.dev'
@@ -21,6 +23,15 @@ function siteBase(): string {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function handler(req: any, res: any): Promise<void> {
   try {
+    // Rate limit: 20 per 15 minutes per IP
+    const ip = getClientIp(req)
+    const rl = checkRateLimit(`github-cb:${ip}`, 20, 15 * 60 * 1000)
+    if (!rl.allowed) {
+      res.setHeader('Retry-After', String(rl.retryAfter ?? 60))
+      res.status(429).send('Too many requests. Try again later.')
+      return
+    }
+
     const { code, state: buildId, error: oauthError } = (req.query ?? {}) as Record<string, string>
 
     // GitHub redirects here with ?error= if the user denied access

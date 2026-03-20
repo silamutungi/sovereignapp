@@ -5,6 +5,8 @@
 //
 // Self-contained: no imports from src/ or server/.
 
+import { checkRateLimit } from './_rateLimit'
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function handler(req: any, res: any): Promise<void> {
   try {
@@ -16,6 +18,14 @@ export default async function handler(req: any, res: any): Promise<void> {
     const { id: buildId } = (req.query ?? {}) as Record<string, string>
     if (!buildId) {
       res.status(400).json({ error: '`id` is required' })
+      return
+    }
+
+    // Rate limit: 120 per hour per build ID (polled every ~2s, build takes ~60s)
+    const rl = checkRateLimit(`build-status:${buildId}`, 120, 60 * 60 * 1000)
+    if (!rl.allowed) {
+      res.setHeader('Retry-After', String(rl.retryAfter ?? 60))
+      res.status(429).json({ error: `Too many requests. Try again in ${rl.retryAfter}s.` })
       return
     }
 

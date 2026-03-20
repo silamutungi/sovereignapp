@@ -8,6 +8,8 @@
 //
 // Self-contained: no imports from src/ or server/.
 
+import { checkRateLimit } from './_rateLimit'
+
 // ── Email templates ────────────────────────────────────────────────────────
 
 function waitlistHtml(email: string): string {
@@ -204,11 +206,6 @@ function appLaunchHtml(projectName: string, liveUrl: string, repoUrl: string): s
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function handler(req: any, res: any): Promise<void> {
-  const keyHint = process.env.RESEND_API_KEY
-    ? `set (${process.env.RESEND_API_KEY.slice(0, 4)}…)`
-    : 'NOT SET'
-  console.log('[send-welcome] RESEND_API_KEY:', keyHint)
-
   try {
     if (req.method !== 'POST') {
       res.status(405).json({ error: 'Method not allowed' })
@@ -234,6 +231,15 @@ export default async function handler(req: any, res: any): Promise<void> {
 
     if (!email || !projectName) {
       res.status(400).json({ error: '`email` and `projectName` are required' })
+      return
+    }
+
+    // Rate limit: 5 per hour per email (safety net — should only fire once per build)
+    const rl = checkRateLimit(`send-welcome:${email}`, 5, 60 * 60 * 1000)
+    if (!rl.allowed) {
+      const mins = Math.ceil((rl.retryAfter ?? 60) / 60)
+      res.setHeader('Retry-After', String(rl.retryAfter ?? 60))
+      res.status(429).json({ error: `Too many requests. Try again in ${mins}m.` })
       return
     }
 
