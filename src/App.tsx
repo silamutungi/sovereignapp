@@ -384,14 +384,14 @@ function NdevPanel({ locale }: { locale: Locale }) {
                 className="gen-preview"
                 srcDoc={spec.template}
                 title={`Preview of ${spec.appName}`}
-                sandbox="allow-same-origin allow-scripts"
+                sandbox="allow-scripts"
               />
               <div className="gen-preview-fade" aria-hidden="true">
                 <span className="gen-preview-hint">Scroll to see more ↓</span>
               </div>
             </div>
 
-            <p className="gen-live-msg" style={{ color: spec.primaryColor }}>
+            <p className="gen-live-msg">
               ✦ This is your app — let's make it live
             </p>
 
