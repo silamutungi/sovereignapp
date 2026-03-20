@@ -344,6 +344,11 @@ export default function Building() {
                   View on GitHub →
                 </a>
               )}
+              <p style={{ marginTop: '16px', fontSize: '12px', color: 'rgba(255,255,255,0.45)', textAlign: 'center' }}>
+                <a href="/dashboard" style={{ color: 'rgba(138,184,0,0.8)', textDecoration: 'none' }}>
+                  Manage this app in your dashboard →
+                </a>
+              </p>
             </>
           )}
 
