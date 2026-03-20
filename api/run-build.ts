@@ -335,29 +335,61 @@ async function provisionVercel(
   if (!match) return { ok: false, error: `Invalid GitHub repo URL: ${githubRepoUrl}` }
   const [, githubOrg, githubRepo] = match
 
-  // Integration OAuth tokens are scoped to the integration and cannot use
-  // /v9/projects (returns "You don't have permission to create the project").
-  // /v1/integrations/deploy is the correct endpoint for integration tokens:
-  // it creates the project AND triggers the first deployment in one call.
-  console.log('[run-build] Vercel: calling /v1/integrations/deploy for', `${githubOrg}/${githubRepo}`)
-  const { ok: deployOk, status: deployStatus, data: deployment } = await vercelFetch(
-    '/v1/integrations/deploy', token, 'POST',
+  // ── Resolve teamId ────────────────────────────────────────────────────────
+  // Integration OAuth tokens for team accounts require ?teamId=<id> on every
+  // API call, otherwise /v9/projects returns 403 "You don't have permission".
+  // Fetch the Vercel user to get their defaultTeamId, then append it as a
+  // query param to all subsequent calls.
+  console.log('[run-build] Vercel: fetching user info to resolve teamId')
+  const { ok: userOk, data: vcUser } = await vercelFetch('/v2/user', token)
+  if (!userOk) {
+    console.warn('[run-build] Vercel: /v2/user failed, proceeding without teamId:', JSON.stringify(vcUser))
+  }
+  const teamId = (vcUser?.user as Record<string, unknown> | undefined)?.defaultTeamId as string | undefined
+  const teamQ  = teamId ? `?teamId=${encodeURIComponent(teamId)}` : ''
+  console.log('[run-build] Vercel: defaultTeamId:', teamId ?? 'none (personal account)')
+
+  // ── Create project ────────────────────────────────────────────────────────
+  console.log('[run-build] Vercel: creating project', repoName, 'endpoint: /v9/projects' + teamQ)
+  const { ok: projOk, status: projStatus, data: project } = await vercelFetch(
+    `/v9/projects${teamQ}`, token, 'POST',
     {
-      gitRepository: { type: 'github', repo: `${githubOrg}/${githubRepo}` },
       name: repoName,
+      framework: 'vite',
+      gitRepository: { type: 'github', repo: `${githubOrg}/${githubRepo}` },
+      buildCommand: 'npm run build',
+      outputDirectory: 'dist',
+      installCommand: 'npm install',
     },
   )
-  console.log('[run-build] Vercel: /v1/integrations/deploy status', deployStatus, 'response:', JSON.stringify(deployment))
-
-  if (!deployOk) {
-    const msg = (deployment.error as Record<string, unknown>)?.message
-      ?? (deployment.message as string | undefined)
-      ?? JSON.stringify(deployment)
-    return { ok: false, error: `Vercel deploy failed (${deployStatus}): ${String(msg)}` }
+  console.log('[run-build] Vercel: /v9/projects status', projStatus, JSON.stringify(project))
+  if (!projOk) {
+    const msg = (project.error as Record<string, unknown>)?.message ?? JSON.stringify(project)
+    return { ok: false, error: `Failed to create Vercel project (${projStatus}): ${String(msg)}` }
   }
 
-  // Response shape: { id, url, ... } — url is the deployment hostname (no protocol)
-  const rawUrl = (deployment.url ?? deployment.deploymentUrl) as string | undefined
+  const projectId = project.id as string
+  console.log('[run-build] Vercel: project created', projectId)
+
+  // ── Trigger deployment ────────────────────────────────────────────────────
+  console.log('[run-build] Vercel: triggering deployment, endpoint: /v13/deployments' + teamQ)
+  const { ok: deployOk, status: deployStatus, data: deployment } = await vercelFetch(
+    `/v13/deployments${teamQ}`, token, 'POST',
+    {
+      name: repoName,
+      project: projectId,
+      gitSource: { type: 'github', org: githubOrg, repo: githubRepo, ref: 'main' },
+      target: 'production',
+    },
+  )
+  console.log('[run-build] Vercel: /v13/deployments status', deployStatus, JSON.stringify(deployment))
+  if (!deployOk) {
+    const msg = (deployment.error as Record<string, unknown>)?.message ?? JSON.stringify(deployment)
+    return { ok: false, error: `Vercel project created but deploy failed (${deployStatus}): ${String(msg)}` }
+  }
+
+  // deployment.url is the hostname without protocol, e.g. "my-app-abc123.vercel.app"
+  const rawUrl = deployment.url as string | undefined
   const deployUrl = rawUrl
     ? (rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`)
     : `https://${repoName}.vercel.app`
