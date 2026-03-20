@@ -166,6 +166,7 @@ function buildStaticFiles(
       private: true,
       scripts: { dev: 'vite', build: 'vite build', preview: 'vite preview' },
       devDependencies: { vite: '^5.0.0' },
+      engines: { node: '20.x' },
     }, null, 2),
     'index.html': sanitized,
     'vite.config.js': [
@@ -350,7 +351,6 @@ async function createVercelProject(
       buildCommand: 'npm run build',
       outputDirectory: 'dist',
       installCommand: 'npm install',
-      nodeVersion: '20.x',
     },
   )
   console.log('[run-build] Vercel: /v9/projects status', projStatus, JSON.stringify(project))

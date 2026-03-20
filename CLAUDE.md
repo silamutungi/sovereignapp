@@ -149,6 +149,10 @@ If Claude Code is about to do something and there is a relevant lesson here that
 
 ### Deployment & Build
 
+**nodeVersion is not a valid Vercel project creation field**
+The Vercel POST /v9/projects API rejects nodeVersion with a 400: should NOT have additional property nodeVersion. Node version is set via the engines field in package.json instead: { engines: { node: '20.x' } }. Never pass nodeVersion in the project creation payload.
+Learned: 2026-03-20.
+
 **Generated repos need all 6 files — not just 2**
 buildStaticFiles was only pushing index.html and vercel.json. Vercel framework: vite + npm run build requires package.json or it exits with error code 1 immediately. Every generated repo must push exactly these 6 files in one commit:
 1. package.json — vite ^5, build/dev/preview scripts
