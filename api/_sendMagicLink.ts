@@ -10,7 +10,10 @@ import { createClient } from '@supabase/supabase-js'
 function getSupabase() {
   const url = process.env.SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
+  if (!url || !key) {
+    console.error('[sendMagicLink] Missing Supabase env vars — SUPABASE_URL:', !!url, 'SERVICE_ROLE_KEY:', !!key)
+    throw new Error('Supabase not configured')
+  }
   return createClient(url, key)
 }
 
@@ -39,8 +42,8 @@ export async function sendMagicLink(email: string): Promise<void> {
     .insert({ email, token, expires_at: expiresAt })
 
   if (dbError) {
-    console.error('[sendMagicLink] DB error:', dbError)
-    throw new Error('Failed to create magic link')
+    console.error('[sendMagicLink] DB insert error — code:', dbError.code, '| message:', dbError.message, '| details:', dbError.details, '| hint:', dbError.hint)
+    throw new Error(`Failed to create magic link: ${dbError.message}`)
   }
 
   const dashboardUrl = getDashboardUrl(token)

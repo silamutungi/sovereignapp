@@ -398,6 +398,13 @@ CORRECT — works everywhere:
 Rule: every relative import in api/ must end with .js always. No exceptions. This applies to every new file created in api/ from now on. Claude Code must add .js extensions on all relative imports in api/ files automatically. npm package imports (e.g. '@anthropic-ai/sdk') do NOT get .js — only relative path imports starting with ./ or ../ .
 Learned: 2026-03-21.
 
+**sed command for .js extensions missed some files — always verify with grep**
+The bulk sed replacement missed files in subdirectories like api/auth/github/callback.ts. After any bulk import fix, verify with:
+  grep -rn "from '\." api/ --include="*.ts" | grep -v "\.js'"
+Zero results = all fixed. Any results = still broken.
+Also: url.parse() persisted in auth callbacks after multiple fix attempts — check those files specifically after any import fix session. Grep hits in comment/example strings are not bugs; only actual import statements matter.
+Learned: 2026-03-21.
+
 **Files prefixed with _ can appear missing if export const config is misplaced**
 api/_rateLimit.ts was committed correctly but appeared to cause ERR_MODULE_NOT_FOUND. Investigation showed all files were tracked in git. The real risk: export const config was placed BETWEEN import statements (after the first import, before subsequent ones) — some Vercel runtimes fail to pick up config when it is not after all imports. Fix: always place export const config after ALL import statements. Also rule: run git ls-files api/ before assuming a file is missing — confirm with git, not with ls.
 Learned: 2026-03-21.
