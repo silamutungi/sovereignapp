@@ -416,6 +416,13 @@ Zero results = all fixed. Any results = still broken.
 Also: url.parse() persisted in auth callbacks after multiple fix attempts — check those files specifically after any import fix session. Grep hits in comment/example strings are not bugs; only actual import statements matter.
 Learned: 2026-03-21.
 
+**NEVER print env var values in terminal output**
+Claude Code printed the actual SUPABASE_SERVICE_ROLE_KEY value in plain text during debugging. This exposed a secret that bypasses all RLS. The key was immediately rotated.
+Rule: never use `echo $SECRET_KEY` or print env var values in terminal output or logs.
+To verify a key is set without exposing it: `echo "Set: ${#SUPABASE_SERVICE_ROLE_KEY} chars"` (prints length only, never the value).
+To verify a key works: `curl -s -o /dev/null -w '%{http_code}' ...` (prints status code only, never the key).
+Learned: 2026-03-21 — key rotated immediately.
+
 **SUPABASE_SERVICE_ROLE_KEY corruption was in Vercel, not .env**
 The .env was clean (219 chars, no quotes, no ^M, no trailing spaces — confirmed with `cat -v`). Local curl returned 200. But Vercel had a corrupted copy of the key, causing 401 on every Supabase query in production.
 Diagnosis: `cat -v .env | grep SUPABASE_SERVICE_ROLE_KEY` shows control chars if present. `source .env && echo ${#SUPABASE_SERVICE_ROLE_KEY}` shows length — correct key is 219 chars. `source .env && curl -w "%{http_code}" ...supabase.co/rest/v1/builds?select=status` must return 200.
