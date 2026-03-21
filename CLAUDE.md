@@ -416,6 +416,21 @@ Zero results = all fixed. Any results = still broken.
 Also: url.parse() persisted in auth callbacks after multiple fix attempts — check those files specifically after any import fix session. Grep hits in comment/example strings are not bugs; only actual import statements matter.
 Learned: 2026-03-21.
 
+**SUPABASE_SERVICE_ROLE_KEY corruption was in Vercel, not .env**
+The .env was clean (219 chars, no quotes, no ^M, no trailing spaces — confirmed with `cat -v`). Local curl returned 200. But Vercel had a corrupted copy of the key, causing 401 on every Supabase query in production.
+Diagnosis: `cat -v .env | grep SUPABASE_SERVICE_ROLE_KEY` shows control chars if present. `source .env && echo ${#SUPABASE_SERVICE_ROLE_KEY}` shows length — correct key is 219 chars. `source .env && curl -w "%{http_code}" ...supabase.co/rest/v1/builds?select=status` must return 200.
+Fix: update the key in Vercel dashboard (Settings → Environment Variables), then trigger a redeploy with an empty commit — Vercel does NOT pick up env var changes without a redeploy.
+Rule: after updating any Vercel env var, always run `git commit --allow-empty -m 'chore: redeploy'` and push. Never assume the change takes effect without a deploy.
+Learned: 2026-03-21.
+
+**Bulk .js extension fix must be verified file by file — grep is the only truth**
+Multiple sessions of fixing .js extensions have still left broken imports in production. The sed bulk replacement and manual fixes both missed files. The only reliable check is:
+  grep -rn "from '\." api/ --include="*.ts" | grep -v "\.js'"
+This must return ZERO results before any push that touches api/ files. Zero results = safe. Any results = 502 in production. Grep hits inside backtick strings or comment examples are NOT broken imports — only actual TypeScript import statements count.
+This check must be run: (1) after any new file is created in api/, (2) after any import is added to an api/ file, (3) before every push that touches api/. Add this as a pre-push habit alongside npm run build.
+Also: if grep shows zero broken imports but 502 persists, check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel environment variables — missing env vars produce 502 that looks identical to broken imports.
+Learned: 2026-03-21.
+
 **Files prefixed with _ can appear missing if export const config is misplaced**
 api/_rateLimit.ts was committed correctly but appeared to cause ERR_MODULE_NOT_FOUND. Investigation showed all files were tracked in git. The real risk: export const config was placed BETWEEN import statements (after the first import, before subsequent ones) — some Vercel runtimes fail to pick up config when it is not after all imports. Fix: always place export const config after ALL import statements. Also rule: run git ls-files api/ before assuming a file is missing — confirm with git, not with ls.
 Learned: 2026-03-21.
