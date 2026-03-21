@@ -437,6 +437,394 @@ function TokenVerify({
   )
 }
 
+// ── Chat/Preview Panel ─────────────────────────────────────────────────────────
+
+interface ChatMsg {
+  id: number
+  role: 'user' | 'sovereign'
+  text: string
+  previewLink?: boolean
+}
+
+const SUGGESTION_CHIPS = ['Change colors', 'Edit headline', 'Add section', 'Fix a bug']
+
+function EditPanel({
+  build,
+  onClose,
+  onEditSuccess,
+}: {
+  build: Build
+  onClose: () => void
+  onEditSuccess: (msg: string) => void
+}) {
+  const [tab, setTab] = useState<'chat' | 'preview'>('chat')
+  const [messages, setMessages] = useState<ChatMsg[]>([])
+  const [input, setInput] = useState('')
+  const [busy, setBusy] = useState(false)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const counter = useRef(0)
+
+  // Scroll chat to bottom when new messages arrive
+  useEffect(() => {
+    const el = scrollRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [messages, busy])
+
+  // Lock body scroll while panel is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
+
+  // Focus input when switching to chat
+  useEffect(() => {
+    if (tab === 'chat') setTimeout(() => inputRef.current?.focus(), 80)
+  }, [tab])
+
+  function push(msg: Omit<ChatMsg, 'id'>) {
+    setMessages(prev => [...prev, { ...msg, id: ++counter.current }])
+  }
+
+  async function send() {
+    const text = input.trim()
+    if (!text || busy) return
+    push({ role: 'user', text })
+    setInput('')
+    if (inputRef.current) inputRef.current.style.height = 'auto'
+    setBusy(true)
+    try {
+      const res = await fetch('/api/edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          buildId: build.id,
+          appName: build.app_name,
+          repoUrl: build.repo_url,
+          editRequest: text,
+        }),
+      })
+      const data = await res.json() as { success?: boolean; error?: string }
+      if (!res.ok || !data.success) {
+        push({ role: 'sovereign', text: data.error ?? 'Something went wrong. Please try again.' })
+      } else {
+        push({ role: 'sovereign', text: 'Done — your change is deploying now.', previewLink: true })
+        onEditSuccess('Change applied — deploying now')
+      }
+    } catch {
+      push({ role: 'sovereign', text: 'Network error. Please try again.' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const previewUrl = build.deploy_url ?? ''
+  const previewDomain = previewUrl.replace('https://', '').split('/')[0] ?? previewUrl
+
+  return (
+    <>
+      <style>{`
+        .ep-overlay {
+          position: fixed; inset: 0; z-index: 1000;
+          display: flex; align-items: center; justify-content: center;
+          background: rgba(0,0,0,0.55);
+        }
+        .ep-panel {
+          background: #0e0d0b;
+          display: flex; flex-direction: column;
+          width: 480px; height: min(700px, 90vh);
+          border-radius: 12px; overflow: hidden;
+        }
+        .ep-header {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 20px 20px 0; flex-shrink: 0;
+        }
+        .ep-toggle-wrap { padding: 12px 20px; flex-shrink: 0; }
+        .ep-toggle {
+          display: flex; background: #1a1917;
+          border-radius: 10px; padding: 4px;
+        }
+        .ep-tab-btn {
+          flex: 1; padding: 9px 0; border: none; cursor: pointer;
+          font: 15px/1 DM Mono, Courier New, monospace;
+          border-radius: 7px;
+          transition: background 0.15s, color 0.15s;
+        }
+        .ep-tab-btn.active  { background: #f2efe8; color: #0e0d0b; font-weight: 700; }
+        .ep-tab-btn.inactive { background: transparent; color: #f2efe8; font-weight: 400; }
+        .ep-body { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+        .ep-chat-scroll {
+          flex: 1; overflow-y: auto; padding: 16px 20px;
+          display: flex; flex-direction: column; gap: 12px;
+        }
+        .ep-chat-scroll::-webkit-scrollbar { width: 4px; }
+        .ep-chat-scroll::-webkit-scrollbar-track { background: transparent; }
+        .ep-chat-scroll::-webkit-scrollbar-thumb { background: #3a3830; border-radius: 2px; }
+        .ep-msg-user {
+          align-self: flex-end; max-width: 80%;
+          background: #8ab800; color: #0e0d0b;
+          padding: 10px 14px;
+          border-radius: 12px 12px 2px 12px;
+          font: 14px/1.5 DM Mono, Courier New, monospace;
+          word-break: break-word;
+        }
+        .ep-msg-sov { align-self: flex-start; max-width: 80%; display: flex; gap: 8px; align-items: flex-start; }
+        .ep-avatar {
+          width: 24px; height: 24px; border-radius: 50%;
+          background: #8ab800; color: #0e0d0b;
+          font: 700 11px/24px DM Mono, Courier New, monospace;
+          text-align: center; flex-shrink: 0;
+        }
+        .ep-bubble {
+          background: #1a1917; color: #c8c4bc;
+          padding: 10px 14px;
+          border-radius: 2px 12px 12px 12px;
+          font: 14px/1.5 DM Mono, Courier New, monospace;
+          word-break: break-word;
+        }
+        .ep-preview-link {
+          display: inline-block; margin-top: 6px;
+          color: #8ab800; cursor: pointer;
+          font: 13px/1 DM Mono, Courier New, monospace;
+          background: none; border: none; padding: 0;
+        }
+        .ep-preview-link:hover { text-decoration: underline; }
+        .ep-typing { display: flex; gap: 4px; align-items: center; padding: 2px 0; }
+        .ep-dot {
+          width: 6px; height: 6px; border-radius: 50%;
+          background: #6b6862;
+          animation: epDotBounce 1.2s ease-in-out infinite;
+        }
+        .ep-dot:nth-child(2) { animation-delay: 0.2s; }
+        .ep-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes epDotBounce {
+          0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+          40%            { transform: translateY(-5px); opacity: 1; }
+        }
+        .ep-input-area {
+          flex-shrink: 0; padding: 8px 20px 16px;
+          border-top: 0.5px solid #2a2925;
+        }
+        .ep-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+        .ep-chip {
+          font: 12px/1 DM Mono, Courier New, monospace; color: #f2efe8;
+          background: #1a1917; border: 0.5px solid #3a3830;
+          border-radius: 100px; padding: 5px 10px; cursor: pointer;
+          transition: background 0.12s;
+        }
+        .ep-chip:hover { background: #2a2925; }
+        .ep-send-row { display: flex; gap: 8px; align-items: flex-end; }
+        .ep-textarea {
+          flex: 1; background: #1a1917; color: #f2efe8;
+          border: 0.5px solid #3a3830; border-radius: 8px;
+          padding: 10px 12px;
+          font: 16px/1.5 DM Mono, Courier New, monospace;
+          resize: none; min-height: 44px; max-height: 140px;
+          overflow-y: auto; outline: none;
+        }
+        .ep-textarea::placeholder { color: #6b6862; }
+        .ep-textarea:focus { border-color: #8ab800; }
+        .ep-send-btn {
+          width: 40px; height: 40px; border-radius: 8px;
+          background: #8ab800; color: #0e0d0b;
+          border: none; cursor: pointer; font-size: 18px;
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0; transition: opacity 0.12s;
+        }
+        .ep-send-btn:disabled { opacity: 0.4; cursor: default; }
+        .ep-preview-body { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+        .ep-browser-chrome {
+          display: flex; align-items: center; gap: 10px;
+          padding: 10px 16px; background: #1a1917;
+          border-bottom: 0.5px solid #2a2925; flex-shrink: 0;
+        }
+        .ep-browser-dots { display: flex; gap: 5px; flex-shrink: 0; }
+        .ep-browser-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .ep-url-pill {
+          flex: 1; background: #0e0d0b; border-radius: 4px;
+          padding: 5px 10px;
+          font: 11px/1 DM Mono, Courier New, monospace; color: #6b6862;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .ep-iframe { flex: 1; border: none; width: 100%; }
+        .ep-preview-footer {
+          display: flex; gap: 10px; align-items: center; justify-content: space-between;
+          padding: 12px 20px; border-top: 0.5px solid #2a2925; flex-shrink: 0;
+        }
+        .ep-back-btn {
+          font: 12px/1 DM Mono, Courier New, monospace; color: #f2efe8;
+          background: none; border: 0.5px solid #3a3830;
+          border-radius: 6px; padding: 8px 14px; cursor: pointer;
+        }
+        .ep-back-btn:hover { border-color: #f2efe8; }
+        .ep-open-btn {
+          font: 12px/1 DM Mono, Courier New, monospace; color: #0e0d0b;
+          background: #8ab800; border: none; border-radius: 6px;
+          padding: 8px 14px; cursor: pointer; text-decoration: none;
+          display: inline-flex; align-items: center; gap: 4px;
+        }
+        @keyframes epSlideUp {
+          from { transform: translateY(100%); }
+          to   { transform: translateY(0); }
+        }
+        @media (max-width: 640px) {
+          .ep-overlay { background: transparent; align-items: flex-end; justify-content: flex-start; }
+          .ep-panel { width: 100%; height: 100%; border-radius: 0; animation: epSlideUp 0.32s cubic-bezier(0.16, 1, 0.3, 1); }
+        }
+      `}</style>
+
+      <div
+        className="ep-overlay"
+        onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      >
+        <div className="ep-panel">
+
+          {/* Header */}
+          <div className="ep-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#8ab800', flexShrink: 0, display: 'inline-block' }} />
+              <span style={{ font: 'italic 15px/1 "DM Mono", Courier New, monospace', color: '#f2efe8' }}>
+                {build.app_name}
+              </span>
+            </div>
+            <button
+              onClick={onClose}
+              style={{ background: 'none', border: 'none', color: '#6b6862', fontSize: '20px', cursor: 'pointer', lineHeight: 1, padding: '4px' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#f2efe8')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#6b6862')}
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Tab toggle */}
+          <div className="ep-toggle-wrap">
+            <div className="ep-toggle">
+              <button className={`ep-tab-btn ${tab === 'chat' ? 'active' : 'inactive'}`} onClick={() => setTab('chat')}>Chat</button>
+              <button className={`ep-tab-btn ${tab === 'preview' ? 'active' : 'inactive'}`} onClick={() => setTab('preview')}>Preview</button>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="ep-body">
+
+            {tab === 'chat' && (
+              <>
+                {/* Message list */}
+                <div ref={scrollRef} className="ep-chat-scroll">
+                  {messages.length === 0 && (
+                    <p style={{ font: '12px/1.6 DM Mono, Courier New, monospace', color: '#6b6862', margin: 0 }}>
+                      Describe a change — Sovereign will apply it to your live app.
+                    </p>
+                  )}
+                  {messages.map((msg) =>
+                    msg.role === 'user' ? (
+                      <div key={msg.id} className="ep-msg-user">{msg.text}</div>
+                    ) : (
+                      <div key={msg.id} className="ep-msg-sov">
+                        <div className="ep-avatar">S</div>
+                        <div className="ep-bubble">
+                          {msg.text}
+                          {msg.previewLink && (
+                            <>
+                              {' '}
+                              <button className="ep-preview-link" onClick={() => setTab('preview')}>
+                                See preview →
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  )}
+                  {busy && (
+                    <div className="ep-msg-sov">
+                      <div className="ep-avatar">S</div>
+                      <div className="ep-bubble">
+                        <div className="ep-typing">
+                          <div className="ep-dot" />
+                          <div className="ep-dot" />
+                          <div className="ep-dot" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Input area */}
+                <div className="ep-input-area">
+                  <div className="ep-chips">
+                    {SUGGESTION_CHIPS.map((chip) => (
+                      <button
+                        key={chip}
+                        className="ep-chip"
+                        onClick={() => { setInput(chip); inputRef.current?.focus() }}
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="ep-send-row">
+                    <textarea
+                      ref={inputRef}
+                      className="ep-textarea"
+                      value={input}
+                      onChange={(e) => {
+                        setInput(e.target.value)
+                        const el = e.target
+                        el.style.height = 'auto'
+                        el.style.height = Math.min(el.scrollHeight, 140) + 'px'
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send() }
+                        if (e.key === 'Escape') onClose()
+                      }}
+                      placeholder="Describe a change…"
+                      rows={1}
+                    />
+                    <button
+                      className="ep-send-btn"
+                      onClick={() => void send()}
+                      disabled={busy || !input.trim()}
+                      aria-label="Send"
+                    >
+                      ↑
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {tab === 'preview' && (
+              <div className="ep-preview-body">
+                <div className="ep-browser-chrome">
+                  <div className="ep-browser-dots">
+                    <div className="ep-browser-dot" style={{ background: '#ff5f57' }} />
+                    <div className="ep-browser-dot" style={{ background: '#febc2e' }} />
+                    <div className="ep-browser-dot" style={{ background: '#28c840' }} />
+                  </div>
+                  <div className="ep-url-pill">{previewDomain}</div>
+                </div>
+                <iframe
+                  src={previewUrl}
+                  className="ep-iframe"
+                  title={`Preview of ${build.app_name}`}
+                />
+                <div className="ep-preview-footer">
+                  <button className="ep-back-btn" onClick={() => setTab('chat')}>← Back to chat</button>
+                  <a href={previewUrl} target="_blank" rel="noreferrer" className="ep-open-btn">Open ↗</a>
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ── STATE C — Authenticated dashboard ─────────────────────────────────────────
 
 function AuthDashboard({ email }: { email: string }) {
@@ -444,13 +832,9 @@ function AuthDashboard({ email }: { email: string }) {
   const [builds, setBuilds] = useState<Build[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Edit drawer state
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-  const [currentBuild, setCurrentBuild] = useState<Build | null>(null)
-  const [editInput, setEditInput] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [editError, setEditError] = useState<string | null>(null)
-  const editInputRef = useRef<HTMLTextAreaElement>(null)
+  // Edit panel state
+  const [isPanelOpen, setIsPanelOpen] = useState(false)
+  const [panelBuild, setPanelBuild] = useState<Build | null>(null)
 
   // Toast state
   const [toastMessage, setToastMessage] = useState<string | null>(null)
@@ -486,49 +870,15 @@ function AuthDashboard({ email }: { email: string }) {
     return () => clearTimeout(t)
   }, [toastMessage])
 
-  const openEditDrawer = useCallback((build: Build) => {
-    setCurrentBuild(build)
-    setIsDrawerOpen(true)
-    setEditError(null)
-    setTimeout(() => editInputRef.current?.focus(), 350)
+  const openPanel = useCallback((build: Build) => {
+    setPanelBuild(build)
+    setIsPanelOpen(true)
   }, [])
 
-  const closeDrawer = useCallback(() => {
-    setIsDrawerOpen(false)
-    setCurrentBuild(null)
-    setEditInput('')
-    setEditError(null)
+  const closePanel = useCallback(() => {
+    setIsPanelOpen(false)
+    setPanelBuild(null)
   }, [])
-
-  const submitEdit = useCallback(async () => {
-    if (!currentBuild || !editInput.trim()) return
-    setIsSubmitting(true)
-    setEditError(null)
-    try {
-      const res = await fetch('/api/edit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          buildId: currentBuild.id,
-          appName: currentBuild.app_name,
-          repoUrl: currentBuild.repo_url,
-          editRequest: editInput,
-        }),
-      })
-      const data = (await res.json()) as { success?: boolean; error?: string }
-      if (!res.ok || !data.success) {
-        setEditError(data.error ?? 'Something went wrong. Please try again.')
-        setIsSubmitting(false)
-        return
-      }
-      closeDrawer()
-      setToastMessage('Change applied — deploying now')
-      setTimeout(() => { void fetchBuilds() }, 5000)
-    } catch {
-      setEditError('Network error. Please try again.')
-      setIsSubmitting(false)
-    }
-  }, [currentBuild, editInput, closeDrawer, fetchBuilds])
 
   // Stats
   const totalBuilds = builds.length
@@ -548,13 +898,6 @@ function AuthDashboard({ email }: { email: string }) {
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         @keyframes fadeIn { from{opacity:0;transform:translateX(-50%) translateY(6px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
         * { box-sizing: border-box; }
-        .edit-input-row { display: flex; gap: 12px; align-items: flex-start; }
-        .edit-textarea { font-size: 14px; }
-        @media (max-width: 640px) {
-          .edit-input-row { flex-direction: column; gap: 10px; }
-          .edit-textarea { font-size: 16px !important; width: 100%; }
-          .edit-submit-btn { width: 100%; padding: 14px; white-space: normal; align-self: stretch; }
-        }
       `}</style>
 
       {/* ── Top bar ─────────────────────────────────────────────────────── */}
@@ -752,7 +1095,7 @@ function AuthDashboard({ email }: { email: string }) {
               </button>
             </div>
           ) : (
-            builds.map((build) => <AppCard key={build.id} build={build} onEdit={openEditDrawer} />)
+            builds.map((build) => <AppCard key={build.id} build={build} onEdit={openPanel} />)
           )}
         </div>
       </div>
@@ -812,133 +1155,17 @@ function AuthDashboard({ email }: { email: string }) {
         </div>
       )}
 
-      {/* ── Edit drawer ──────────────────────────────────────────────────── */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          background: '#0e0d0b',
-          padding: '28px 32px',
-          borderTop: '2px solid #8ab800',
-          transform: isDrawerOpen ? 'translateY(0)' : 'translateY(100%)',
-          transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-          zIndex: 1000,
-        }}
-      >
-        {/* Close button */}
-        <button
-          onClick={closeDrawer}
-          style={{
-            position: 'absolute',
-            top: '20px',
-            right: '24px',
-            background: 'none',
-            border: 'none',
-            color: '#6b6862',
-            fontSize: '20px',
-            cursor: 'pointer',
-            lineHeight: 1,
-            padding: '4px',
+      {/* ── Chat/Preview panel ───────────────────────────────────────────── */}
+      {isPanelOpen && panelBuild && (
+        <EditPanel
+          build={panelBuild}
+          onClose={closePanel}
+          onEditSuccess={(msg) => {
+            setToastMessage(msg)
+            setTimeout(() => { void fetchBuilds() }, 5000)
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = '#f2efe8')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = '#6b6862')}
-        >
-          ✕
-        </button>
-
-        <p
-          style={{
-            font: '11px/1 DM Mono, Courier New, monospace',
-            letterSpacing: '0.1em',
-            textTransform: 'uppercase',
-            color: '#6b6862',
-            margin: '0 0 6px',
-          }}
-        >
-          Editing
-        </p>
-        <p
-          style={{
-            fontFamily: "'Playfair Display', Georgia, serif",
-            fontSize: '18px',
-            fontWeight: 400,
-            color: '#f2efe8',
-            margin: '0 0 20px',
-          }}
-        >
-          {currentBuild?.app_name}
-        </p>
-
-        <div className="edit-input-row">
-          <textarea
-            ref={editInputRef}
-            value={editInput}
-            onChange={(e) => {
-              setEditInput(e.target.value)
-              const el = e.target
-              el.style.height = 'auto'
-              el.style.height = Math.min(el.scrollHeight, 200) + 'px'
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') closeDrawer()
-            }}
-            placeholder="e.g. Change the hero text to say Welcome back…"
-            rows={3}
-            className="edit-textarea"
-            style={{
-              flex: 1,
-              font: '14px/1.6 DM Mono, Courier New, monospace',
-              background: '#1a1917',
-              border: '0.5px solid rgba(242,239,232,0.2)',
-              borderRadius: '8px',
-              color: '#f2efe8',
-              padding: '12px',
-              outline: 'none',
-              resize: 'none',
-              minHeight: '72px',
-              maxHeight: '200px',
-              overflowY: 'auto',
-            }}
-            onFocus={(e) => (e.target.style.borderColor = '#8ab800')}
-            onBlur={(e) =>
-              (e.target.style.borderColor = 'rgba(242,239,232,0.2)')
-            }
-          />
-          <button
-            onClick={() => { void submitEdit() }}
-            disabled={isSubmitting || !editInput.trim()}
-            className="edit-submit-btn"
-            style={{
-              background: '#8ab800',
-              color: '#0e0d0b',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '14px 24px',
-              font: '500 12px/1 DM Mono, Courier New, monospace',
-              cursor: isSubmitting || !editInput.trim() ? 'default' : 'pointer',
-              whiteSpace: 'nowrap',
-              opacity: isSubmitting ? 0.7 : 1,
-              alignSelf: 'flex-end',
-            }}
-          >
-            {isSubmitting ? 'Applying…' : 'Apply changes →'}
-          </button>
-        </div>
-
-        {editError && (
-          <p
-            style={{
-              font: '12px/1 DM Mono, Courier New, monospace',
-              color: '#c0392b',
-              margin: '8px 0 0',
-            }}
-          >
-            {editError}
-          </p>
-        )}
-      </div>
+        />
+      )}
 
       {/* ── Toast ────────────────────────────────────────────────────────── */}
       {toastMessage && (
