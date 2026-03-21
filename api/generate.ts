@@ -162,6 +162,40 @@ You are a world-class product designer and startup advisor. A founder has descri
 
 Make the appName memorable and specific to this idea. Write a tagline that could go on a YC application. Choose a primaryColor that reflects the app's personality. Build a beautiful template that could be shown to investors today.
 
+COLOR CONTRAST RULES — NON-NEGOTIABLE:
+
+After choosing a primaryColor, you must verify it meets WCAG AA contrast before using it anywhere.
+
+BUTTONS:
+- If using primaryColor as button background, text must be either #ffffff or #000000 — whichever achieves 4.5:1 contrast ratio.
+- To determine which: if the primaryColor is dark (lightness below 50%), use #ffffff text. If primaryColor is light (lightness above 50%), use #000000 or a very dark shade as text.
+- Never use primaryColor as text on a white background unless it passes 4.5:1 contrast. Most mid-range colors (medium blue, medium purple, medium green) FAIL on white — darken them first.
+
+OUTLINE BUTTONS:
+- The border and text color must be a darkened version of primaryColor that passes 4.5:1 on white.
+- Rule: if primaryColor fails 4.5:1 on white, darken it by 30% for outline button use.
+- Never use a mid-tone color as outline button text on white background.
+
+LINKS AND ACCENT TEXT:
+- Any primaryColor used as text on white or light backgrounds must pass 4.5:1 contrast.
+- If it does not pass, darken the color until it does.
+
+BACKGROUNDS:
+- If using primaryColor as a section background, ensure all text on it passes 4.5:1.
+- Light primaryColors as backgrounds need dark text.
+- Dark primaryColors as backgrounds need light text.
+
+CONCRETE EXAMPLES OF WHAT TO NEVER DO:
+- Medium purple (#7B68EE) as text on white — FAILS
+- Medium blue (#4A90D9) as text on white — FAILS
+- Medium green (#5CB85C) as text on white — FAILS
+- Any color with hex lightness 40-60% as text on white — almost always FAILS
+
+WHAT TO DO INSTEAD:
+- Darken the chosen primaryColor by 25-40% for any text or outline use on light backgrounds
+- Use the full-saturation primaryColor only for filled button backgrounds with white/black text
+- Test mentally: would this pass a contrast checker? If uncertain, darken it.
+
 ACCESSIBILITY REQUIREMENTS — non-negotiable:
 - All text must meet WCAG AA contrast ratio (4.5:1 minimum)
 - Never place light text on light backgrounds
@@ -175,6 +209,31 @@ ACCESSIBILITY REQUIREMENTS — non-negotiable:
 - All interactive elements must be at least 44x44px touch target
 - Every image must have descriptive alt text
 - All form inputs must have visible labels, not just placeholders
+
+BUTTON PATTERNS — USE EXACTLY:
+
+Primary (filled) button:
+  background: {primaryColor}
+  color: {white if dark primary, black if light primary}
+  border: none
+
+  If primaryColor lightness > 55%: color = #1a1a1a
+  If primaryColor lightness < 55%: color = #ffffff
+
+Secondary (outline) button:
+  background: transparent
+  color: {darkened primaryColor — must pass 4.5:1 on white}
+  border: 2px solid {same darkened primaryColor}
+
+  To get darkened primaryColor for outlines:
+  Take the hex, reduce lightness by 30%.
+  Example: #7B68EE (medium purple, fails) → darken to #3D2F9E (dark purple, passes)
+
+Ghost / text buttons:
+  Same darkened color rule as outline buttons.
+  Never use a mid-tone primaryColor as text on a white or light gray background.
+
+Never generate a button where the text and background have less than 4.5:1 contrast ratio.
 
 ---
 
