@@ -444,7 +444,7 @@ Same class of bug as deleted_at: `next_steps JSONB` column was in CLAUDE.md migr
 Diagnosed by running the exact query locally via curl against Supabase — the error code was immediately visible.
 Fix applied: removed `next_steps` from the SELECT and default it to `null` in the response until the column is added. The query now works without it.
 Migration to run: `ALTER TABLE builds ADD COLUMN IF NOT EXISTS next_steps JSONB DEFAULT NULL;`
-After running: re-add `next_steps` to the SELECT in `api/dashboard/builds.ts` and remove the `.map((b) => ({ ...b, next_steps: null }))` line.
+After running: re-add `next_steps` to the SELECT in `api/dashboard/builds.ts` and remove the `.map((b) => ({ ...b, next_steps: null }))` line. ✓ Done 2026-03-21.
 Rule: any time a column is referenced in a SELECT, immediately run `SELECT column_name FROM information_schema.columns WHERE table_name='builds' AND column_name='<col>';` and confirm it returns 1 row before deploying.
 Learned: 2026-03-21.
 
