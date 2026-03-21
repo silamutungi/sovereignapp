@@ -31,10 +31,18 @@ export default async function handler(req: any, res: any): Promise<void> {
 
     const supabaseUrl = process.env.SUPABASE_URL
     const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    console.log('[build-status] env:', {
+      supabaseUrl:  !!supabaseUrl,
+      serviceRole:  !!serviceKey,
+    })
+
     if (!supabaseUrl || !serviceKey) {
       res.status(500).json({ error: 'Supabase not configured' })
       return
     }
+
+    console.log('[build-status] Querying build:', buildId)
 
     const dbRes = await fetch(
       `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&deleted_at=is.null&select=status,step,app_name,repo_url,deploy_url,error`,
@@ -48,6 +56,17 @@ export default async function handler(req: any, res: any): Promise<void> {
     )
 
     if (!dbRes.ok) {
+      let errorBody = ''
+      try {
+        errorBody = await dbRes.text()
+      } catch {
+        errorBody = 'could not read body'
+      }
+      console.error('[build-status] Supabase FAILED:',
+        'status:', dbRes.status,
+        'statusText:', dbRes.statusText,
+        'body:', errorBody,
+      )
       res.status(502).json({ error: 'Failed to query Supabase' })
       return
     }
