@@ -69,7 +69,6 @@ export default async function handler(req: any, res: any): Promise<void> {
         repo_url,
         step,
         error,
-        next_steps,
         created_at
       `)
       .eq('email', email.toLowerCase())
@@ -82,7 +81,10 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
-    res.status(200).json({ builds: data ?? [] })
+    // next_steps column is added via migration — default to null until present
+    const builds = (data ?? []).map((b) => ({ ...b, next_steps: null }))
+
+    res.status(200).json({ builds })
   } catch (err) {
     console.error('[dashboard/builds] Error:', err)
     res.status(500).json({ error: 'Something went wrong.' })

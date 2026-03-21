@@ -439,6 +439,15 @@ Rule: whenever a new column is added to a query, immediately verify it exists in
 Must return one row. Zero rows = column missing = every query using it will 502. Never assume a documented migration ran — verify in the SQL editor.
 Learned: 2026-03-21.
 
+**next_steps column missing caused dashboard to show 0 builds silently**
+Same class of bug as deleted_at: `next_steps JSONB` column was in CLAUDE.md migrations and in every SELECT query but never actually run in Supabase. The dashboard/builds.ts Supabase query returned 42703 → API 500 → Dashboard.tsx `if (!res.ok) return` swallowed the error → grid showed empty.
+Diagnosed by running the exact query locally via curl against Supabase — the error code was immediately visible.
+Fix applied: removed `next_steps` from the SELECT and default it to `null` in the response until the column is added. The query now works without it.
+Migration to run: `ALTER TABLE builds ADD COLUMN IF NOT EXISTS next_steps JSONB DEFAULT NULL;`
+After running: re-add `next_steps` to the SELECT in `api/dashboard/builds.ts` and remove the `.map((b) => ({ ...b, next_steps: null }))` line.
+Rule: any time a column is referenced in a SELECT, immediately run `SELECT column_name FROM information_schema.columns WHERE table_name='builds' AND column_name='<col>';` and confirm it returns 1 row before deploying.
+Learned: 2026-03-21.
+
 **Bulk .js extension fix must be verified file by file — grep is the only truth**
 Multiple sessions of fixing .js extensions have still left broken imports in production. The sed bulk replacement and manual fixes both missed files. The only reliable check is:
   grep -rn "from '\." api/ --include="*.ts" | grep -v "\.js'"
