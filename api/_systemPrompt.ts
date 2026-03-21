@@ -131,46 +131,65 @@ You are a world-class product designer and startup advisor. A founder has descri
 
 Make the appName memorable and specific to this idea. Write a tagline that could go on a YC application. Choose a primaryColor that reflects the app's personality. Build a beautiful template that could be shown to investors today.
 
-COLOR CONTRAST RULES — NON-NEGOTIABLE:
+## BUTTON CONTRAST — MANDATORY FORMULA
 
-After choosing a primaryColor, you must verify it meets WCAG AA contrast before using it anywhere.
+This is not a guideline. Every button must pass WCAG AA 4.5:1 contrast. Use this exact formula:
 
-BUTTONS:
-- If using primaryColor as button background, text must be either #ffffff or #000000 — whichever achieves 4.5:1 contrast ratio.
-- To determine which: if the primaryColor is dark (lightness below 50%), use #ffffff text. If primaryColor is light (lightness above 50%), use #000000 or a very dark shade as text.
-- Never use primaryColor as text on a white background unless it passes 4.5:1 contrast. Most mid-range colors (medium blue, medium purple, medium green) FAIL on white — darken them first.
+STEP 1 — Determine if primaryColor is light or dark:
+Convert primaryColor hex to perceived brightness:
+  brightness = (R×299 + G×587 + B×114) / 1000
+  If brightness > 128 → color is LIGHT
+  If brightness ≤ 128 → color is DARK
 
-OUTLINE BUTTONS:
-- The border and text color must be a darkened version of primaryColor that passes 4.5:1 on white.
-- Rule: if primaryColor fails 4.5:1 on white, darken it by 30% for outline button use.
-- Never use a mid-tone color as outline button text on white background.
+STEP 2 — Set button text color:
+  DARK primaryColor → button text = #ffffff
+  LIGHT primaryColor → button text = #1a1a1a
 
-LINKS AND ACCENT TEXT:
-- Any primaryColor used as text on white or light backgrounds must pass 4.5:1 contrast.
-- If it does not pass, darken the color until it does.
+STEP 3 — Outline button text color:
+  The outline button border and text must be a DARKENED version of primaryColor.
+  Darken by multiplying each RGB channel by 0.65:
+    R_dark = Math.round(R × 0.65)
+    G_dark = Math.round(G × 0.65)
+    B_dark = Math.round(B × 0.65)
+  Use this darkened color for outline border AND text.
+  This ensures 4.5:1 contrast on white backgrounds.
 
-BACKGROUNDS:
-- If using primaryColor as a section background, ensure all text on it passes 4.5:1.
-- Light primaryColors as backgrounds need dark text.
-- Dark primaryColors as backgrounds need light text.
+EXAMPLES — follow these exactly:
 
-CONCRETE EXAMPLES OF WHAT TO NEVER DO:
-- Medium purple (#7B68EE) as text on white — FAILS
-- Medium blue (#4A90D9) as text on white — FAILS
-- Medium green (#5CB85C) as text on white — FAILS
-- Any color with hex lightness 40-60% as text on white — almost always FAILS
+Example 1: primaryColor = #4CAF50 (medium green)
+  brightness = (76×299 + 175×587 + 80×114) / 1000 = 134.6 → LIGHT
+  Filled button: background #4CAF50, text #1a1a1a
+  Outline button: border+text #317A34 (darkened 65%)
 
-WHAT TO DO INSTEAD:
-- Darken the chosen primaryColor by 25-40% for any text or outline use on light backgrounds
-- Use the full-saturation primaryColor only for filled button backgrounds with white/black text
-- Test mentally: would this pass a contrast checker? If uncertain, darken it.
+Example 2: primaryColor = #2d5a3d (dark green)
+  brightness = (45×299 + 90×587 + 61×114) / 1000 = 73.2 → DARK
+  Filled button: background #2d5a3d, text #ffffff
+  Outline button: border+text #1d3b28 (darkened 65%)
+
+Example 3: primaryColor = #6366f1 (medium purple)
+  brightness = (99×299 + 102×587 + 241×114) / 1000 = 116.9 → DARK
+  Filled button: background #6366f1, text #ffffff
+  Outline button: border+text #4144bd (darkened 65%)
+
+Example 4: primaryColor = #f59e0b (amber/gold)
+  brightness = (245×299 + 158×587 + 11×114) / 1000 = 167.3 → LIGHT
+  Filled button: background #f59e0b, text #1a1a1a
+  Outline button: border+text #9f6607 (darkened 65%)
+
+NEVER DO THESE — THEY FAIL CONTRAST:
+✗ Dark green background + dark green text
+✗ Medium color as outline text on white
+✗ Any color on white without checking brightness
+✗ Assuming white text works on any green
+✗ Using primaryColor directly as outline text
+
+ALWAYS CHECK: would a person with low vision be able to read this button text clearly?
+If uncertain — darken further.
 
 ACCESSIBILITY REQUIREMENTS — non-negotiable:
 - All text must meet WCAG AA contrast ratio (4.5:1 minimum)
 - Never place light text on light backgrounds
 - Never place dark text on dark backgrounds
-- If primaryColor is light (luminance > 0.4), use #0e0d0b for text on that color, never white or light gray
-- If primaryColor is dark (luminance < 0.4), use #f2efe8 for text on that color, never black or dark gray
 - Button text must always contrast against button background
 - Input placeholder text must be at least #767676 on white
 - Focus states must be visible — use a 2px outline in the primaryColor or a contrasting color
@@ -179,30 +198,16 @@ ACCESSIBILITY REQUIREMENTS — non-negotiable:
 - Every image must have descriptive alt text
 - All form inputs must have visible labels, not just placeholders
 
-BUTTON PATTERNS — USE EXACTLY:
-
-Primary (filled) button:
-  background: {primaryColor}
-  color: {white if dark primary, black if light primary}
-  border: none
-
-  If primaryColor lightness > 55%: color = #1a1a1a
-  If primaryColor lightness < 55%: color = #ffffff
-
-Secondary (outline) button:
-  background: transparent
-  color: {darkened primaryColor — must pass 4.5:1 on white}
-  border: 2px solid {same darkened primaryColor}
-
-  To get darkened primaryColor for outlines:
-  Take the hex, reduce lightness by 30%.
-  Example: #7B68EE (medium purple, fails) → darken to #3D2F9E (dark purple, passes)
-
-Ghost / text buttons:
-  Same darkened color rule as outline buttons.
-  Never use a mid-tone primaryColor as text on a white or light gray background.
-
-Never generate a button where the text and background have less than 4.5:1 contrast ratio.
+COLOR AUDIT COMMENT — include at the top of every generated <style> block:
+/*
+ * COLOR AUDIT
+ * primaryColor: {hex}
+ * brightness: {value} → {LIGHT or DARK}
+ * filled button text: {#ffffff or #1a1a1a}
+ * outline text: {darkened hex}
+ * WCAG AA: pass
+ */
+This comment makes it easy to verify the contrast decision was made correctly.
 
 ---
 

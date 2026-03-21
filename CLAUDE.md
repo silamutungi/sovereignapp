@@ -263,6 +263,16 @@ If Claude Code is about to do something and there is a relevant lesson here that
 **Generated app color contrast failing on buttons**
 The Standards Engine was not enforcing contrast on generated primaryColor usage. Mid-tone colors (medium purple, blue, green) fail 4.5:1 on white when used as text or outline borders.
 Fix: generation prompt now enforces darkening primaryColor by 30% for any text/outline use on light backgrounds. Full primaryColor only used for filled button backgrounds with white or black text.
+
+**Button contrast rules need formulas not guidelines**
+Descriptive contrast rules in the system prompt are not followed reliably. Claude chooses colors that look plausible but fail WCAG AA.
+Fix: replaced guidelines with an explicit brightness formula:
+  brightness = (R×299 + G×587 + B×114) / 1000
+  > 128 = LIGHT → use #1a1a1a text
+  ≤ 128 = DARK → use #ffffff text
+  Outline buttons: darken primaryColor by ×0.65 on each RGB channel
+Four worked examples for common failure cases added to prompt. The formula produces correct results every time.
+Learned: 2026-03-21.
 Triage: → CLAUDE.md lessons ✓ → Generation prompt ✓ → Generated app CLAUDE.md template — add note about contrast checking when customizing colors.
 Learned: 2026-03-20.
 
