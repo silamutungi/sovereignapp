@@ -374,9 +374,12 @@ Correct behaviour: HTTP spec requires Retry-After on 429 responses so that clien
 Fix: added `res.setHeader('Retry-After', String(rl.retryAfter ?? fallback))` before every res.status(429) across all 9 API routes.
 Learned: 2026-03-20.
 
-**api/generate 500 on long prompts**
-Two causes found: (1) Vercel body parser default limit can reject large request bodies. Fix: export config with sizeLimit: '10mb' in the API route. (2) Long template prompts + variation hints can push combined message length too high. Fix: cap combined userMessage at 3000 chars (idea sliced to 2500, hint appended, total sliced to 3000).
-Always add detailed error logging in catch blocks — the generic 500 hides the real cause. Rule: every catch block logs err.constructor.name, err.message, err.status, and input lengths.
+**api/generate 500 on long prompts — real cause**
+Root cause was NOT token limits. It was Vercel's default body parser silently returning 413 on requests over 1mb. The 500 was masking the real status code.
+Fix: export const config = { api: { bodyParser: { sizeLimit: '10mb' } } } in api/generate.ts.
+Also fixed: variation hints on attempt 2/3 were pushing combined message length dangerously high. Fix: baseMessage = idea.slice(0, 2500), total capped at 3000 chars.
+Model confirmed: claude-opus-4-6 with max_tokens: 16000. Do not downgrade to Sonnet — generation quality depends on Opus.
+Lesson: always add detailed catch logging first. Generic 500s hide the real cause every time. The error logging (constructor.name, status, prompt length) should be the first thing added to any new API route catch block.
 Learned: 2026-03-20.
 
 **Preview regeneration — 3 attempts before build**
