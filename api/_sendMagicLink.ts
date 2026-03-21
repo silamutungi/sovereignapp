@@ -35,6 +35,10 @@ export async function sendMagicLink(email: string): Promise<void> {
 
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 
+  console.log('[sendMagicLink] Attempting insert for:', email)
+  console.log('[sendMagicLink] SUPABASE_URL set:', !!process.env.SUPABASE_URL)
+  console.log('[sendMagicLink] SERVICE_ROLE_KEY set:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
+
   const supabase = getSupabase()
 
   const { error: dbError } = await supabase
