@@ -332,6 +332,48 @@ Decided: 2026-03-20.
 When a bug is fixed or decision made, triage it: (1) CLAUDE.md — always, for Sovereign's own builds; (2) Generation prompt — if every generated app is affected; (3) Generated app CLAUDE.md template — if users maintaining their app would benefit; (4) SECURITY.md — if it is a security pattern. One lesson can go to all four destinations.
 Decided: 2026-03-20.
 
+**run-build.ts was missing rate limiting entirely**
+Wrong assumption: run-build.ts was self-contained and didn't need rate limiting because only authenticated users trigger it.
+Correct behaviour: any endpoint that triggers heavy provisioning (GitHub repo, Vercel project, Claude generation) must be rate limited to prevent abuse.
+Fix: added IP-based rate limit (10/hr) with Retry-After header as the first check in the handler, after the method check. Import checkRateLimit from ./_rateLimit.
+Learned: 2026-03-20.
+
+**api/generate.ts only had per-email rate limiting, not per-IP**
+Wrong assumption: email-based rate limiting was sufficient for generate; anonymous callers without email could not abuse it.
+Correct behaviour: callers can hit generate without supplying an email (the email field is optional at that stage). IP rate limit must always run regardless.
+Fix: added IP rate limit (20/hr) as the very first check in the handler, before the email rate limit check.
+Learned: 2026-03-20.
+
+**SPA rewrite rule in generated vercel.json was intercepting /api/ routes**
+Wrong assumption: `/(.*)`  is the correct SPA catch-all rewrite pattern.
+Correct behaviour: `/(.*)`  intercepts all paths including /api/health, /api/generate etc., breaking serverless functions. Use `/((?!api/).*)`  to exclude the api/ prefix.
+Fix: updated the vercel.json template in buildStaticFiles in run-build.ts. Also added the lesson to the generation system prompt.
+Learned: 2026-03-20.
+
+**Generation system prompt was duplicated across api/generate.ts and server/generate.ts**
+Wrong assumption: keeping two copies was acceptable because they were always edited together.
+Correct behaviour: two copies always diverge. Any prompt fix applied to one file must be manually applied to the other — this was confirmed to fail in two sessions.
+Fix: extracted SYSTEM_PROMPT to api/_systemPrompt.ts (exported const). Both api/generate.ts and server/generate.ts now import from that single source. One edit, both files updated.
+Learned: 2026-03-20.
+
+**Generated repos did not include CLAUDE.md — users had no AI context for their app**
+Wrong assumption: users would add Claude Code context themselves.
+Correct behaviour: every generated repo must ship a CLAUDE.md so that the user's own Claude Code sessions immediately understand the app's stack, how to add tables, and security rules.
+Fix: CLAUDE.md is now the 7th scaffold file in buildStaticFiles. Template added to the generation system prompt.
+Learned: 2026-03-20.
+
+**Template HTML was not being sanitized before pushing to GitHub**
+Wrong assumption: Claude-generated HTML was clean for production.
+Correct behaviour: Claude may emit localhost script tags, Vite HMR injection, or dev-only link tags. These must be stripped before pushing to GitHub.
+Fix: sanitization rule added to the generation system prompt. Run-build.ts must strip `<script src="http://localhost...">`, `<link href="http://localhost...">`, and any Vite HMR injection before committing.
+Learned: 2026-03-20.
+
+**All 429 responses must include Retry-After header**
+Wrong assumption: returning 429 with an error message was sufficient.
+Correct behaviour: HTTP spec requires Retry-After on 429 responses so that clients and uptime monitors can back off correctly. Missing Retry-After causes aggressive retry storms.
+Fix: added `res.setHeader('Retry-After', String(rl.retryAfter ?? fallback))` before every res.status(429) across all 9 API routes.
+Learned: 2026-03-20.
+
 ## Supabase Schema — SQL Run in Production
 
 All statements below must be run in the Supabase SQL Editor.
