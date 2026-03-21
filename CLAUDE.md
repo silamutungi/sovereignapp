@@ -430,6 +430,15 @@ Fix: update the key in Vercel dashboard (Settings → Environment Variables), th
 Rule: after updating any Vercel env var, always run `git commit --allow-empty -m 'chore: redeploy'` and push. Never assume the change takes effect without a deploy.
 Learned: 2026-03-21.
 
+**deleted_at column missing from builds table caused build-status 502**
+The soft deletes migration was documented in CLAUDE.md and added to queries but the ALTER TABLE was never actually run in Supabase SQL editor. Result: every build-status query failed with code 42703 (column builds.deleted_at does not exist).
+Fix: `ALTER TABLE builds ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;`
+Rule: whenever a new column is added to a query, immediately verify it exists in Supabase before deploying:
+  SELECT column_name FROM information_schema.columns
+  WHERE table_name = 'builds' AND column_name = 'deleted_at';
+Must return one row. Zero rows = column missing = every query using it will 502. Never assume a documented migration ran — verify in the SQL editor.
+Learned: 2026-03-21.
+
 **Bulk .js extension fix must be verified file by file — grep is the only truth**
 Multiple sessions of fixing .js extensions have still left broken imports in production. The sed bulk replacement and manual fixes both missed files. The only reliable check is:
   grep -rn "from '\." api/ --include="*.ts" | grep -v "\.js'"
