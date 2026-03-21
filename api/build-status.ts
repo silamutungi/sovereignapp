@@ -43,17 +43,34 @@ export default async function handler(req: any, res: any): Promise<void> {
     }
 
     console.log('[build-status] Querying build:', buildId)
-
-    const dbRes = await fetch(
-      `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&deleted_at=is.null&select=status,step,app_name,repo_url,deploy_url,error`,
-      {
-        headers: {
-          apikey: serviceKey,
-          Authorization: `Bearer ${serviceKey}`,
-          Accept: 'application/json',
-        },
-      },
+    console.log('[build-status] Fetching URL:',
+      `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&deleted_at=is.null&select=...`,
     )
+    console.log('[build-status] About to fetch from Supabase')
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let dbRes: any
+    try {
+      dbRes = await fetch(
+        `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&deleted_at=is.null&select=status,step,app_name,repo_url,deploy_url,error`,
+        {
+          headers: {
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+            Accept: 'application/json',
+          },
+        },
+      )
+      console.log('[build-status] Fetch completed, status:', dbRes.status)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (fetchErr: any) {
+      console.error('[build-status] FETCH CRASHED:',
+        fetchErr.message,
+        fetchErr.cause?.message ?? '',
+      )
+      res.status(502).json({ error: 'Failed to reach Supabase' })
+      return
+    }
 
     if (!dbRes.ok) {
       let errorBody = ''
