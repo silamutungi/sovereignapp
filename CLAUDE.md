@@ -398,6 +398,12 @@ CORRECT — works everywhere:
 Rule: every relative import in api/ must end with .js always. No exceptions. This applies to every new file created in api/ from now on. Claude Code must add .js extensions on all relative imports in api/ files automatically. npm package imports (e.g. '@anthropic-ai/sdk') do NOT get .js — only relative path imports starting with ./ or ../ .
 Learned: 2026-03-21.
 
+**magic_links table missing from production — migration files are not auto-run**
+The table was defined in CLAUDE.md SQL and the migration file existed locally but was never actually run in the Supabase dashboard. Supabase does not auto-execute migration files — they must be manually run in the SQL editor. The silent failure: Supabase returns error code 42P01 (undefined_table) which was being swallowed before it could surface in logs. The table check diagnostic (select id limit 1 before the insert) now surfaces this as a hard throw with the code visible in logs.
+Fix: explicit table check before every insert in a new function, migration file in supabase/migrations/ with clear run instructions.
+Rule: after writing any migration file, run it in Supabase SQL editor immediately and confirm with `SELECT table_name FROM information_schema.tables WHERE table_name = 'your_table'`. Never assume a migration ran — verify.
+Learned: 2026-03-21.
+
 **sed command for .js extensions missed some files — always verify with grep**
 The bulk sed replacement missed files in subdirectories like api/auth/github/callback.ts. After any bulk import fix, verify with:
   grep -rn "from '\." api/ --include="*.ts" | grep -v "\.js'"
@@ -440,6 +446,28 @@ Learned: 2026-03-20.
 
 All statements below must be run in the Supabase SQL Editor.
 Run each one and confirm success before proceeding to the next.
+
+### 2026-03-21 — magic_links table (create if missing)
+
+Migration file: `supabase/migrations/magic_links.sql`
+
+```sql
+CREATE TABLE IF NOT EXISTS magic_links (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  email      TEXT        NOT NULL,
+  token      TEXT        NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used       BOOLEAN     DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  deleted_at TIMESTAMPTZ DEFAULT NULL
+);
+ALTER TABLE magic_links ENABLE ROW LEVEL SECURITY;
+-- No public policies — service role only
+CREATE INDEX IF NOT EXISTS magic_links_token_idx ON magic_links(token);
+CREATE INDEX IF NOT EXISTS magic_links_email_idx ON magic_links(email);
+```
+
+Confirm after: `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'magic_links';`
 
 ### 2026-03-20 — Pre-dashboard dogfood audit
 
