@@ -6,9 +6,9 @@
 //   - omit subject/body to send the app-launch email
 // Returns: { ok: true } | { error: string }
 
-import { sendMagicLink } from './_sendMagicLink'
+import { sendMagicLink } from './_sendMagicLink.js'
 
-import { checkRateLimit } from './_rateLimit'
+import { checkRateLimit } from './_rateLimit.js'
 
 // ── Email templates ────────────────────────────────────────────────────────
 

@@ -9,7 +9,7 @@
 //
 // Self-contained: no imports from src/ or server/.
 
-import { checkRateLimit, getClientIp } from '../../_rateLimit'
+import { checkRateLimit, getClientIp } from '../../_rateLimit.js'
 
 function siteBase(): string {
   // VERCEL_ENV is set by the Vercel runtime. Absent in local dev.

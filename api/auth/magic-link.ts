@@ -6,8 +6,8 @@
 //
 // Rate limit: 3 requests per hour per IP
 
-import { sendMagicLink } from '../_sendMagicLink'
-import { checkRateLimit } from '../_rateLimit'
+import { sendMagicLink } from '../_sendMagicLink.js'
+import { checkRateLimit } from '../_rateLimit.js'
 
 // SECURITY AUDIT
 // - Rate limited: 3/hr per IP (prevents abuse)

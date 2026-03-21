@@ -27,7 +27,7 @@
 // Instead: create Vercel project (linked to GitHub) → push files to GitHub
 // → Vercel auto-deploys via GitHub integration → poll for READY status.
 //
-import { checkRateLimit } from './_rateLimit'
+import { checkRateLimit } from './_rateLimit.js'
 
 export const maxDuration = 60
 

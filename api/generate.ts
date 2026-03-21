@@ -5,8 +5,8 @@
 // Returns: AppSpec JSON
 //
 import Anthropic from '@anthropic-ai/sdk'
-import { checkRateLimit } from './_rateLimit'
-import { SYSTEM_PROMPT } from './_systemPrompt'
+import { checkRateLimit } from './_rateLimit.js'
+import { SYSTEM_PROMPT } from './_systemPrompt.js'
 
 export const config = {
   api: {

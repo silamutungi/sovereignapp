@@ -9,7 +9,7 @@
 //
 // Self-contained: no imports from src/ or server/.
 
-import { checkRateLimit, getClientIp } from '../../_rateLimit'
+import { checkRateLimit, getClientIp } from '../../_rateLimit.js'
 
 function siteBase(): string {
   if (process.env.VERCEL_ENV === 'production') return 'https://sovereignapp.dev'

@@ -368,6 +368,13 @@ Correct behaviour: Claude may emit localhost script tags, Vite HMR injection, or
 Fix: sanitization rule added to the generation system prompt. Run-build.ts must strip `<script src="http://localhost...">`, `<link href="http://localhost...">`, and any Vite HMR injection before committing.
 Learned: 2026-03-20.
 
+**Node ESM requires .js on all relative imports in api/**
+tsconfig moduleResolution: 'bundler' allows extensionless imports locally via Vite. But Vercel runs api/ files with Node ESM directly — which requires explicit .js extensions on every relative import, even though the source files are .ts.
+WRONG (works locally, breaks in production): `import { x } from './_rateLimit'`
+CORRECT (works everywhere): `import { x } from './_rateLimit.js'`
+Rule: every relative import in api/ must end with .js — always. No exceptions. This applies to all new files created in api/ from this point forward. npm package imports (e.g. '@anthropic-ai/sdk') do NOT get .js — only relative path imports starting with ./ or ../ .
+Learned: 2026-03-21.
+
 **Files prefixed with _ can appear missing if export const config is misplaced**
 api/_rateLimit.ts was committed correctly but appeared to cause ERR_MODULE_NOT_FOUND. Investigation showed all files were tracked in git. The real risk: export const config was placed BETWEEN import statements (after the first import, before subsequent ones) — some Vercel runtimes fail to pick up config when it is not after all imports. Fix: always place export const config after ALL import statements. Also rule: run git ls-files api/ before assuming a file is missing — confirm with git, not with ls.
 Learned: 2026-03-21.

@@ -6,7 +6,7 @@
 // Used by uptime monitors and CI smoke tests.
 // Rate limit: 60 per minute per IP
 
-import { checkRateLimit } from './_rateLimit'
+import { checkRateLimit } from './_rateLimit.js'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default function handler(req: any, res: any): void {

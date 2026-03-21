@@ -9,7 +9,7 @@
 // Rate limit: 60 requests per minute per IP
 
 import { createClient } from '@supabase/supabase-js'
-import { checkRateLimit } from '../_rateLimit'
+import { checkRateLimit } from '../_rateLimit.js'
 
 // SECURITY AUDIT
 // - Rate limited: 60/min per IP
