@@ -53,7 +53,9 @@ export default async function handler(req: any, res: any): Promise<void> {
     // Always return success — never confirm or deny whether an email exists
     res.status(200).json({ success: true })
   } catch (err) {
-    console.error('[magic-link] Error:', err)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const e = err as any
+    console.error('[magic-link] Error:', e?.message, e?.code, JSON.stringify(err, Object.getOwnPropertyNames(e)))
     res.status(500).json({ error: 'Something went wrong. Please try again.' })
   }
 }

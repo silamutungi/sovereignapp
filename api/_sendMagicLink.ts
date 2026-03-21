@@ -35,12 +35,15 @@ export async function sendMagicLink(email: string): Promise<void> {
 
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 
-  console.log('[sendMagicLink] Attempting insert for:', email)
-  console.log('[sendMagicLink] SUPABASE_URL set:', !!process.env.SUPABASE_URL)
-  console.log('[sendMagicLink] SERVICE_ROLE_KEY set:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
+  console.log('[sendMagicLink] env check:', {
+    supabaseUrl: !!process.env.SUPABASE_URL,
+    serviceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    resendKey: !!process.env.RESEND_API_KEY,
+  })
 
   const supabase = getSupabase()
 
+  console.log('[sendMagicLink] Attempting DB insert')
   const { error: dbError } = await supabase
     .from('magic_links')
     .insert({ email, token, expires_at: expiresAt })
@@ -49,6 +52,8 @@ export async function sendMagicLink(email: string): Promise<void> {
     console.error('[sendMagicLink] DB insert error — code:', dbError.code, '| message:', dbError.message, '| details:', dbError.details, '| hint:', dbError.hint)
     throw new Error(`Failed to create magic link: ${dbError.message}`)
   }
+
+  console.log('[sendMagicLink] DB insert succeeded, sending email to:', email)
 
   const dashboardUrl = getDashboardUrl(token)
 
