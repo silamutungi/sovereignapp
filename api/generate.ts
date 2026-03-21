@@ -60,10 +60,14 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   let idea: string
   let email: string
+  let variationHint: string
+  let attempt: number
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
-    idea  = (body?.idea  as string | undefined)?.trim() ?? ''
-    email = (body?.email as string | undefined)?.trim() ?? ''
+    idea          = (body?.idea          as string | undefined)?.trim() ?? ''
+    email         = (body?.email         as string | undefined)?.trim() ?? ''
+    variationHint = (body?.variationHint as string | undefined)?.trim() ?? ''
+    attempt       = typeof body?.attempt === 'number' ? body.attempt : 1
   } catch {
     res.status(400).json({ error: 'Invalid JSON body' })
     return
@@ -194,7 +198,9 @@ export default async function handler(req: any, res: any): Promise<void> {
       messages: [
         {
           role: 'user',
-          content: `Idea: "${idea}"`,
+          content: variationHint
+            ? `Idea: "${idea}"\n\nVARIATION INSTRUCTION (attempt ${attempt} of 3): ${variationHint}`
+            : `Idea: "${idea}"`,
         },
       ],
     })

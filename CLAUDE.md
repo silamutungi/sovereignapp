@@ -374,6 +374,13 @@ Correct behaviour: HTTP spec requires Retry-After on 429 responses so that clien
 Fix: added `res.setHeader('Retry-After', String(rl.retryAfter ?? fallback))` before every res.status(429) across all 9 API routes.
 Learned: 2026-03-20.
 
+**Preview regeneration — 3 attempts before build**
+Lovable commits immediately with no preview iteration. Sovereign shows a preview and allows up to 3 regenerations with variation hints before the user commits to building.
+Each attempt uses a variation hint to ensure meaningful visual difference between versions. Users can navigate back to previous versions to compare and pick their favourite.
+The build always uses whichever version is currently showing when the user commits. Rate limit: each regeneration counts as one generation toward the daily/hourly limit.
+Competitive advantage: try before you own.
+Learned: 2026-03-20.
+
 **No recovery from accidental email submit**
 The build flow had no way to correct a wrong email after submitting — the only option was to start over and lose the generated preview.
 Fix: confirmation step added between email submit and OAuth. Email remains editable until run-build is called. Idea/preview state preserved across email edits.

@@ -206,6 +206,11 @@ function NdevPanel({ locale }: { locale: Locale }) {
   const [startError, setStartError] = useState<string | null>(null)
   const [rateLimited, setRateLimited] = useState(false)
   const emailInputRef = useRef<HTMLInputElement | null>(null)
+  const [allSpecs, setAllSpecs] = useState<AppSpec[]>([])
+  const [currentSpecIdx, setCurrentSpecIdx] = useState(0)
+  const [previewAttempt, setPreviewAttempt] = useState(1)
+  const [isRegenerating, setIsRegenerating] = useState(false)
+  const [readyToBuild, setReadyToBuild] = useState(false)
 
   useEffect(() => {
     if (value) return
@@ -239,6 +244,10 @@ function NdevPanel({ locale }: { locale: Locale }) {
       }
       console.log('[generate] template length:', data.template?.length ?? 0)
       setSpec(data)
+      setAllSpecs([data])
+      setCurrentSpecIdx(0)
+      setPreviewAttempt(1)
+      setReadyToBuild(false)
       setStage('result')
     } catch {
       setGenerateError('Network error. Please try again.')
@@ -277,6 +286,60 @@ function NdevPanel({ locale }: { locale: Locale }) {
     // Focus the email input after React re-renders
     setTimeout(() => { emailInputRef.current?.focus() }, 0)
   }, [])
+
+  const handleProceedToBuild = useCallback(() => {
+    setReadyToBuild(true)
+  }, [])
+
+  const handleRegenerate = useCallback(async () => {
+    if (isRegenerating || previewAttempt >= 3) return
+    const currentAttempt = previewAttempt
+    const nextAttempt = currentAttempt + 1
+    const variationHint = nextAttempt === 2
+      ? 'Generate a completely different visual direction from the first attempt. Use a different color palette, different layout structure, and different typographic approach. Same idea, fresh perspective.'
+      : 'Generate a third distinct visual direction. This must look meaningfully different from both previous attempts. Different color family, different layout, different mood — minimal if the others were expressive, bold if the others were subtle.'
+    setIsRegenerating(true)
+    setPreviewAttempt(nextAttempt)
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idea: value.trim(),
+          variationHint,
+          attempt: nextAttempt,
+          ...(email ? { email } : {}),
+        }),
+      })
+      const data = await res.json() as AppSpec & { error?: string }
+      if (!res.ok || data.error) {
+        setPreviewAttempt(currentAttempt)
+        setIsRegenerating(false)
+        return
+      }
+      const newSpecs = [...allSpecs, data]
+      setAllSpecs(newSpecs)
+      setCurrentSpecIdx(newSpecs.length - 1)
+      setSpec(data)
+    } catch {
+      setPreviewAttempt(currentAttempt)
+    }
+    setIsRegenerating(false)
+  }, [isRegenerating, previewAttempt, allSpecs, value, email])
+
+  const handlePrevPreview = useCallback(() => {
+    if (currentSpecIdx <= 0) return
+    const newIdx = currentSpecIdx - 1
+    setCurrentSpecIdx(newIdx)
+    setSpec(allSpecs[newIdx])
+  }, [currentSpecIdx, allSpecs])
+
+  const handleNextPreview = useCallback(() => {
+    if (currentSpecIdx >= allSpecs.length - 1) return
+    const newIdx = currentSpecIdx + 1
+    setCurrentSpecIdx(newIdx)
+    setSpec(allSpecs[newIdx])
+  }, [currentSpecIdx, allSpecs])
 
   const CHIPS = ['chip.1', 'chip.2', 'chip.3', 'chip.4']
 
@@ -390,7 +453,42 @@ function NdevPanel({ locale }: { locale: Locale }) {
               </div>
             </div>
 
-            <div className="gen-preview-wrap" style={{ borderColor: spec.primaryColor + '55' }}>
+            {stage === 'result' && !readyToBuild && (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', marginBottom: '8px' }}>
+                  <span style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', color: '#6b6862', letterSpacing: '0.06em' }}>
+                    PREVIEW {currentSpecIdx + 1} OF 3
+                  </span>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    {currentSpecIdx > 0 && (
+                      <button
+                        onClick={handlePrevPreview}
+                        style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', color: '#6b6862', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                        type="button"
+                      >
+                        ← Previous version
+                      </button>
+                    )}
+                    {currentSpecIdx < allSpecs.length - 1 && (
+                      <button
+                        onClick={handleNextPreview}
+                        style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', color: '#6b6862', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                        type="button"
+                      >
+                        Next version →
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }} aria-label={`${previewAttempt} of 3 versions generated`}>
+                  {[1, 2, 3].map(n => (
+                    <div key={n} style={{ width: 6, height: 6, borderRadius: '50%', background: n <= previewAttempt ? '#8ab800' : '#d8d4ca' }} />
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div className="gen-preview-wrap" style={{ borderColor: spec.primaryColor + '55', position: 'relative' }}>
               <p className="gen-preview-label">Preview</p>
               <iframe
                 className="gen-preview"
@@ -401,13 +499,47 @@ function NdevPanel({ locale }: { locale: Locale }) {
               <div className="gen-preview-fade" aria-hidden="true">
                 <span className="gen-preview-hint">Scroll to see more ↓</span>
               </div>
+              {isRegenerating && (
+                <div style={{ position: 'absolute', inset: 0, background: 'rgba(242,239,232,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'DM Mono, monospace', fontSize: '12px', color: '#6b6862' }} aria-live="polite">
+                  <span>Generating new version…</span>
+                </div>
+              )}
             </div>
 
-            <p className="gen-live-msg">
-              ✦ This is your app — let's make it live
-            </p>
+            {(stage !== 'result' || readyToBuild) && (
+              <p className="gen-live-msg">
+                ✦ This is your app — let's make it live
+              </p>
+            )}
 
-            {stage === 'result' && (
+            {stage === 'result' && !readyToBuild && (
+              <div style={{ paddingTop: '24px', borderTop: '1px solid #d8d4ca', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <button
+                  onClick={handleProceedToBuild}
+                  style={{ width: '100%', padding: '14px', background: '#0e0d0b', color: '#f2efe8', border: 'none', cursor: 'pointer', fontFamily: 'DM Mono, monospace', fontSize: '13px', fontWeight: 500, borderRadius: '6px' }}
+                  type="button"
+                >
+                  ✦ Build this app — I own everything →
+                </button>
+                {previewAttempt < 3 && (
+                  <button
+                    onClick={() => { void handleRegenerate() }}
+                    disabled={isRegenerating}
+                    style={{ width: '100%', padding: '14px', background: 'transparent', border: '1px solid #d8d4ca', color: '#0e0d0b', cursor: isRegenerating ? 'default' : 'pointer', fontFamily: 'DM Mono, monospace', fontSize: '13px', borderRadius: '6px', opacity: isRegenerating ? 0.6 : 1 }}
+                    type="button"
+                  >
+                    {isRegenerating ? 'Generating new version…' : `Try a different version (${3 - previewAttempt} left)`}
+                  </button>
+                )}
+                {previewAttempt === 3 && (
+                  <p style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', color: '#6b6862', textAlign: 'center', margin: 0 }}>
+                    That's your last preview. Pick your favourite — you can always edit it after you build.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {stage === 'result' && readyToBuild && (
               <form className="gen-email-form" onSubmit={handleEmailSubmit} noValidate>
                 <label htmlFor="gen-email" className="gen-email-lbl">
                   Where should we send your live URL?
