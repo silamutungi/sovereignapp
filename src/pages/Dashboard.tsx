@@ -460,12 +460,16 @@ function AuthDashboard({ email }: { email: string }) {
       const res = await fetch(
         `/api/dashboard/builds?email=${encodeURIComponent(email)}`,
       )
-      if (!res.ok) return
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string }
+        console.error('[dashboard] fetchBuilds failed:', res.status, body.error)
+        return
+      }
       const data = (await res.json()) as { builds: Build[] }
       setBuilds(data.builds ?? [])
-    } catch {
+    } catch (err) {
       // Fail softly — don't blank the page
-      console.warn('[dashboard] Failed to fetch builds')
+      console.warn('[dashboard] Failed to fetch builds', err)
     } finally {
       setLoading(false)
     }

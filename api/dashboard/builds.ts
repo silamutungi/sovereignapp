@@ -77,7 +77,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('[dashboard/builds] Error:', error)
+      console.error('[dashboard/builds] Supabase error:', error.code, error.message, error.details)
       res.status(500).json({ error: 'Failed to fetch builds' })
       return
     }

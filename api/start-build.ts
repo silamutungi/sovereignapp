@@ -53,11 +53,12 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
-    const { email, appName, idea, template } = body ?? {}
-    if (!email || !appName) {
+    const { email: rawEmail, appName, idea, template } = body ?? {}
+    if (!rawEmail || !appName) {
       res.status(400).json({ error: '`email` and `appName` are required' })
       return
     }
+    const email = (rawEmail as string).trim().toLowerCase()
 
     // ── Rate limit: max 3 completed builds per email ───────────────────────
     // Note: completed builds have status = 'done' in this codebase.
