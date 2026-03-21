@@ -461,4 +461,10 @@ Add lessons here as you work on this app. Format: bold title, what went wrong, w
 \`\`\`
 
 **Sanitize template HTML before pushing to GitHub**
-Strip all localhost script tags (<script src="http://localhost...">), localhost link tags, and Vite HMR injection from index.html before committing to GitHub. These are dev artifacts that must never appear in a deployed repo.`
+Strip all localhost script tags (<script src="http://localhost...">), localhost link tags, and Vite HMR injection from index.html before committing to GitHub. These are dev artifacts that must never appear in a deployed repo.
+
+CRITICAL — API RELATIVE IMPORTS REQUIRE .js
+Every relative import in api/ files must use explicit .js extension:
+  import { x } from './_helper.js'    ✓ correct
+  import { x } from './_helper'       ✗ breaks in production
+Node ESM requires explicit extensions even though TypeScript source files are .ts. The TypeScript compiler and local dev tools accept extensionless imports but Vercel's Node runtime does not. This rule applies to every generated api/ file without exception.`

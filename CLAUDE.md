@@ -368,11 +368,19 @@ Correct behaviour: Claude may emit localhost script tags, Vite HMR injection, or
 Fix: sanitization rule added to the generation system prompt. Run-build.ts must strip `<script src="http://localhost...">`, `<link href="http://localhost...">`, and any Vite HMR injection before committing.
 Learned: 2026-03-20.
 
-**Node ESM requires .js on all relative imports in api/**
-tsconfig moduleResolution: 'bundler' allows extensionless imports locally via Vite. But Vercel runs api/ files with Node ESM directly — which requires explicit .js extensions on every relative import, even though the source files are .ts.
-WRONG (works locally, breaks in production): `import { x } from './_rateLimit'`
-CORRECT (works everywhere): `import { x } from './_rateLimit.js'`
-Rule: every relative import in api/ must end with .js — always. No exceptions. This applies to all new files created in api/ from this point forward. npm package imports (e.g. '@anthropic-ai/sdk') do NOT get .js — only relative path imports starting with ./ or ../ .
+**Node ESM requires .js on all relative imports in api/ — moduleResolution bundler masks this**
+tsconfig moduleResolution: 'bundler' lets Vite and the local TypeScript checker resolve imports without extensions. But Vercel runs api/ files as Node ESM directly — the spec requires explicit .js extensions on every relative import.
+Result: every serverless function importing a relative helper threw ERR_MODULE_NOT_FOUND at cold-start before serving a single request. The entire API was down. Looked like a 500 on generate but was actually every route broken.
+
+WRONG — works locally, breaks in production:
+  import { x } from './_rateLimit'
+  import { y } from '../_sendMagicLink'
+
+CORRECT — works everywhere:
+  import { x } from './_rateLimit.js'
+  import { y } from '../_sendMagicLink.js'
+
+Rule: every relative import in api/ must end with .js always. No exceptions. This applies to every new file created in api/ from now on. Claude Code must add .js extensions on all relative imports in api/ files automatically. npm package imports (e.g. '@anthropic-ai/sdk') do NOT get .js — only relative path imports starting with ./ or ../ .
 Learned: 2026-03-21.
 
 **Files prefixed with _ can appear missing if export const config is misplaced**
