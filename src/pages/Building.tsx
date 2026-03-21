@@ -194,8 +194,12 @@ export default function Building() {
   const [status, setStatus] = useState<BuildStatus | null>(null)
   const [pollError, setPollError] = useState<string | null>(null)
 
-  const hasTriggeredRef = useRef(false)
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const hasTriggeredRef        = useRef(false)
+  const pollIntervalRef        = useRef<ReturnType<typeof setInterval> | null>(null)
+  const consecutiveErrorsRef   = useRef(0)
+  const pollStartRef           = useRef(Date.now())
+  const MAX_POLL_MS            = 5 * 60 * 1000  // 5 minutes
+  const MAX_CONSECUTIVE_ERRORS = 3
 
   // Trigger run-build once (idempotent — server checks status === 'queued')
   useEffect(() => {
@@ -213,21 +217,45 @@ export default function Building() {
   useEffect(() => {
     if (!buildId) return
 
+    const stopPolling = () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+    }
+
     const poll = async () => {
+      // 5-minute hard timeout
+      if (Date.now() - pollStartRef.current > MAX_POLL_MS) {
+        stopPolling()
+        setPollError("This is taking longer than expected. Check your email — we'll send your live URL when it's ready.")
+        return
+      }
+
       try {
         const res = await fetch(`/api/build-status?id=${encodeURIComponent(buildId)}`)
-        if (!res.ok) return
+
+        if (!res.ok) {
+          consecutiveErrorsRef.current++
+          if (consecutiveErrorsRef.current >= MAX_CONSECUTIVE_ERRORS) {
+            stopPolling()
+            setPollError('Something went wrong checking your build status. Please refresh and try again.')
+          }
+          return
+        }
+
+        consecutiveErrorsRef.current = 0  // reset on success
         const data = await res.json() as BuildStatus
         setStatus(data)
-        // Stop polling when terminal
         if (data.status === 'done' || data.status === 'failed') {
-          if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current)
-            pollIntervalRef.current = null
-          }
+          stopPolling()
         }
       } catch {
-        setPollError('Lost connection. Refresh to check status.')
+        consecutiveErrorsRef.current++
+        if (consecutiveErrorsRef.current >= MAX_CONSECUTIVE_ERRORS) {
+          stopPolling()
+          setPollError('Lost connection. Please refresh and try again.')
+        }
       }
     }
 

@@ -264,6 +264,11 @@ If Claude Code is about to do something and there is a relevant lesson here that
 The Standards Engine was not enforcing contrast on generated primaryColor usage. Mid-tone colors (medium purple, blue, green) fail 4.5:1 on white when used as text or outline borders.
 Fix: generation prompt now enforces darkening primaryColor by 30% for any text/outline use on light backgrounds. Full primaryColor only used for filled button backgrounds with white or black text.
 
+**502 on api/ functions = missing .js extension OR Supabase env var missing**
+After the .js extension fix, verify with: `grep -r "from '\." api/ --include="*.ts" | grep -v "\.js'"` — any output = broken import = 502 in production. If imports are correct but 502 persists, check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel environment variables — build-status explicitly returns 502 when the Supabase query fails.
+Also: build-status 502 causes infinite stuck provisioning screen. Frontend must timeout polling after 5 minutes and handle 5xx with a clear error after 3 consecutive failures instead of polling forever.
+Learned: 2026-03-21.
+
 **Button contrast rules need formulas not guidelines**
 Descriptive contrast rules in the system prompt are not followed reliably. Claude chooses colors that look plausible but fail WCAG AA.
 Fix: replaced guidelines with an explicit brightness formula:
