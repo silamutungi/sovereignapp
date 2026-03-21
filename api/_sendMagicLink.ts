@@ -43,20 +43,6 @@ export async function sendMagicLink(email: string): Promise<void> {
 
   const supabase = getSupabase()
 
-  // Diagnostic: verify table exists before inserting
-  const { error: tableError } = await supabase
-    .from('magic_links')
-    .select('id')
-    .limit(1)
-
-  if (tableError) {
-    console.error('[sendMagicLink] Table check failed — code:', tableError.code, '| message:', tableError.message)
-    // 42P01 = table does not exist, 42501 = RLS blocking
-    throw new Error(`magic_links table error: ${tableError.code} — ${tableError.message}`)
-  } else {
-    console.log('[sendMagicLink] Table exists ✓')
-  }
-
   console.log('[sendMagicLink] Attempting DB insert')
   const { error: dbError } = await supabase
     .from('magic_links')

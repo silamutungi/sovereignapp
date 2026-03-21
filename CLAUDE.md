@@ -398,6 +398,11 @@ CORRECT — works everywhere:
 Rule: every relative import in api/ must end with .js always. No exceptions. This applies to every new file created in api/ from now on. Claude Code must add .js extensions on all relative imports in api/ files automatically. npm package imports (e.g. '@anthropic-ai/sdk') do NOT get .js — only relative path imports starting with ./ or ../ .
 Learned: 2026-03-21.
 
+**magic_links table existed but SELECT returned 'no rows' — misleading success message**
+Supabase SQL editor shows "Success. No rows returned" for a SELECT that finds nothing. This looks identical to a successful empty result. The table DID exist — confirmed by CREATE TABLE failing with 42P07 (relation already exists).
+Rule: to confirm a table exists unambiguously, use: `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'your_table';` — returns 1 if exists, 0 if not. Alternatively: `SELECT * FROM your_table LIMIT 1` — returns columns if table exists, throws 42P01 if not.
+Learned: 2026-03-21.
+
 **magic_links table missing from production — migration files are not auto-run**
 The table was defined in CLAUDE.md SQL and the migration file existed locally but was never actually run in the Supabase dashboard. Supabase does not auto-execute migration files — they must be manually run in the SQL editor. The silent failure: Supabase returns error code 42P01 (undefined_table) which was being swallowed before it could surface in logs. The table check diagnostic (select id limit 1 before the insert) now surfaces this as a hard throw with the code visible in logs.
 Fix: explicit table check before every insert in a new function, migration file in supabase/migrations/ with clear run instructions.
