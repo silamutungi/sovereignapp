@@ -197,7 +197,7 @@ interface AppSpec {
 function NdevPanel({ locale }: { locale: Locale }) {
   const [value, setValue] = useState('')
   const [phIdx, setPhIdx] = useState(0)
-  const [stage, setStage] = useState<'idle' | 'generating' | 'result' | 'connect'>('idle')
+  const [stage, setStage] = useState<'idle' | 'generating' | 'result' | 'confirm' | 'connect'>('idle')
   const [spec, setSpec] = useState<AppSpec | null>(null)
   const [generateError, setGenerateError] = useState<string | null>(null)
   const [email, setEmail] = useState('')
@@ -205,6 +205,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
   const [rateLimited, setRateLimited] = useState(false)
+  const emailInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     if (value) return
@@ -247,11 +248,16 @@ function NdevPanel({ locale }: { locale: Locale }) {
 
   const handleEmailSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault()
-    if (!email.includes('@')) {
-      setEmailError('Please enter a real email address.')
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email.trim())) {
+      setEmailError('Please enter a valid email address')
       return
     }
     setEmailError(null)
+    setStage('confirm')
+  }, [email])
+
+  const handleConfirmEmail = useCallback(() => {
     // Fire-and-forget — don't block the connect screen on email delivery
     void fetch('/api/send-welcome', {
       method: 'POST',
@@ -265,6 +271,12 @@ function NdevPanel({ locale }: { locale: Locale }) {
     })
     setStage('connect')
   }, [email, spec])
+
+  const handleEditEmail = useCallback(() => {
+    setStage('result')
+    // Focus the email input after React re-renders
+    setTimeout(() => { emailInputRef.current?.focus() }, 0)
+  }, [])
 
   const CHIPS = ['chip.1', 'chip.2', 'chip.3', 'chip.4']
 
@@ -361,7 +373,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
           </div>
         )}
 
-        {(stage === 'result' || stage === 'connect') && spec && (
+        {(stage === 'result' || stage === 'confirm' || stage === 'connect') && spec && (
           <div className="gen-result">
             <div className="gen-header">
               <div
@@ -401,6 +413,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
                   Where should we send your live URL?
                 </label>
                 <input
+                  ref={emailInputRef}
                   id="gen-email"
                   type="email"
                   className="ndev-email-input"
@@ -433,6 +446,34 @@ function NdevPanel({ locale }: { locale: Locale }) {
               </form>
             )}
 
+            {stage === 'confirm' && (
+              <div className="gen-email-form">
+                <p style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#6b6862', margin: '0 0 8px' }}>
+                  Building for
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 18px', border: '1px solid #d8d4ca', background: 'white', margin: '0 0 16px', borderRadius: '6px' }}>
+                  <span style={{ fontFamily: 'DM Mono, monospace', fontSize: '13px', color: '#0e0d0b', flex: 1 }}>
+                    {email}
+                  </span>
+                  <button
+                    onClick={handleEditEmail}
+                    style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', color: '#8ab800', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                    type="button"
+                  >
+                    Edit
+                  </button>
+                </div>
+                <button
+                  className="gobtn"
+                  onClick={handleConfirmEmail}
+                  style={{ background: '#0e0d0b', color: '#f2efe8', width: '100%', fontFamily: 'DM Mono, monospace', fontSize: '13px', padding: '14px' }}
+                  type="button"
+                >
+                  Yes, that's right — continue →
+                </button>
+              </div>
+            )}
+
             {stage === 'connect' && rateLimited && (
               <div className="gen-connect" role="alert">
                 <p className="gen-connect-lbl" style={{ color: 'var(--ink)', fontWeight: 500 }}>
@@ -455,6 +496,18 @@ function NdevPanel({ locale }: { locale: Locale }) {
             {stage === 'connect' && !rateLimited && (
               <div className="gen-connect">
                 <p className="gen-connect-lbl">Connect your accounts to deploy in 60 seconds</p>
+                <p style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', color: '#6b6862', margin: '0 0 20px' }}>
+                  Building for{' '}
+                  <span style={{ color: '#0e0d0b' }}>{email}</span>
+                  {' · '}
+                  <button
+                    onClick={handleEditEmail}
+                    style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', color: '#8ab800', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                    type="button"
+                  >
+                    Change
+                  </button>
+                </p>
                 {startError && (
                   <p className="ndev-email-err" role="alert">{startError}</p>
                 )}

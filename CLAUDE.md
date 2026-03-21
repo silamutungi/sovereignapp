@@ -374,6 +374,12 @@ Correct behaviour: HTTP spec requires Retry-After on 429 responses so that clien
 Fix: added `res.setHeader('Retry-After', String(rl.retryAfter ?? fallback))` before every res.status(429) across all 9 API routes.
 Learned: 2026-03-20.
 
+**No recovery from accidental email submit**
+The build flow had no way to correct a wrong email after submitting — the only option was to start over and lose the generated preview.
+Fix: confirmation step added between email submit and OAuth. Email remains editable until run-build is called. Idea/preview state preserved across email edits.
+UX principle: destructive-feeling actions always need a confirmation or undo. Never trap users.
+Learned: 2026-03-20.
+
 ## Supabase Schema — SQL Run in Production
 
 All statements below must be run in the Supabase SQL Editor.
