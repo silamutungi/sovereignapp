@@ -206,6 +206,15 @@ function NdevPanel({ locale }: { locale: Locale }) {
   const [startError, setStartError] = useState<string | null>(null)
   const [rateLimited, setRateLimited] = useState(false)
   const emailInputRef = useRef<HTMLInputElement | null>(null)
+  const ideaRef = useRef<HTMLTextAreaElement | null>(null)
+
+  // Auto-resize the idea textarea whenever value changes (handles chip clicks too)
+  useEffect(() => {
+    const el = ideaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = Math.min(el.scrollHeight, 200) + 'px'
+  }, [value])
   const [allSpecs, setAllSpecs] = useState<AppSpec[]>([])
   const [currentSpecIdx, setCurrentSpecIdx] = useState(0)
   const [previewAttempt, setPreviewAttempt] = useState(1)
@@ -404,11 +413,12 @@ function NdevPanel({ locale }: { locale: Locale }) {
               ))}
             </div>
             <textarea
+              ref={ideaRef}
               className="ndev-ta"
               value={value}
               onChange={(e) => setValue(e.target.value)}
               placeholder={PLACEHOLDERS[phIdx]}
-              rows={4}
+              rows={3}
               aria-label={t(locale, 'ndev.h')}
             />
             <div className="ai-badge" aria-hidden="true">

@@ -749,7 +749,7 @@ export default async function handler(req: any, res: any): Promise<void> {
           const ghResult = await createGitHubRepo(build.github_token, repoName)
           if (!ghResult.ok) {
             await updateBuild(supabaseUrl, serviceKey, buildId, {
-              status: 'failed', step: 'GitHub failed', error: ghResult.error,
+              status: 'error', step: 'GitHub failed', error: ghResult.error,
             })
             return
           }
@@ -768,7 +768,7 @@ export default async function handler(req: any, res: any): Promise<void> {
           if (!vcResult.ok) {
             await deleteGitHubRepo(build.github_token, ghResult.owner, repoName)
             await updateBuild(supabaseUrl, serviceKey, buildId, {
-              status: 'failed', step: 'Vercel setup failed', error: vcResult.error,
+              status: 'error', step: 'Vercel setup failed', error: vcResult.error,
             })
             return
           }
@@ -783,7 +783,7 @@ export default async function handler(req: any, res: any): Promise<void> {
           if (!pushResult.ok) {
             await deleteGitHubRepo(build.github_token, ghResult.owner, repoName)
             await updateBuild(supabaseUrl, serviceKey, buildId, {
-              status: 'failed', step: 'File push failed', error: pushResult.error,
+              status: 'error', step: 'File push failed', error: pushResult.error,
             })
             return
           }
@@ -804,7 +804,7 @@ export default async function handler(req: any, res: any): Promise<void> {
           if (!deployResult.ok) {
             // Deployment errored on Vercel's side
             await updateBuild(supabaseUrl, serviceKey, buildId, {
-              status: 'failed', step: 'Vercel deploy failed', error: deployResult.error,
+              status: 'error', step: 'Vercel deploy failed', error: deployResult.error,
             })
             return
           }
@@ -824,7 +824,7 @@ export default async function handler(req: any, res: any): Promise<void> {
             )
           }
 
-          await updateBuild(supabaseUrl, serviceKey, buildId, { status: 'done', step: 'done' })
+          await updateBuild(supabaseUrl, serviceKey, buildId, { status: 'complete', step: 'done' })
           console.log('[run-build] done')
         })(),
 
@@ -839,7 +839,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     } catch (provisionErr) {
       console.error('[run-build] provisioning error:', provisionErr)
       await updateBuild(supabaseUrl, serviceKey, buildId, {
-        status: 'failed',
+        status: 'error',
         step: 'Build failed',
         error: provisionErr instanceof Error ? provisionErr.message : String(provisionErr),
       }).catch(() => {/* ignore secondary write error */})

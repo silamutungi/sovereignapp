@@ -439,6 +439,12 @@ Rule: whenever a new column is added to a query, immediately verify it exists in
 Must return one row. Zero rows = column missing = every query using it will 502. Never assume a documented migration ran — verify in the SQL editor.
 Learned: 2026-03-21.
 
+**API wrote 'done'/'failed' but dashboard checked 'complete'/'error' — all builds showed PENDING**
+The build pipeline (run-build.ts) wrote `status: 'done'` and `status: 'failed'` to Supabase. The dashboard TypeScript type and every status check used `'complete'` and `'error'`. Everything not matching those two values fell through to the PENDING display. LIVE NOW and REPOS OWNED counts were permanently 0.
+Fix: updated run-build.ts to write `'complete'` and `'error'`. Updated start-build.ts rate-limit query from `status=eq.done` to `status=eq.complete`. Patched all existing rows: 11 `done→complete`, 12 `failed→error` via REST API PATCH.
+Rule: the status values written by the API and read by the UI must be defined in one place. If you add a new status value, grep for every place statuses are compared before shipping.
+Learned: 2026-03-21.
+
 **next_steps column missing caused dashboard to show 0 builds silently**
 Same class of bug as deleted_at: `next_steps JSONB` column was in CLAUDE.md migrations and in every SELECT query but never actually run in Supabase. The dashboard/builds.ts Supabase query returned 42703 → API 500 → Dashboard.tsx `if (!res.ok) return` swallowed the error → grid showed empty.
 Diagnosed by running the exact query locally via curl against Supabase — the error code was immediately visible.

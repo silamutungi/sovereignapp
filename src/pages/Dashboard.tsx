@@ -450,7 +450,7 @@ function AuthDashboard({ email }: { email: string }) {
   const [editInput, setEditInput] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
-  const editInputRef = useRef<HTMLInputElement>(null)
+  const editInputRef = useRef<HTMLTextAreaElement>(null)
 
   // Toast state
   const [toastMessage, setToastMessage] = useState<string | null>(null)
@@ -548,6 +548,13 @@ function AuthDashboard({ email }: { email: string }) {
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         @keyframes fadeIn { from{opacity:0;transform:translateX(-50%) translateY(6px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
         * { box-sizing: border-box; }
+        .edit-input-row { display: flex; gap: 12px; align-items: flex-start; }
+        .edit-textarea { font-size: 14px; }
+        @media (max-width: 640px) {
+          .edit-input-row { flex-direction: column; gap: 10px; }
+          .edit-textarea { font-size: 16px !important; width: 100%; }
+          .edit-submit-btn { width: 100%; padding: 14px; white-space: normal; align-self: stretch; }
+        }
       `}</style>
 
       {/* ── Top bar ─────────────────────────────────────────────────────── */}
@@ -864,24 +871,35 @@ function AuthDashboard({ email }: { email: string }) {
           {currentBuild?.app_name}
         </p>
 
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <input
+        <div className="edit-input-row">
+          <textarea
             ref={editInputRef}
             value={editInput}
-            onChange={(e) => setEditInput(e.target.value)}
+            onChange={(e) => {
+              setEditInput(e.target.value)
+              const el = e.target
+              el.style.height = 'auto'
+              el.style.height = Math.min(el.scrollHeight, 200) + 'px'
+            }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') { void submitEdit() }
               if (e.key === 'Escape') closeDrawer()
             }}
             placeholder="e.g. Change the hero text to say Welcome back…"
+            rows={3}
+            className="edit-textarea"
             style={{
               flex: 1,
-              font: '14px/1 DM Mono, Courier New, monospace',
-              background: 'rgba(242,239,232,0.07)',
-              border: '1px solid rgba(242,239,232,0.2)',
+              font: '14px/1.6 DM Mono, Courier New, monospace',
+              background: '#1a1917',
+              border: '0.5px solid rgba(242,239,232,0.2)',
+              borderRadius: '8px',
               color: '#f2efe8',
-              padding: '14px 18px',
+              padding: '12px',
               outline: 'none',
+              resize: 'none',
+              minHeight: '72px',
+              maxHeight: '200px',
+              overflowY: 'auto',
             }}
             onFocus={(e) => (e.target.style.borderColor = '#8ab800')}
             onBlur={(e) =>
@@ -891,18 +909,21 @@ function AuthDashboard({ email }: { email: string }) {
           <button
             onClick={() => { void submitEdit() }}
             disabled={isSubmitting || !editInput.trim()}
+            className="edit-submit-btn"
             style={{
               background: '#8ab800',
               color: '#0e0d0b',
               border: 'none',
+              borderRadius: '6px',
               padding: '14px 24px',
               font: '500 12px/1 DM Mono, Courier New, monospace',
               cursor: isSubmitting || !editInput.trim() ? 'default' : 'pointer',
               whiteSpace: 'nowrap',
               opacity: isSubmitting ? 0.7 : 1,
+              alignSelf: 'flex-end',
             }}
           >
-            {isSubmitting ? 'Applying…' : 'Apply change →'}
+            {isSubmitting ? 'Applying…' : 'Apply changes →'}
           </button>
         </div>
 

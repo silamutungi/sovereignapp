@@ -61,9 +61,9 @@ export default async function handler(req: any, res: any): Promise<void> {
     const email = (rawEmail as string).trim().toLowerCase()
 
     // ── Rate limit: max 3 completed builds per email ───────────────────────
-    // Note: completed builds have status = 'done' in this codebase.
+    // Note: completed builds have status = 'complete' in this codebase.
     const countRes = await fetch(
-      `${supabaseUrl}/rest/v1/builds?email=eq.${encodeURIComponent(email)}&status=eq.done&deleted_at=is.null&select=id`,
+      `${supabaseUrl}/rest/v1/builds?email=eq.${encodeURIComponent(email)}&status=eq.complete&deleted_at=is.null&select=id`,
       {
         headers: {
           apikey: serviceKey,
