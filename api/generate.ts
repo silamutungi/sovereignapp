@@ -1,10 +1,18 @@
 // api/generate.ts — Vercel Serverless Function (Node.js runtime)
 //
 // POST /api/generate
-// Body: { idea: string }
+// Body: { idea: string, variationHint?: string, attempt?: number, email?: string }
 // Returns: AppSpec JSON
 //
 import Anthropic from '@anthropic-ai/sdk'
+
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+}
 import { checkRateLimit } from './_rateLimit'
 import { SYSTEM_PROMPT } from './_systemPrompt'
 
@@ -78,6 +86,14 @@ export default async function handler(req: any, res: any): Promise<void> {
     return
   }
 
+  const MAX_IDEA_LENGTH = 2000
+  if (idea.length > MAX_IDEA_LENGTH) {
+    res.status(400).json({
+      error: `Your idea description is too long. Please keep it under ${MAX_IDEA_LENGTH} characters (yours is ${idea.length}).`,
+    })
+    return
+  }
+
   // ── Rate limit: max 10 generate calls per email per 24 hours ──────────────
   // Only enforced when the caller supplies an email address.
   if (email) {
@@ -113,6 +129,14 @@ export default async function handler(req: any, res: any): Promise<void> {
       }
     }
   }
+
+  // ── Build user message with combined length cap ──────────────────────────
+  const MAX_COMBINED_LENGTH = 3000
+  const baseMessage = idea.slice(0, 2500)
+  const hint = variationHint
+    ? `\n\nVARIATION INSTRUCTION (attempt ${attempt} of 3): ${variationHint}`
+    : ''
+  const userMessage = (baseMessage + hint).slice(0, MAX_COMBINED_LENGTH)
 
   try {
     const client = new Anthropic({ apiKey })
@@ -198,9 +222,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       messages: [
         {
           role: 'user',
-          content: variationHint
-            ? `Idea: "${idea}"\n\nVARIATION INSTRUCTION (attempt ${attempt} of 3): ${variationHint}`
-            : `Idea: "${idea}"`,
+          content: `Idea: "${userMessage}"`,
         },
       ],
     })
@@ -233,6 +255,25 @@ export default async function handler(req: any, res: any): Promise<void> {
       nextSteps: spec.nextSteps ?? [],
     })
   } catch (err) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const anyErr = err as any
+    console.error('[generate] Error type:', anyErr?.constructor?.name)
+    console.error('[generate] Error message:', anyErr?.message)
+    console.error('[generate] Error status:', anyErr?.status)
+    console.error('[generate] Prompt length (chars):', userMessage?.length ?? 0)
+    console.error('[generate] Full error:', JSON.stringify(err, null, 2))
+
+    if (err instanceof Anthropic.APIError) {
+      if (err.status === 400) {
+        res.status(400).json({ error: 'Your idea is too detailed for one generation. Try a shorter description.' })
+        return
+      }
+      if (err.status === 529 || err.status === 503) {
+        res.status(503).json({ error: 'Generation service is busy. Please try again in a moment.' })
+        return
+      }
+    }
+
     const message =
       err instanceof Anthropic.APIError
         ? `Anthropic API error ${err.status}: ${err.message}`

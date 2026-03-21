@@ -374,6 +374,11 @@ Correct behaviour: HTTP spec requires Retry-After on 429 responses so that clien
 Fix: added `res.setHeader('Retry-After', String(rl.retryAfter ?? fallback))` before every res.status(429) across all 9 API routes.
 Learned: 2026-03-20.
 
+**api/generate 500 on long prompts**
+Two causes found: (1) Vercel body parser default limit can reject large request bodies. Fix: export config with sizeLimit: '10mb' in the API route. (2) Long template prompts + variation hints can push combined message length too high. Fix: cap combined userMessage at 3000 chars (idea sliced to 2500, hint appended, total sliced to 3000).
+Always add detailed error logging in catch blocks — the generic 500 hides the real cause. Rule: every catch block logs err.constructor.name, err.message, err.status, and input lengths.
+Learned: 2026-03-20.
+
 **Preview regeneration — 3 attempts before build**
 Lovable commits immediately with no preview iteration. Sovereign shows a preview and allows up to 3 regenerations with variation hints before the user commits to building.
 Each attempt uses a variation hint to ensure meaningful visual difference between versions. Users can navigate back to previous versions to compare and pick their favourite.
