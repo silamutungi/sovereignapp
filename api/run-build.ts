@@ -204,7 +204,7 @@ function buildStaticFiles(
       '',
     ].join('\n'),
     'vercel.json': JSON.stringify(
-      { rewrites: [{ source: '/(.*)', destination: '/index.html' }] },
+      { rewrites: [{ source: '/((?!api/).*)', destination: '/index.html' }] },
       null, 2,
     ),
     'CLAUDE.md': [

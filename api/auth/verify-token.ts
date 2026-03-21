@@ -42,7 +42,8 @@ export default async function handler(req: any, res: any): Promise<void> {
     60 * 60 * 1000,
   )
   if (!rateLimitResult.allowed) {
-    res.status(429).json({ error: 'Too many attempts. Try again later.' })
+    res.setHeader('Retry-After', String(rateLimitResult.retryAfter ?? 3600))
+    res.status(429).json({ error: `Too many attempts. Retry after ${rateLimitResult.retryAfter ?? 3600}s.` })
     return
   }
 

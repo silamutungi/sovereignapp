@@ -28,8 +28,9 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   const rateLimitResult = checkRateLimit(`magic-link:${ip}`, 3, 60 * 60 * 1000)
   if (!rateLimitResult.allowed) {
+    res.setHeader('Retry-After', String(rateLimitResult.retryAfter ?? 3600))
     res.status(429).json({
-      error: `Too many requests. Try again in ${rateLimitResult.retryAfter}s.`,
+      error: `Too many requests. Try again in ${rateLimitResult.retryAfter ?? 3600}s.`,
     })
     return
   }

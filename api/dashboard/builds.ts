@@ -37,7 +37,8 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   const rateLimitResult = checkRateLimit(`dashboard:${ip}`, 60, 60 * 1000)
   if (!rateLimitResult.allowed) {
-    res.status(429).json({ error: 'Too many requests.' })
+    res.setHeader('Retry-After', String(rateLimitResult.retryAfter ?? 60))
+    res.status(429).json({ error: `Too many requests. Retry after ${rateLimitResult.retryAfter ?? 60}s.` })
     return
   }
 
