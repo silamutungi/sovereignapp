@@ -27,7 +27,7 @@
 // Instead: create Vercel project (linked to GitHub) → push files to GitHub
 // → Vercel auto-deploys via GitHub integration → poll for READY status.
 //
-// Self-contained: no imports from src/ or server/.
+import { checkRateLimit } from './_rateLimit'
 
 export const maxDuration = 60
 
@@ -662,6 +662,14 @@ export default async function handler(req: any, res: any): Promise<void> {
   try {
     if (req.method !== 'POST') {
       res.status(405).json({ error: 'Method not allowed' })
+      return
+    }
+
+    const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ?? 'unknown'
+    const rl = checkRateLimit(`run-build:${ip}`, 10, 60 * 60 * 1000)
+    if (!rl.allowed) {
+      res.setHeader('Retry-After', String(rl.retryAfter ?? 3600))
+      res.status(429).json({ error: `Too many requests. Retry after ${rl.retryAfter ?? 3600}s.` })
       return
     }
 

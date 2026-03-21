@@ -4,9 +4,8 @@
 // Body: { idea: string }
 // Returns: AppSpec JSON
 //
-// Self-contained: no imports from src/ or server/.
-
 import Anthropic from '@anthropic-ai/sdk'
+import { checkRateLimit } from './_rateLimit'
 
 interface NextStep {
   title: string
@@ -459,6 +458,14 @@ Use sandbox="allow-scripts" only for preview iframes. Combining allow-scripts wi
 export default async function handler(req: any, res: any): Promise<void> {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' })
+    return
+  }
+
+  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ?? 'unknown'
+  const ipRl = checkRateLimit(`generate:${ip}`, 20, 60 * 60 * 1000)
+  if (!ipRl.allowed) {
+    res.setHeader('Retry-After', String(ipRl.retryAfter ?? 3600))
+    res.status(429).json({ error: `Too many requests. Retry after ${ipRl.retryAfter ?? 3600}s.` })
     return
   }
 
