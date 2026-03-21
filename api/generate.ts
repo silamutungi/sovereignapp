@@ -5,6 +5,8 @@
 // Returns: AppSpec JSON
 //
 import Anthropic from '@anthropic-ai/sdk'
+import { checkRateLimit } from './_rateLimit'
+import { SYSTEM_PROMPT } from './_systemPrompt'
 
 export const config = {
   api: {
@@ -13,8 +15,6 @@ export const config = {
     },
   },
 }
-import { checkRateLimit } from './_rateLimit'
-import { SYSTEM_PROMPT } from './_systemPrompt'
 
 interface NextStep {
   title: string
@@ -141,11 +141,14 @@ export default async function handler(req: any, res: any): Promise<void> {
   try {
     const client = new Anthropic({ apiKey })
 
-    const response = await client.messages.create({
-      model: 'claude-opus-4-6',
-      max_tokens: 16000,
-      system: SYSTEM_PROMPT,
-      tools: [
+    // ── Inner try/catch: isolate Anthropic API errors from logic errors ────
+    let response: Awaited<ReturnType<typeof client.messages.create>>
+    try {
+      response = await client.messages.create({
+        model: 'claude-opus-4-6',
+        max_tokens: 16000,
+        system: SYSTEM_PROMPT,
+        tools: [
         {
           name: 'generate_app_spec',
           description: 'Generate a complete app specification from a founder idea',
@@ -218,14 +221,41 @@ export default async function handler(req: any, res: any): Promise<void> {
           },
         },
       ],
-      tool_choice: { type: 'tool', name: 'generate_app_spec' },
-      messages: [
-        {
-          role: 'user',
-          content: `Idea: "${userMessage}"`,
-        },
-      ],
-    })
+        tool_choice: { type: 'tool', name: 'generate_app_spec' },
+        messages: [
+          {
+            role: 'user',
+            content: `Idea: "${userMessage}"`,
+          },
+        ],
+      })
+    } catch (anthropicErr) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ae = anthropicErr as any
+      console.error('[generate] Anthropic error status:', ae?.status)
+      console.error('[generate] Anthropic error message:', ae?.message)
+      console.error('[generate] Anthropic error_type:', ae?.error?.type)
+      console.error('[generate] Anthropic error_message:', ae?.error?.message)
+      console.error('[generate] Prompt chars:', userMessage.length)
+      console.error('[generate] Anthropic full:', JSON.stringify(anthropicErr, Object.getOwnPropertyNames(anthropicErr as object)))
+      if (ae?.status === 400) {
+        res.status(400).json({ error: 'Your idea is too detailed for one generation. Try a shorter description.' })
+        return
+      }
+      if (ae?.status === 413) {
+        res.status(413).json({ error: 'Prompt too large. Please shorten your idea and try again.' })
+        return
+      }
+      if (ae?.status === 429) {
+        res.status(429).json({ error: 'Generation service rate limit reached. Try again in a moment.' })
+        return
+      }
+      if (ae?.status === 529 || ae?.status === 503) {
+        res.status(503).json({ error: 'Generation service is busy. Please try again in a moment.' })
+        return
+      }
+      throw anthropicErr
+    }
 
     console.log('[generate] stop_reason:', response.stop_reason, 'input_tokens:', response.usage.input_tokens, 'output_tokens:', response.usage.output_tokens)
 
@@ -257,23 +287,14 @@ export default async function handler(req: any, res: any): Promise<void> {
   } catch (err) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const anyErr = err as any
-    console.error('[generate] Error type:', anyErr?.constructor?.name)
-    console.error('[generate] Error message:', anyErr?.message)
-    console.error('[generate] Error status:', anyErr?.status)
-    console.error('[generate] Prompt length (chars):', userMessage?.length ?? 0)
-    console.error('[generate] Full error:', JSON.stringify(err, null, 2))
-
-    if (err instanceof Anthropic.APIError) {
-      if (err.status === 400) {
-        res.status(400).json({ error: 'Your idea is too detailed for one generation. Try a shorter description.' })
-        return
-      }
-      if (err.status === 529 || err.status === 503) {
-        res.status(503).json({ error: 'Generation service is busy. Please try again in a moment.' })
-        return
-      }
-    }
-
+    console.error('[generate] UNCAUGHT ERROR')
+    console.error('[generate] type:', anyErr?.constructor?.name)
+    console.error('[generate] message:', anyErr?.message)
+    console.error('[generate] status:', anyErr?.status)
+    console.error('[generate] error_type:', anyErr?.error?.type)
+    console.error('[generate] error_message:', anyErr?.error?.message)
+    console.error('[generate] prompt chars:', typeof userMessage === 'string' ? userMessage.length : 'unknown')
+    console.error('[generate] full error:', JSON.stringify(err, Object.getOwnPropertyNames(err as object)))
     const message =
       err instanceof Anthropic.APIError
         ? `Anthropic API error ${err.status}: ${err.message}`
