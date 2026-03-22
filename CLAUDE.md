@@ -571,6 +571,24 @@ Learned: 2026-03-22.
 All statements below must be run in the Supabase SQL Editor.
 Run each one and confirm success before proceeding to the next.
 
+### 2026-03-22 — Supabase OAuth (supabase_token column on builds)
+
+Run in Supabase SQL Editor:
+
+```sql
+ALTER TABLE builds ADD COLUMN IF NOT EXISTS supabase_token TEXT DEFAULT NULL;
+```
+
+Confirm: `SELECT column_name FROM information_schema.columns WHERE table_name='builds' AND column_name='supabase_token';` — must return 1 row.
+
+Also add these to Vercel environment variables before deploying:
+- SUPABASE_OAUTH_CLIENT_ID — from app.supabase.com → Account → OAuth Apps
+- SUPABASE_OAUTH_CLIENT_SECRET — same location
+- VITE_SUPABASE_OAUTH_CLIENT_ID — same value as SUPABASE_OAUTH_CLIENT_ID (public)
+- SOVEREIGN_SUPABASE_REF — the project ref for Sovereign's own Supabase instance
+- SOVEREIGN_SUPABASE_MANAGEMENT_TOKEN — personal access token from app.supabase.com → Account → Access Tokens
+Register the redirect URI with Supabase OAuth App: https://sovereignapp.dev/api/auth/supabase/callback
+
 ### 2026-03-21 — magic_links table (create if missing)
 
 Migration file: `supabase/migrations/magic_links.sql`
