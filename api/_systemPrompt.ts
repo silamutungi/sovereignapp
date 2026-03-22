@@ -493,7 +493,7 @@ nextSteps: array of exactly 3 objects, each with:
 ## Lessons from production — apply to all generated apps
 
 **Never pass nodeVersion to Vercel project creation API**
-The POST /v9/projects endpoint rejects nodeVersion with 400. Set Node version via package.json engines: { "engines": { "node": "20.x" } }
+The POST /v9/projects endpoint rejects nodeVersion with 400. Do NOT set an engines field in package.json either — Vercel does not support it and it causes build failures. Node version is controlled via Vercel project settings only.
 
 **Always include all 6 scaffold files**
 A Vite project on Vercel requires: package.json, index.html, vite.config.js, .gitignore, README.md, vercel.json. Missing any causes build failure.
@@ -596,7 +596,7 @@ Do not exceed 18 files. Privacy and Terms pages are linked from the footer as pl
 
 ### EXACT FILE CONTRACTS
 
-package.json — React 18, react-router-dom 6, @supabase/supabase-js 2, Vite 5, Tailwind 3, TypeScript 5. engines.node: "20.x".
+package.json — React 18, react-router-dom 6, @supabase/supabase-js 2, Vite 5, Tailwind 3, TypeScript 5. Never include an engines field — Vercel does not support it and it causes build failures.
 
 index.html — minimal Vite entry, loads Playfair Display + DM Mono from Google Fonts (font-display: swap), no other content.
 

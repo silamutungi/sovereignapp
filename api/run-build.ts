@@ -156,7 +156,18 @@ function buildAllFiles(
   // Start with the Claude-generated files (overridable by programmatic files below)
   const files: Record<string, string> = {}
   for (const { path, content } of generatedFiles) {
-    files[path] = content
+    // Strip engines field from package.json — Vercel does not support it and it causes build failures
+    if (path === 'package.json') {
+      try {
+        const pkg = JSON.parse(content)
+        delete pkg.engines
+        files[path] = JSON.stringify(pkg, null, 2)
+      } catch {
+        files[path] = content
+      }
+    } else {
+      files[path] = content
+    }
   }
 
   // ── Programmatic files — always added/overwritten regardless of what Claude generated ──
