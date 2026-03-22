@@ -553,6 +553,12 @@ Then: add supabaseSchema to generate.ts tool schema, save in run-build.ts, build
 **Dashboard Setup chip (items 29–30)**
 Blocked by supabase_schema column above. Once the column exists and is populated, build a Setup chip on the dashboard build card that opens a modal with the SQL and a Copy button.
 
+**src/vite-env.d.ts missing — tsc fails with "Property 'env' does not exist on type 'ImportMeta'"**
+Every generated app uses import.meta.env.VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in src/lib/supabase.ts. Without src/vite-env.d.ts containing "/// <reference types="vite/client" />", TypeScript does not know about import.meta.env and hard-fails. The file is a standard part of every Vite project scaffold but was not included in the 18-file generation list.
+Confirmed in confetti-0656c6: exact tsc error was "src/lib/supabase.ts(3,33): error TS2339: Property 'env' does not exist on type 'ImportMeta'". Adding the single-line file produced zero tsc errors.
+Fix: src/vite-env.d.ts added as file #7 in the required 19-file list in _systemPrompt.ts. run-build.ts programmatically injects it as a guaranteed file regardless of what Claude generates. Belt-and-suspenders pattern same as engines field strip.
+Learned: 2026-03-22.
+
 **Generated React apps fail tsc with "Cannot find namespace 'React'" — React type namespace usage**
 Root cause: with "jsx":"react-jsx" Claude omits `import React from 'react'` for JSX (correct), but still writes React.FormEvent, React.ReactNode, React.ChangeEvent etc. as namespace-qualified types. These are not JSX — they require React to be in scope. tsc exits non-zero before Vite runs.
 Confirmed in Confetti app (github.com/silamutungi/confetti-38fd59): Login.tsx, Signup.tsx, Dashboard.tsx all had `React.FormEvent` without React imported; ProtectedRoute.tsx had `React.ReactNode` without React imported. All four caused hard tsc failures.

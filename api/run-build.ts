@@ -297,6 +297,10 @@ function buildAllFiles(
     'Add lessons here as you work on this app. Format: bold title, what went wrong, fix, date.',
   ].join('\n')
 
+  // Always inject vite-env.d.ts — without it tsc fails with
+  // "Property 'env' does not exist on type 'ImportMeta'" on every import.meta.env reference
+  files['src/vite-env.d.ts'] = '/// <reference types="vite/client" />\n'
+
   return files
 }
 

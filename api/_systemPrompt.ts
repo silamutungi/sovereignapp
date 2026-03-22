@@ -563,29 +563,30 @@ You are generating a complete React + Vite + TypeScript + Tailwind CSS + Supabas
 
 CRITICAL OUTPUT ORDER: Generate the files array FIRST. Generate supabaseSchema LAST. Never write supabaseSchema before all 18 files are complete. The tool schema fills in property order — files is the first property, supabaseSchema is last.
 
-This is Phase 1 generation. Output only the 18 files listed below. Do not add extra pages or feature-specific components — the goal is a deployable, working app under 60 seconds.
+This is Phase 1 generation. Output only the 19 files listed below. Do not add extra pages or feature-specific components — the goal is a deployable, working app under 60 seconds.
 
-Required files (exactly these 18, in this order):
+Required files (exactly these 19, in this order):
 1. package.json
 2. index.html
 3. vite.config.ts
 4. tailwind.config.js
 5. postcss.config.js
 6. tsconfig.json
-7. src/index.css
-8. src/main.tsx
-9. src/App.tsx
-10. src/lib/supabase.ts
-11. src/types/index.ts
-12. src/pages/Home.tsx
-13. src/pages/Login.tsx
-14. src/pages/Signup.tsx
-15. src/pages/Dashboard.tsx
-16. src/components/Navbar.tsx
-17. src/components/ProtectedRoute.tsx
-18. src/components/Footer.tsx
+7. src/vite-env.d.ts
+8. src/index.css
+9. src/main.tsx
+10. src/App.tsx
+11. src/lib/supabase.ts
+12. src/types/index.ts
+13. src/pages/Home.tsx
+14. src/pages/Login.tsx
+15. src/pages/Signup.tsx
+16. src/pages/Dashboard.tsx
+17. src/components/Navbar.tsx
+18. src/components/ProtectedRoute.tsx
+19. src/components/Footer.tsx
 
-Do not exceed 18 files. Privacy and Terms pages are linked from the footer as placeholders — do not generate them. The dashboard must be real and functional for the core use case.
+Do not exceed 19 files. Privacy and Terms pages are linked from the footer as placeholders — do not generate them. The dashboard must be real and functional for the core use case.
 
 ### FILE VERBOSITY RULES — keep files concise
 
@@ -633,6 +634,10 @@ Files without a default export break every import X from './X' statement.
 **noUnusedLocals and noUnusedParameters are true — every declared variable must be used:**
 Do not declare variables, parameters, or imports you do not use. Remove unused function parameters or prefix with _ (e.g. _event).
 
+**src/vite-env.d.ts is required — omitting it breaks import.meta.env:**
+Every Vite project needs src/vite-env.d.ts containing exactly: /// <reference types="vite/client" />
+Without it tsc fails with "Property 'env' does not exist on type 'ImportMeta'" on every VITE_* env var access. This is file #7 in the required file list.
+
 ### EXACT FILE CONTRACTS
 
 package.json — React 18, react-router-dom 6, @supabase/supabase-js 2, Vite 5, Tailwind 3, TypeScript 5. Never include an engines field — Vercel does not support it and it causes build failures.
@@ -646,6 +651,9 @@ tailwind.config.js — content: ["./index.html","./src/**/*.{ts,tsx}"]. Extend t
 postcss.config.js — tailwindcss + autoprefixer.
 
 tsconfig.json — strict:true, jsx:react-jsx, moduleResolution:bundler, target:ES2020.
+
+src/vite-env.d.ts — exactly one line: /// <reference types="vite/client" />
+This file is REQUIRED. Without it tsc fails with "Property 'env' does not exist on type 'ImportMeta'" on every import.meta.env.VITE_* reference.
 
 src/index.css — @tailwind base; @tailwind components; @tailwind utilities; only.
 
