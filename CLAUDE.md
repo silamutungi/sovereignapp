@@ -441,11 +441,14 @@ Rule: whenever a new column is added to a query, immediately verify it exists in
 Must return one row. Zero rows = column missing = every query using it will 502. Never assume a documented migration ran — verify in the SQL editor.
 Learned: 2026-03-21.
 
-**API wrote 'done'/'failed' but dashboard checked 'complete'/'error' — all builds showed PENDING**
-The build pipeline (run-build.ts) wrote `status: 'done'` and `status: 'failed'` to Supabase. The dashboard TypeScript type and every status check used `'complete'` and `'error'`. Everything not matching those two values fell through to the PENDING display. LIVE NOW and REPOS OWNED counts were permanently 0.
-Fix: updated run-build.ts to write `'complete'` and `'error'`. Updated start-build.ts rate-limit query from `status=eq.done` to `status=eq.complete`. Patched all existing rows: 11 `done→complete`, 12 `failed→error` via REST API PATCH.
-Rule: the status values written by the API and read by the UI must be defined in one place. If you add a new status value, grep for every place statuses are compared before shipping.
-Learned: 2026-03-21.
+**Status value mismatch between run-build.ts and Building.tsx — build screen stuck on "Sending your live URL…"**
+This bug hit twice in different components. run-build.ts writes `'complete'` and `'error'`. Dashboard.tsx (fixed 2026-03-21) and Building.tsx (fixed 2026-03-22) both originally checked for `'done'`/`'failed'` instead.
+Dashboard symptom: all builds showed PENDING, LIVE NOW and REPOS OWNED counts were 0.
+Building.tsx symptom: polling never stopped on success (terminal check was `status === 'done'`), rate limit of 120/hr hit after ~4 min, 3× 429 triggered "Something went wrong checking your build status" on every successful build.
+Fix (2026-03-21): updated run-build.ts to write `'complete'` and `'error'`. Patched 23 existing DB rows.
+Fix (2026-03-22): updated Building.tsx BuildStatus type, stopPolling condition, isDone/isFailed checks to use `'complete'`/`'error'`.
+Rule: the status values written by run-build.ts and read by Dashboard.tsx, Building.tsx, and start-build.ts rate-limit query must all match. Canonical values: `pending_github`, `pending_vercel`, `queued`, `building`, `complete`, `error`. If you add a new consumer, grep for every place statuses are compared before shipping.
+Learned: 2026-03-21, 2026-03-22.
 
 **next_steps column missing caused dashboard to show 0 builds silently**
 Same class of bug as deleted_at: `next_steps JSONB` column was in CLAUDE.md migrations and in every SELECT query but never actually run in Supabase. The dashboard/builds.ts Supabase query returned 42703 → API 500 → Dashboard.tsx `if (!res.ok) return` swallowed the error → grid showed empty.
