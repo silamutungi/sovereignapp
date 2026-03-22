@@ -138,18 +138,42 @@ export default async function handler(req: any, res: any): Promise<void> {
   const userMessage = (baseMessage + hint).slice(0, MAX_COMBINED_LENGTH)
 
   // ── All validation passed — switch to SSE streaming ─────────────────────
+  const startedAt = Date.now()
+  console.log('[generate] SSE start, idea_chars:', userMessage.length, 'time:', new Date().toISOString())
+
   res.setHeader('Content-Type', 'text/event-stream')
-  res.setHeader('Cache-Control', 'no-cache')
+  res.setHeader('Cache-Control', 'no-cache, no-transform')
   res.setHeader('Connection', 'keep-alive')
+  // Disable gzip — compression buffers the entire stream and defeats SSE
+  res.setHeader('Content-Encoding', 'identity')
   res.flushHeaders()
 
-  const sendEvent = (data: object) => {
-    res.write(`data: ${JSON.stringify(data)}\n\n`)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (typeof (res as any).flush === 'function') (res as any).flush()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const flush = () => { if (typeof (res as any).flush === 'function') (res as any).flush() }
+
+  // Await the write so large payloads are fully queued before we end the response
+  const sendEvent = (data: object): Promise<void> =>
+    new Promise<void>((resolve) => {
+      const payload = `data: ${JSON.stringify(data)}\n\n`
+      res.write(payload, () => { flush(); resolve() })
+    })
+
+  // SSE keepalive — prevents Vercel edge / proxies from dropping idle connections
+  const keepalive = setInterval(() => {
+    try {
+      res.write(': keepalive\n\n')
+      flush()
+    } catch {
+      // connection already closed — interval will be cleared in finally
+    }
+  }, 8_000)
+
+  const endStream = () => {
+    clearInterval(keepalive)
+    res.end()
   }
 
-  sendEvent({ type: 'progress', message: 'Analysing your idea…' })
+  await sendEvent({ type: 'progress', message: 'Analysing your idea…' })
 
   const PROGRESS_THRESHOLDS = [500, 2000, 5000, 10000, 20000, 35000, 50000]
   const PROGRESS_MESSAGES = [
@@ -165,6 +189,7 @@ export default async function handler(req: any, res: any): Promise<void> {
   try {
     const client = new Anthropic({ apiKey })
 
+    console.log('[generate] Creating Anthropic stream...')
     const stream = client.messages.stream({
       model: 'claude-opus-4-6',
       max_tokens: 32000,
@@ -261,41 +286,63 @@ export default async function handler(req: any, res: any): Promise<void> {
       ],
     })
 
+    // Log stream-level errors (connection drops, API errors mid-stream)
+    stream.on('error', (streamErr) => {
+      console.error('[generate] Stream error event:', streamErr)
+    })
+
     let nextThresholdIdx = 0
+    let inputJsonChars = 0
     stream.on('inputJson', (_delta: string, snapshot: unknown) => {
-      const charCount = typeof snapshot === 'string' ? snapshot.length : 0
+      inputJsonChars = typeof snapshot === 'string' ? snapshot.length : 0
       while (
         nextThresholdIdx < PROGRESS_THRESHOLDS.length &&
-        charCount >= PROGRESS_THRESHOLDS[nextThresholdIdx]
+        inputJsonChars >= PROGRESS_THRESHOLDS[nextThresholdIdx]
       ) {
-        sendEvent({ type: 'progress', message: PROGRESS_MESSAGES[nextThresholdIdx] })
+        // Fire-and-forget progress events — don't await inside a sync callback
+        void sendEvent({ type: 'progress', message: PROGRESS_MESSAGES[nextThresholdIdx] })
         nextThresholdIdx++
       }
     })
 
+    console.log('[generate] Awaiting finalMessage...')
     const message = await stream.finalMessage()
-    console.log('[generate] stop_reason:', message.stop_reason, 'input_tokens:', message.usage.input_tokens, 'output_tokens:', message.usage.output_tokens)
+    const elapsed = Date.now() - startedAt
+    console.log(
+      '[generate] finalMessage resolved:',
+      'stop_reason:', message.stop_reason,
+      'input_tokens:', message.usage.input_tokens,
+      'output_tokens:', message.usage.output_tokens,
+      'elapsed_ms:', elapsed,
+      'inputJson_chars:', inputJsonChars,
+    )
 
     const toolBlock = message.content.find(
       (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
     )
     if (!toolBlock) {
-      sendEvent({ type: 'error', error: 'No tool_use block in response — stop_reason: ' + message.stop_reason })
-      res.end()
+      console.error('[generate] No tool_use block. Content types:', message.content.map(b => b.type))
+      await sendEvent({ type: 'error', error: `No tool_use block in response — stop_reason: ${message.stop_reason}` })
+      endStream()
       return
     }
 
     const spec = toolBlock.input as AppSpec
-    console.log('[generate] spec keys:', Object.keys(spec))
-    console.log('[generate] files count:', spec.files?.length ?? 0, 'supabaseSchema length:', spec.supabaseSchema?.length ?? 0)
+    console.log(
+      '[generate] spec:',
+      'files:', spec.files?.length ?? 0,
+      'supabaseSchema_chars:', spec.supabaseSchema?.length ?? 0,
+      'keys:', Object.keys(spec).join(','),
+    )
 
     if (!spec.files || spec.files.length === 0) {
-      sendEvent({ type: 'error', error: `files array missing or empty — stop_reason: ${message.stop_reason}, output_tokens: ${message.usage.output_tokens}` })
-      res.end()
+      console.error('[generate] files array empty. stop_reason:', message.stop_reason, 'output_tokens:', message.usage.output_tokens)
+      await sendEvent({ type: 'error', error: `files array missing or empty — stop_reason: ${message.stop_reason}, output_tokens: ${message.usage.output_tokens}` })
+      endStream()
       return
     }
 
-    sendEvent({
+    const donePayload = {
       type: 'done',
       spec: {
         appName: spec.appName,
@@ -309,23 +356,29 @@ export default async function handler(req: any, res: any): Promise<void> {
         activeStandards: spec.activeStandards ?? [],
         nextSteps: spec.nextSteps ?? [],
       },
-    })
-    res.end()
+    }
+    const doneJson = JSON.stringify(donePayload)
+    console.log('[generate] Sending done event, payload_bytes:', doneJson.length)
+    await sendEvent(donePayload)
+    console.log('[generate] Done event write callback fired, ending stream. elapsed_ms:', Date.now() - startedAt)
+    endStream()
   } catch (err) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const anyErr = err as any
-    console.error('[generate] UNCAUGHT ERROR')
-    console.error('[generate] type:', anyErr?.constructor?.name)
-    console.error('[generate] message:', anyErr?.message)
-    console.error('[generate] status:', anyErr?.status)
+    const elapsed = Date.now() - startedAt
+    console.error('[generate] CAUGHT ERROR after', elapsed, 'ms')
+    console.error('[generate] error type:', anyErr?.constructor?.name)
+    console.error('[generate] error message:', anyErr?.message)
+    console.error('[generate] error status:', anyErr?.status)
+    console.error('[generate] error.error:', JSON.stringify(anyErr?.error))
     console.error('[generate] prompt chars:', typeof userMessage === 'string' ? userMessage.length : 'unknown')
-    const message =
+    const errMsg =
       err instanceof Anthropic.APIError
         ? `Anthropic API error ${err.status}: ${err.message}`
         : err instanceof Error
           ? err.message
           : String(err)
-    sendEvent({ type: 'error', error: message })
-    res.end()
+    await sendEvent({ type: 'error', error: errMsg })
+    endStream()
   }
 }

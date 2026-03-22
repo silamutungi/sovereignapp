@@ -227,10 +227,19 @@ async function callGenerateAPI(
   const reader = res.body!.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
+  let totalBytes = 0
 
   while (true) {
     const { done, value } = await reader.read()
-    if (done) break
+    if (done) {
+      // Log any unprocessed data remaining in the buffer — helps diagnose truncated events
+      if (buffer.trim()) {
+        console.warn('[generate] SSE stream closed with unprocessed buffer (' + buffer.length + ' chars):', buffer.slice(0, 300))
+      }
+      console.log('[generate] SSE stream closed. total_bytes:', totalBytes, 'buffer_remaining:', buffer.length)
+      break
+    }
+    totalBytes += value?.length ?? 0
     buffer += decoder.decode(value, { stream: true })
 
     const lines = buffer.split('\n')
@@ -250,12 +259,14 @@ async function callGenerateAPI(
         if (event.type === 'progress' && event.message) {
           onProgress(event.message)
         } else if (event.type === 'done' && event.spec) {
+          console.log('[generate] Received done event, files:', event.spec.files?.length)
           return { spec: event.spec }
         } else if (event.type === 'error') {
+          console.error('[generate] Received error event:', event.error)
           return { error: event.error ?? 'Generation failed.' }
         }
-      } catch {
-        // ignore malformed SSE line
+      } catch (parseErr) {
+        console.warn('[generate] Failed to parse SSE line (' + line.length + ' chars):', String(parseErr), line.slice(0, 200))
       }
     }
   }
