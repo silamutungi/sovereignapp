@@ -512,6 +512,13 @@ The app-launch welcome email told users their app was live but gave no guidance 
 Fix: added a "One more step" card to the app-launch email template with a link to https://supabase.com/dashboard.
 Learned: 2026-03-21.
 
+**Generation timed out at 300s — 20+ files in one call is too much for Opus**
+Wrong assumption: Claude Opus 4.6 can generate 20+ complete files in a single API call within the 300s maxDuration limit.
+Correct behaviour: generating Privacy.tsx, Terms.tsx, and every feature-specific page in one shot reliably exceeds 300 seconds and times out.
+Fix: phased generation. Phase 1 generates exactly 18 files (the essential scaffold: package.json, index.html, vite.config.ts, tailwind.config.js, postcss.config.js, tsconfig.json, src/index.css, src/main.tsx, src/App.tsx, src/lib/supabase.ts, src/types/index.ts, src/pages/Home.tsx, src/pages/Login.tsx, src/pages/Signup.tsx, src/pages/Dashboard.tsx, src/components/Navbar.tsx, src/components/ProtectedRoute.tsx, src/components/Footer.tsx). max_tokens reduced from 32000 to 16000. Feature pages are Phase 2. Privacy/Terms pages deferred — footer links to them as placeholders.
+Rule: the generate endpoint generates Phase 1 only. Never ask for feature-specific pages in the initial generation call. 18 files at ~200 lines each = ~3400 lines ≈ 12000 tokens — well within 16000 with headroom.
+Learned: 2026-03-21.
+
 **api/generate hits Vercel 10-second default timeout for multi-file generation — fix: SSE + maxDuration**
 Wrong assumption: a regular JSON response was sufficient for generate.ts even after upgrading to 32000 max_tokens generating 20+ files.
 Correct behaviour: multi-file generation takes 30–120 seconds. Vercel serverless functions time out after 10 seconds by default. The client receives a 504 and the user sees an infinite spinner.
