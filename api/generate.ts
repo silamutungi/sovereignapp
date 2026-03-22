@@ -173,17 +173,14 @@ export default async function handler(req: any, res: any): Promise<void> {
     res.end()
   }
 
-  await sendEvent({ type: 'progress', message: 'Analysing your idea…' })
+  await sendEvent({ type: 'progress', message: 'Designing your app…' })
 
-  const PROGRESS_THRESHOLDS = [500, 2000, 5000, 10000, 20000, 35000, 50000]
+  const PROGRESS_THRESHOLDS = [2000, 5000, 9000, 12000]
   const PROGRESS_MESSAGES = [
-    'Designing the architecture…',
-    'Writing components…',
-    'Building pages…',
-    'Adding authentication…',
-    'Polishing the UI…',
-    'Finishing styles…',
-    'Almost done…',
+    'Writing your landing page…',
+    'Building auth and dashboard…',
+    'Creating your database schema…',
+    'Finishing up…',
   ]
 
   try {
@@ -192,7 +189,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     console.log('[generate] Creating Anthropic stream...')
     const stream = client.messages.stream({
       model: 'claude-opus-4-6',
-      max_tokens: 32000,
+      max_tokens: 16000,
       system: SYSTEM_PROMPT,
       tools: [
         {

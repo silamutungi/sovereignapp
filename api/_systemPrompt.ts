@@ -556,14 +556,16 @@ Node ESM requires explicit extensions even though TypeScript source files are .t
 
 You are generating a complete React + Vite + TypeScript + Tailwind CSS + Supabase application. Output goes into the \`files\` array. Each entry: \`{ path: string, content: string }\`. Every file must have 100% complete content — never truncated, never "// TODO", never placeholder components.
 
-### BASE FILES — always include all of these
+### PHASE 1 SCAFFOLD — generate exactly these files, no more
+
+This is Phase 1 generation. Output only the files listed below. Do not add extra pages or feature-specific components — the goal is a deployable, working app under 60 seconds. Feature pages are added in Phase 2.
 
 package.json, index.html, vite.config.ts, tailwind.config.js, postcss.config.js, tsconfig.json,
 src/index.css, src/main.tsx, src/App.tsx, src/lib/supabase.ts, src/types/index.ts,
 src/pages/Home.tsx, src/pages/Login.tsx, src/pages/Signup.tsx, src/pages/Dashboard.tsx,
-src/pages/Privacy.tsx, src/pages/Terms.tsx,
 src/components/Navbar.tsx, src/components/ProtectedRoute.tsx, src/components/Footer.tsx
-+ all feature-specific pages and components for the idea
+
+That is 18 files. Do not exceed this list. Privacy and Terms pages are linked from the footer as placeholders — do not generate them now. The dashboard must be real and functional for the core use case.
 
 ### EXACT FILE CONTRACTS
 
@@ -602,8 +604,6 @@ src/pages/Login.tsx — Supabase email/password login. Redirect to /dashboard on
 src/pages/Signup.tsx — Supabase email/password signup. Redirect to /dashboard on success. Link to /login.
 
 src/pages/Dashboard.tsx — Main authenticated page with real user data from Supabase. Loading, error, and empty states all handled.
-
-src/pages/Privacy.tsx and src/pages/Terms.tsx — App-specific policies, not generic boilerplate.
 
 ### DESIGN RULES — NON-NEGOTIABLE
 
