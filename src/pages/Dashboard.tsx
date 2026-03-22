@@ -1548,7 +1548,7 @@ function AppCard({
             {build.error?.slice(0, 100)}
           </p>
           <a
-            href="/"
+            href={build.idea ? `/?idea=${encodeURIComponent(build.idea)}` : '/'}
             style={{
               background: 'transparent',
               color: '#0e0d0b',

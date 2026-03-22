@@ -275,7 +275,10 @@ async function callGenerateAPI(
 }
 
 function NdevPanel({ locale }: { locale: Locale }) {
-  const [value, setValue] = useState('')
+  const [value, setValue] = useState(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('idea') ?? ''
+  })
   const [phIdx, setPhIdx] = useState(0)
   const [stage, setStage] = useState<'idle' | 'generating' | 'result' | 'confirm' | 'connect'>('idle')
   const [spec, setSpec] = useState<AppSpec | null>(null)
