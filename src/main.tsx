@@ -5,17 +5,23 @@ import App from './App.tsx'
 import Building from './pages/Building.tsx'
 import Dashboard from './pages/Dashboard.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
+import { ChatProvider } from './store/chatStore.tsx'
+import { SovereignChat } from './components/SovereignChat.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/building" element={<Building />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/*" element={<App />} />
-        </Routes>
-      </BrowserRouter>
+      <ChatProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/building" element={<Building />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/*" element={<App />} />
+          </Routes>
+          {/* Global chat — renders on every page */}
+          <SovereignChat />
+        </BrowserRouter>
+      </ChatProvider>
     </ErrorBoundary>
   </StrictMode>
 )

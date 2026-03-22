@@ -250,7 +250,9 @@ RLS with explicit policies on every Supabase table, no direct client-to-database
 
 ## Sovereign Standards Engine
 
-Every generated app is classified as SIMPLE, STANDARD, or COMPLEX based on the idea input. This determines which of the 14 expert standards are activated. Tier 1 (design, accessibility, SEO, performance, content, legal) applies to every app. Tier 2 (security, analytics, onboarding, email, i18n) activates for apps with user accounts or public products. Tier 3 (rate limiting, data backup, CI/CD) activates for complex multi-user or financial apps. The business intelligence layer (monitoring, domain readiness, referral hooks, audit log, billing) activates based on app context. Every app also gets a nextSteps array of 3 tailored recommendations returned in the JSON response — these are rendered as chips in the dashboard.
+Every generated app is classified as SIMPLE, STANDARD, or COMPLEX based on the idea input. This determines which of the 14 expert standards are activated. Tier 1 (design, accessibility, SEO, performance, content, legal, IA) applies to every app. Tier 2 (security, analytics, onboarding, email, i18n, user story mapping, product discovery, execution) activates for apps with user accounts or public products. Tier 3 (rate limiting, data backup, CI/CD) activates for complex multi-user or financial apps. The business intelligence layer (monitoring, domain readiness, referral hooks, audit log, billing) activates based on app context. Every app also gets a nextSteps array of 3 tailored recommendations returned in the JSON response — these are rendered as chips in the dashboard.
+
+The authoritative quality reference is **SOVEREIGN_STANDARDS.md** in the repo root. It defines all 14 expert standards, the tier activation rules, and the quality bar checklist. When adding new standards or updating generation prompts, update both SOVEREIGN_STANDARDS.md and api/_systemPrompt.ts in the same session — they must stay in sync.
 
 ## Hard-Won Lessons
 
@@ -492,6 +494,43 @@ The build flow had no way to correct a wrong email after submitting — the only
 Fix: confirmation step added between email submit and OAuth. Email remains editable until run-build is called. Idea/preview state preserved across email edits.
 UX principle: destructive-feeling actions always need a confirmation or undo. Never trap users.
 Learned: 2026-03-20.
+
+**_systemPrompt.ts must contain all 14 Sovereign Standards expert references by name**
+Wrong assumption: having correct behaviour described is sufficient — experts don't need to be named.
+Correct behaviour: audit checks verify named references (Don Norman, Steve Krug, Rosenfeld, Jeff Patton, Marty Cagan, David Allen GTD) because naming the source locks in the quality standard and prevents drift.
+Fix: added all expert names and their frameworks explicitly to _systemPrompt.ts with specific rules from each. Also added Playfair Display/DM Mono font names and brand color tokens to the prompt so generated apps inherit Sovereign's typographic identity.
+Learned: 2026-03-21.
+
+**run-build.ts scaffold was missing .env.example — every generated repo ships 8 files, not 7**
+Wrong assumption: .env.example was only needed by Tier 3 (CI/CD standard).
+Correct behaviour: .env.example is a security baseline for every app — without it, users have no reference for what env vars the app needs and will either hardcode secrets or leave the app broken.
+Fix: added .env.example as the 8th scaffold file in buildStaticFiles() with VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY, VITE_APP_URL.
+Learned: 2026-03-21.
+
+**Welcome email had no Supabase setup call-to-action**
+The app-launch welcome email told users their app was live but gave no guidance on the one critical manual step: connecting Supabase. Users with apps that need auth or data had no prompt to do this.
+Fix: added a "One more step" card to the app-launch email template with a link to https://supabase.com/dashboard.
+Learned: 2026-03-21.
+
+## Architectural Features Pending (not yet built)
+
+The following items were audited on 2026-03-21 and confirmed as not yet built. They require decisions and migrations before implementation. Do not attempt to build them without reading this section first.
+
+**Multi-file generation (items 1–3 in live build audit)**
+Current: generate.ts tool schema returns `template: string` (single index.html). run-build.ts builds a 8-file scaffold from that template.
+Planned: upgrade to `files: array` in the tool schema so Claude generates multi-file React/TS/Tailwind apps directly (src/App.tsx, src/components/*, api/ routes, package.json with React deps, tailwind.config.js).
+Risk: breaking change to generate.ts tool schema, system prompt, run-build.ts, and all existing generated apps.
+Status: architectural decision needed — commit to single-file HTML or multi-file React.
+
+**supabase_schema column on builds table (items 2, 7, 9, 12)**
+Current: builds table has no supabase_schema column. Neither generate.ts nor run-build.ts produce or save a schema.
+Planned: generate.ts returns supabaseSchema (SQL for Supabase tables tailored to the app idea). run-build.ts saves it to builds.supabase_schema. Dashboard shows a "Setup" chip opening a modal with the SQL and a Copy button.
+Migration to run when ready:
+  ALTER TABLE builds ADD COLUMN IF NOT EXISTS supabase_schema TEXT DEFAULT NULL;
+Then: add supabaseSchema to generate.ts tool schema, save in run-build.ts, build Setup chip UI.
+
+**Dashboard Setup chip (items 29–30)**
+Blocked by supabase_schema column above. Once the column exists and is populated, build a Setup chip on the dashboard build card that opens a modal with the SQL and a Copy button.
 
 ## Supabase Schema — SQL Run in Production
 

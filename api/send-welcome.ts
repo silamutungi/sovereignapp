@@ -186,6 +186,29 @@ function appLaunchHtml(projectName: string, liveUrl: string, repoUrl: string): s
             </td>
           </tr>
 
+          <!-- One more step — Supabase setup -->
+          <tr>
+            <td style="padding:0 0 32px 0;background-color:#0e0d0b !important;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#1a1917;border-radius:8px;border:1px solid rgba(200,240,96,0.15);">
+                <tr>
+                  <td style="padding:24px 24px 8px 24px;background:#1a1917 !important;border-radius:8px 8px 0 0;">
+                    <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#c8f060 !important;">One more step</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 24px 16px 24px;background:#1a1917 !important;">
+                    <p style="margin:0;font-size:14px;line-height:1.6;color:#f2efe8 !important;">Connect your Supabase database to enable auth, storage, and data for your app.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:0 24px 24px 24px;background:#1a1917 !important;border-radius:0 0 8px 8px;">
+                    <a href="https://supabase.com/dashboard" style="display:inline-block;background:#c8f060;color:#0e0d0b !important;-webkit-text-fill-color:#0e0d0b;font-size:13px;font-weight:700;text-decoration:none;padding:10px 20px;border-radius:5px;letter-spacing:0.01em;">Open Supabase Dashboard →</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
           <!-- Dashboard link -->
           <tr>
             <td style="padding:0 0 20px 0;text-align:center;background-color:#0e0d0b !important;">

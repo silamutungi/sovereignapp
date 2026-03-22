@@ -23,6 +23,7 @@ interface Build {
   step: string | null
   error: string | null
   next_steps: NextStep[] | null
+  supabase_schema: string | null
   created_at: string
 }
 
@@ -1192,6 +1193,111 @@ function AuthDashboard({ email }: { email: string }) {
   )
 }
 
+// ── Setup DB Modal ─────────────────────────────────────────────────────────────
+
+function SetupDBModal({ build, onClose }: { build: Build; onClose: () => void }) {
+  const [copied, setCopied] = useState(false)
+  const sql = build.supabase_schema ?? ''
+
+  function handleCopy() {
+    void navigator.clipboard.writeText(sql).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  // Lock body scroll while open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
+
+  return (
+    <>
+      <style>{`.setup-modal-overlay{position:fixed;inset:0;z-index:1100;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);padding:24px} .setup-modal{background:#0e0d0b;border-radius:12px;width:100%;max-width:600px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden} .setup-sql{flex:1;overflow-y:auto;background:#111009;padding:16px 20px;font:12px/1.7 DM Mono,Courier New,monospace;color:#c8c4bc;white-space:pre-wrap;word-break:break-all;border:none;outline:none;resize:none;width:100%;box-sizing:border-box} .setup-sql::-webkit-scrollbar{width:4px} .setup-sql::-webkit-scrollbar-thumb{background:#3a3830;border-radius:2px}`}</style>
+      <div
+        className="setup-modal-overlay"
+        onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      >
+        <div className="setup-modal" role="dialog" aria-modal="true" aria-label="Activate your database">
+
+          {/* Header */}
+          <div style={{ padding: '24px 24px 0', flexShrink: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+              <div>
+                <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '20px', fontWeight: 400, color: '#f2efe8', margin: '0 0 4px' }}>
+                  Activate your database
+                </p>
+                <p style={{ font: '12px/1.5 DM Mono, Courier New, monospace', color: '#6b6862', margin: 0 }}>
+                  Run this in your Supabase SQL editor to create the schema for <strong style={{ color: '#c8c4bc' }}>{build.app_name}</strong>.
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                style={{ background: 'none', border: 'none', color: '#6b6862', fontSize: '20px', cursor: 'pointer', lineHeight: 1, padding: '4px', flexShrink: 0, marginLeft: '16px' }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#f2efe8')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#6b6862')}
+                aria-label="Close"
+              >✕</button>
+            </div>
+          </div>
+
+          {/* SQL code block */}
+          <div style={{ padding: '16px 24px 0', flexShrink: 0 }}>
+            <p style={{ font: '10px/1 DM Mono, Courier New, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b6862', margin: '0 0 8px' }}>SQL Schema</p>
+          </div>
+          <div style={{ flex: 1, overflow: 'hidden', padding: '0 24px', minHeight: 0 }}>
+            <textarea className="setup-sql" readOnly value={sql} aria-label="SQL schema to run in Supabase" />
+          </div>
+
+          {/* Actions */}
+          <div style={{ padding: '16px 24px 24px', display: 'flex', gap: '12px', alignItems: 'center', flexShrink: 0, borderTop: '0.5px solid #2a2925', marginTop: '12px' }}>
+            <button
+              onClick={handleCopy}
+              style={{
+                background: copied ? '#2a3d0e' : '#8ab800',
+                color: copied ? '#8ab800' : '#0e0d0b',
+                border: copied ? '1px solid #8ab800' : 'none',
+                padding: '10px 20px',
+                font: '500 13px/1 DM Mono, Courier New, monospace',
+                cursor: 'pointer',
+                borderRadius: '6px',
+                transition: 'all 0.15s',
+                minHeight: '44px',
+              }}
+            >
+              {copied ? '✓ Copied' : 'Copy SQL'}
+            </button>
+            <a
+              href="https://supabase.com/dashboard"
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'transparent',
+                color: '#f2efe8',
+                border: '1px solid #3a3830',
+                padding: '10px 20px',
+                font: '13px/1 DM Mono, Courier New, monospace',
+                borderRadius: '6px',
+                textDecoration: 'none',
+                minHeight: '44px',
+                transition: 'border-color 0.15s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#f2efe8')}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#3a3830')}
+            >
+              Open Supabase ↗
+            </a>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ── App card ───────────────────────────────────────────────────────────────────
 
 function AppCard({
@@ -1202,6 +1308,7 @@ function AppCard({
   onEdit: (b: Build) => void
 }) {
   const [hovered, setHovered] = useState(false)
+  const [setupOpen, setSetupOpen] = useState(false)
 
   const statusColor = {
     complete: '#8ab800',
@@ -1336,6 +1443,39 @@ function AppCard({
         </a>
       )}
 
+      {/* Setup DB chip — only when supabase_schema is available */}
+      {build.supabase_schema && (
+        <button
+          onClick={() => setSetupOpen(true)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '5px 12px',
+            background: 'transparent',
+            color: '#8ab800',
+            border: '1px solid #8ab80055',
+            font: '11px/1 DM Mono, Courier New, monospace',
+            cursor: 'pointer',
+            borderRadius: '100px',
+            marginBottom: '12px',
+            transition: 'border-color 0.15s, background 0.15s',
+            minHeight: '28px',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = '#8ab80010'
+            e.currentTarget.style.borderColor = '#8ab800'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent'
+            e.currentTarget.style.borderColor = '#8ab80055'
+          }}
+        >
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#8ab800', flexShrink: 0, display: 'inline-block' }} />
+          Setup DB
+        </button>
+      )}
+
       {/* Action buttons */}
       {build.status === 'complete' && (
         <div style={{ display: 'flex', gap: '10px' }}>
@@ -1437,6 +1577,9 @@ function AppCard({
       >
         {relativeDate(build.created_at)}
       </span>
+
+      {/* Setup DB Modal */}
+      {setupOpen && <SetupDBModal build={build} onClose={() => setSetupOpen(false)} />}
     </div>
   )
 }

@@ -70,6 +70,7 @@ export default async function handler(req: any, res: any): Promise<void> {
         step,
         error,
         next_steps,
+        supabase_schema,
         created_at
       `)
       .eq('email', email.toLowerCase())

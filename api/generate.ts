@@ -23,12 +23,19 @@ interface NextStep {
   priority: 'high' | 'medium' | 'low'
 }
 
+interface AppFileEntry {
+  path: string
+  content: string
+}
+
 interface AppSpec {
   appName: string
   tagline: string
   primaryColor: string
-  appType: 'landing-page' | 'saas' | 'waitlist'
-  template: string
+  appType: 'landing-page' | 'saas' | 'marketplace' | 'social' | 'tool' | 'ecommerce'
+  files: AppFileEntry[]
+  supabaseSchema: string
+  setupInstructions: string
   tier: 'SIMPLE' | 'STANDARD' | 'COMPLEX'
   activeStandards: string[]
   nextSteps: NextStep[]
@@ -39,7 +46,9 @@ const EMPTY: AppSpec = {
   tagline: '',
   primaryColor: '',
   appType: 'landing-page',
-  template: '',
+  files: [],
+  supabaseSchema: '',
+  setupInstructions: '',
   tier: 'SIMPLE',
   activeStandards: [],
   nextSteps: [],
@@ -146,52 +155,62 @@ export default async function handler(req: any, res: any): Promise<void> {
     try {
       response = await client.messages.create({
         model: 'claude-opus-4-6',
-        max_tokens: 16000,
+        max_tokens: 32000,
         system: SYSTEM_PROMPT,
         tools: [
         {
           name: 'generate_app_spec',
-          description: 'Generate a complete app specification from a founder idea',
+          description: 'Generate a complete multi-file React/TS/Tailwind/Supabase app from a founder idea',
           input_schema: {
             type: 'object' as const,
             properties: {
               appName: {
                 type: 'string',
-                description:
-                  'Short, memorable app name relevant to the idea. 2–3 words max. No generic words like "App" or "Pro".',
+                description: 'Short, memorable app name relevant to the idea. 2–3 words max. No generic words like "App" or "Pro".',
               },
               tagline: {
                 type: 'string',
-                description:
-                  'One compelling sentence (under 12 words) that explains the unique value proposition.',
+                description: 'One compelling sentence (under 12 words) that explains the unique value proposition.',
               },
               primaryColor: {
                 type: 'string',
-                description:
-                  'A hex color code that fits the mood and purpose of the app. e.g. #4F46E5 for a professional tool, #10B981 for a health app.',
+                description: 'A hex color code that fits the mood and purpose of the app. e.g. #4F46E5 for a professional tool, #10B981 for a health app.',
               },
               appType: {
                 type: 'string',
-                enum: ['landing-page', 'saas', 'waitlist'],
-                description:
-                  'The best-fit app type. Use "waitlist" for early-stage ideas, "saas" for subscription tools, "landing-page" for everything else.',
+                enum: ['landing-page', 'saas', 'marketplace', 'social', 'tool', 'ecommerce'],
+                description: 'The best-fit app type. landing-page = public-facing site only, saas = subscription service, marketplace = buyers and sellers, social = community/network, tool = single-purpose utility, ecommerce = product sales.',
               },
-              template: {
+              files: {
+                type: 'array',
+                description: 'Complete array of all source files for the app. Every file must have complete content — never truncated, never placeholder. Include all required base files plus all feature-specific files for this idea.',
+                items: {
+                  type: 'object',
+                  properties: {
+                    path: { type: 'string', description: 'File path relative to repo root, e.g. "src/pages/Home.tsx"' },
+                    content: { type: 'string', description: 'Complete file content. Never truncated. No TODO comments. No placeholder components.' },
+                  },
+                  required: ['path', 'content'],
+                  additionalProperties: false,
+                },
+              },
+              supabaseSchema: {
                 type: 'string',
-                description:
-                  'A complete, self-contained index.html string with beautiful inline CSS. Use the primaryColor for accents and CTAs. Show the appName as an h1, the tagline as a subtitle, and a prominent CTA button. Modern, clean, minimal design. No external dependencies — all styles inline.',
+                description: 'Complete Supabase SQL schema. Includes CREATE TABLE, ALTER TABLE ENABLE ROW LEVEL SECURITY, CREATE POLICY for all operations, and CREATE INDEX. Use auth.uid() = user_id for user-owned data. Use standard SQL compatible with PostgreSQL 15.',
+              },
+              setupInstructions: {
+                type: 'string',
+                description: 'Numbered plain-English steps for the owner to activate the app after deployment. Always includes: create Supabase project, run the SQL schema, set environment variables in Vercel, any app-specific configuration steps.',
               },
               tier: {
                 type: 'string',
                 enum: ['SIMPLE', 'STANDARD', 'COMPLEX'],
-                description:
-                  'The complexity tier assigned to this app based on its idea. SIMPLE = personal/portfolio/landing, STANDARD = SaaS/membership/booking, COMPLEX = fintech/multi-user/e-commerce.',
+                description: 'SIMPLE = personal/portfolio/landing, STANDARD = SaaS/membership/booking, COMPLEX = fintech/multi-user/e-commerce.',
               },
               activeStandards: {
                 type: 'array',
                 items: { type: 'string' },
-                description:
-                  'List of standard names activated for this app, e.g. ["design", "accessibility", "seo", "performance", "content", "legal"]. Include all that apply based on the tier and app context.',
+                description: 'List of standard names activated for this app based on tier and context.',
               },
               nextSteps: {
                 type: 'array',
@@ -216,7 +235,7 @@ export default async function handler(req: any, res: any): Promise<void> {
                 },
               },
             },
-            required: ['appName', 'tagline', 'primaryColor', 'appType', 'template', 'tier', 'activeStandards', 'nextSteps'],
+            required: ['appName', 'tagline', 'primaryColor', 'appType', 'files', 'supabaseSchema', 'setupInstructions', 'tier', 'activeStandards', 'nextSteps'],
             additionalProperties: false,
           },
         },
@@ -268,10 +287,10 @@ export default async function handler(req: any, res: any): Promise<void> {
 
     const spec = toolBlock.input as AppSpec
     console.log('[generate] spec keys:', Object.keys(spec))
-    console.log('[generate] template present:', !!spec.template, 'length:', spec.template?.length ?? 0)
+    console.log('[generate] files count:', spec.files?.length ?? 0, 'supabaseSchema length:', spec.supabaseSchema?.length ?? 0)
 
-    if (!spec.template) {
-      throw new Error(`template missing from tool output — stop_reason: ${response.stop_reason}, output_tokens: ${response.usage.output_tokens}`)
+    if (!spec.files || spec.files.length === 0) {
+      throw new Error(`files array missing or empty from tool output — stop_reason: ${response.stop_reason}, output_tokens: ${response.usage.output_tokens}`)
     }
 
     res.status(200).json({
@@ -279,7 +298,9 @@ export default async function handler(req: any, res: any): Promise<void> {
       tagline: spec.tagline,
       primaryColor: spec.primaryColor,
       appType: spec.appType,
-      template: spec.template,
+      files: spec.files,
+      supabaseSchema: spec.supabaseSchema ?? '',
+      setupInstructions: spec.setupInstructions ?? '',
       tier: spec.tier ?? 'SIMPLE',
       activeStandards: spec.activeStandards ?? [],
       nextSteps: spec.nextSteps ?? [],

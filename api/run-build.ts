@@ -52,12 +52,19 @@ const NET = 10_000 // 10s per individual network call
 
 // ── Supabase helpers ──────────────────────────────────────────────────────────
 
+interface AppFileEntry {
+  path: string
+  content: string
+}
+
 interface BuildRecord {
   id: string
   email: string
   app_name: string
   idea: string
-  template: string
+  files: AppFileEntry[] | null
+  supabase_schema: string | null
+  setup_instructions: string | null
   github_token: string
   vercel_token: string
   status: string
@@ -139,176 +146,147 @@ async function ghFetch(
   return { ok: res.ok, status: res.status, data }
 }
 
-// Remove localhost and relative-path script/link tags that won't resolve in
-// the deployed repo. Google Fonts and other CDN links are left intact.
-function sanitizeTemplate(html: string): string {
-  html = html.replace(
-    /<script\b[^>]*\bsrc=["'](?:https?:\/\/localhost[^"']*|\/[^"']*)[^>]*>\s*<\/script>/gi,
-    '',
-  )
-  html = html.replace(
-    /<link\b[^>]*\bhref=["'](?:https?:\/\/localhost[^"']*|\/[^"']*)[^>]*\/?>/gi,
-    '',
-  )
-  return html
-}
-
-function buildStaticFiles(
-  template: string,
+function buildAllFiles(
+  generatedFiles: AppFileEntry[],
   appName: string,
-  appSlug: string,
   repoUrl: string,
 ): Record<string, string> {
-  const sanitized = sanitizeTemplate(template)
   const buildDate = new Date().toISOString().split('T')[0]
-  return {
-    'package.json': JSON.stringify({
-      name: appSlug,
-      version: '0.1.0',
-      private: true,
-      scripts: { dev: 'vite', build: 'vite build', preview: 'vite preview' },
-      devDependencies: { vite: '^5.0.0' },
-      engines: { node: '20.x' },
-    }, null, 2),
-    'index.html': sanitized,
-    'vite.config.js': [
-      "import { defineConfig } from 'vite'",
-      '',
-      'export default defineConfig({',
-      '  build: {',
-      "    outDir: 'dist'",
-      '  }',
-      '})',
-      '',
-    ].join('\n'),
-    '.gitignore': 'node_modules/\ndist/\n.env\n.env.local\n.vercel/\n',
-    'README.md': [
-      `# ${appName}`,
-      '',
-      'Built with [Sovereign](https://sovereignapp.dev).',
-      '',
-      '## Run locally',
-      '```bash',
-      'npm install',
-      'npm run dev',
-      '```',
-      '',
-      '## Deploy',
-      '',
-      'This app auto-deploys to Vercel on every push to main.',
-      '',
-      '## You own everything',
-      '',
-      'Your code is in this repo. Your deployment is on your Vercel account.',
-      'Sovereign provisioned it — you own it.',
-      '',
-    ].join('\n'),
-    'vercel.json': JSON.stringify(
-      { rewrites: [{ source: '/((?!api/).*)', destination: '/index.html' }] },
-      null, 2,
-    ),
-    'CLAUDE.md': [
-      `# ${appName} — Claude Code Context`,
-      '',
-      'This app was built with Sovereign (sovereignapp.dev).',
-      'You own everything — this repo, the Vercel deployment, the Supabase database.',
-      '',
-      '## Stack',
-      '- React + Vite + TypeScript',
-      '- Supabase (database + auth)',
-      '- Vercel (deployment — auto-deploys on push to main)',
-      '- Resend (email)',
-      '',
-      '## Project structure',
-      '- src/ — React components and pages',
-      '- api/ — Vercel serverless functions',
-      '- public/ — static assets',
-      '- index.html — app entry point',
-      '',
-      '## Rules for Claude Code',
-      '',
-      '**Never break the build**',
-      'Run npm run build before pushing anything.',
-      'If the build fails, fix it before pushing.',
-      '',
-      '**All Supabase access is server-side only**',
-      'Never query Supabase directly from browser JavaScript.',
-      'All database access goes through api/ routes.',
-      'The service role key is server-side only — never expose it in client code or VITE_ prefixed variables.',
-      '',
-      '**Every Supabase table needs RLS**',
-      'When adding a new table, always:',
-      '1. ALTER TABLE table_name ENABLE ROW LEVEL SECURITY',
-      '2. Add explicit SELECT, INSERT, UPDATE policies',
-      '3. Never use USING(true) on private data tables',
-      '',
-      '**Soft deletes only**',
-      'Never use DELETE FROM on user data.',
-      'All tables have deleted_at TIMESTAMPTZ DEFAULT NULL.',
-      'Delete = SET deleted_at = now() WHERE id = x',
-      'All queries filter WHERE deleted_at IS NULL',
-      '',
-      '**Environment variables**',
-      'Never commit .env — it is in .gitignore',
-      'Never log env var values to the console',
-      'Never use VITE_ prefix for sensitive keys',
-      'See .env.example for all required variables',
-      '',
-      '**Secure headers**',
-      'vercel.json contains CSP and security headers.',
-      'Do not remove or weaken these headers.',
-      'If adding new external resources (fonts, scripts), add their domains to the appropriate CSP directive.',
-      '',
-      '**Never use url.parse()**',
-      'Use the WHATWG URL API instead:',
-      '  new URL(string, base)',
-      "  parsed.searchParams.get('param')",
-      'url.parse() has known security implications (DEP0169).',
-      '',
-      '**Node version**',
-      'This project uses Node 20.x.',
-      'Do not upgrade to Node 24.x — it is not stable LTS.',
-      'Node version is set in package.json engines field.',
-      '',
-      '**Vercel deployment**',
-      'This app auto-deploys when you push to main branch.',
-      'Test locally with npm run dev before pushing.',
-      'Check Vercel dashboard if deployment fails.',
-      '',
-      '## Hard-Won Lessons',
-      '',
-      '**package.json engines sets Node version**',
-      'Do not try to set Node version via Vercel project settings API — it rejects nodeVersion as an invalid field.',
-      'Use: { "engines": { "node": "20.x" } }',
-      `Learned: ${buildDate}`,
-      '',
-      '**All 6 scaffold files required for Vite build to succeed**',
-      'Vercel needs package.json, vite.config.js, index.html, .gitignore, README.md, and vercel.json.',
-      'Missing package.json causes immediate build failure.',
-      `Learned: ${buildDate}`,
-      '',
-      '## Adding new features',
-      '',
-      'When adding a new feature, follow this checklist:',
-      '[ ] New API route added to api/ directory',
-      '[ ] Rate limiting added to the new route',
-      '[ ] Input validation on all inputs server-side',
-      '[ ] If new Supabase table: RLS enabled with policies',
-      '[ ] If new user data: soft delete column added',
-      '[ ] Error handled gracefully — no silent failures',
-      '[ ] Loading and error states in the UI',
-      '[ ] WCAG AA contrast on any new UI elements',
-      '',
-      '## Your app\'s services',
-      '',
-      `- GitHub repo: ${repoUrl}`,
-      '- Vercel dashboard: https://vercel.com/dashboard',
-      '- Supabase dashboard: https://supabase.com/dashboard',
-      `- Built: ${buildDate}`,
-      '- Built with: Sovereign (sovereignapp.dev)',
-      '',
-    ].join('\n'),
+
+  // Start with the Claude-generated files (overridable by programmatic files below)
+  const files: Record<string, string> = {}
+  for (const { path, content } of generatedFiles) {
+    files[path] = content
   }
+
+  // ── Programmatic files — always added/overwritten regardless of what Claude generated ──
+
+  files['.gitignore'] = 'node_modules/\ndist/\n.env\n.env.local\n.vercel/\n'
+
+  files['.env.example'] = [
+    '# Supabase — get from https://supabase.com/dashboard → Project Settings → API',
+    '# Public: safe to expose in client code (VITE_ prefix)',
+    'VITE_SUPABASE_URL=',
+    'VITE_SUPABASE_ANON_KEY=',
+    '',
+    '# App URL (used for canonical links)',
+    'VITE_APP_URL=https://your-app.vercel.app',
+  ].join('\n')
+
+  files['README.md'] = [
+    `# ${appName}`,
+    '',
+    `> Built with [Sovereign](https://sovereignapp.dev)`,
+    '',
+    '## What this app does',
+    '',
+    '<!-- One sentence describing the core problem this solves -->',
+    '',
+    '## Top user stories',
+    '',
+    '- As a user, I can sign up and log in securely',
+    '- As a user, I can [core feature 1]',
+    '- As a user, I can [core feature 2]',
+    '- As a user, I can manage my account and data',
+    '- As a user, I can access the app on any device',
+    '',
+    '## Run locally',
+    '',
+    '```bash',
+    'npm install',
+    'cp .env.example .env  # fill in your Supabase keys',
+    'npm run dev',
+    '```',
+    '',
+    '## Deploy',
+    '',
+    'This app auto-deploys to Vercel on every push to main.',
+    'Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel → Settings → Environment Variables.',
+    '',
+    '## You own everything',
+    '',
+    `GitHub: ${repoUrl}`,
+    'Vercel: https://vercel.com/dashboard',
+    'Supabase: https://supabase.com/dashboard',
+    '',
+    'Sovereign provisioned this. You own it entirely.',
+    '',
+  ].join('\n')
+
+  files['vercel.json'] = JSON.stringify(
+    {
+      rewrites: [{ source: '/((?!api/).*)', destination: '/index.html' }],
+      headers: [
+        {
+          source: '/(.*)',
+          headers: [
+            { key: 'X-Frame-Options', value: 'DENY' },
+            { key: 'X-Content-Type-Options', value: 'nosniff' },
+            { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+            { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+            {
+              key: 'Content-Security-Policy',
+              value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:",
+            },
+          ],
+        },
+      ],
+    },
+    null, 2,
+  )
+
+  files['CLAUDE.md'] = [
+    `# ${appName} — Claude Code Context`,
+    '',
+    'Generated by [Sovereign](https://sovereignapp.dev).',
+    'You own everything — this repo, the Vercel deployment, the Supabase database.',
+    '',
+    '## Stack',
+    '- React 18 + Vite 5 + TypeScript 5',
+    '- Tailwind CSS 3',
+    '- Supabase (auth + database)',
+    '- Vercel (deployment — auto-deploys on push to main)',
+    '',
+    '## Project structure',
+    '- src/pages/ — page components (routed in src/App.tsx)',
+    '- src/components/ — shared UI components',
+    '- src/lib/ — utilities and Supabase client',
+    '- src/types/ — TypeScript interfaces',
+    '- public/ — static assets',
+    '',
+    '## Rules for Claude Code',
+    '',
+    '**Never break the build** — run npm run build before pushing. Fix build errors before pushing.',
+    '',
+    '**Supabase client is in src/lib/supabase.ts** — import from there, never create new clients.',
+    '',
+    '**All Supabase tables need RLS** — when adding a new table:',
+    '1. ALTER TABLE table_name ENABLE ROW LEVEL SECURITY',
+    '2. CREATE POLICY for SELECT, INSERT, UPDATE using auth.uid() = user_id',
+    '3. Never use USING(true) on private data',
+    '',
+    '**Soft deletes only** — never DELETE FROM user data. Set deleted_at = now(). Filter WHERE deleted_at IS NULL.',
+    '',
+    '**Environment variables** — VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are the only client-side vars.',
+    'Never use VITE_ prefix for secrets. Never log env var values.',
+    '',
+    '**Tailwind only** — no inline styles, no CSS modules, no styled-components.',
+    'Design tokens: bg-paper (#f2efe8), bg-ink (#0e0d0b), font-serif (Playfair Display), font-mono (DM Mono).',
+    '',
+    '**WCAG AA contrast** — check all new color combinations meet 4.5:1 text contrast.',
+    '',
+    `## Your services`,
+    `- GitHub: ${repoUrl}`,
+    '- Vercel: https://vercel.com/dashboard',
+    '- Supabase: https://supabase.com/dashboard',
+    `- Built: ${buildDate}`,
+    '',
+    '## Hard-Won Lessons',
+    '',
+    'Add lessons here as you work on this app. Format: bold title, what went wrong, fix, date.',
+  ].join('\n')
+
+  return files
 }
 
 // ── Step 1: Create GitHub repo (no file push yet) ─────────────────────────────
@@ -355,15 +333,11 @@ async function pushFilesToGitHub(
   token: string,
   owner: string,
   projectName: string,
-  template: string,
-  appName: string,
-  appSlug: string,
-  repoUrl: string,
+  files: Record<string, string>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   // The Contents API creates a file + commit in one call and works correctly
   // on empty repos. Must be sequential: each commit moves HEAD, so concurrent
   // calls would race and conflict.
-  const files = buildStaticFiles(template, appName, appSlug, repoUrl)
   for (const [filePath, content] of Object.entries(files)) {
     console.log('[run-build] GitHub: pushing', filePath)
     const { ok, data } = await ghFetch(
@@ -775,10 +749,18 @@ export default async function handler(req: any, res: any): Promise<void> {
 
           // ── Step 3: Push files to GitHub → triggers Vercel auto-deploy ─
           await step('Pushing your app files…')
-          console.log('[run-build] template length:', build.template?.length ?? 0)
+          const generatedFiles = build.files ?? []
+          console.log('[run-build] generated files count:', generatedFiles.length)
+          if (generatedFiles.length === 0) {
+            await updateBuild(supabaseUrl, serviceKey, buildId, {
+              status: 'error', step: 'No files generated', error: 'Build record has no files array. Re-generate the app and try again.',
+            })
+            return
+          }
+          const allFiles = buildAllFiles(generatedFiles, build.app_name, ghResult.repoUrl)
+          console.log('[run-build] total files to push:', Object.keys(allFiles).length)
           const pushResult = await pushFilesToGitHub(
-            build.github_token, ghResult.owner, repoName, build.template,
-            build.app_name, nameSlug, ghResult.repoUrl,
+            build.github_token, ghResult.owner, repoName, allFiles,
           )
           if (!pushResult.ok) {
             await deleteGitHubRepo(build.github_token, ghResult.owner, repoName)
@@ -786,6 +768,16 @@ export default async function handler(req: any, res: any): Promise<void> {
               status: 'error', step: 'File push failed', error: pushResult.error,
             })
             return
+          }
+
+          // ── Save supabaseSchema to builds table (non-fatal) ───────────
+          if (build.supabase_schema) {
+            console.log('[run-build] saving supabase_schema, length:', build.supabase_schema.length)
+            await updateBuild(supabaseUrl, serviceKey, buildId, {
+              supabase_schema: build.supabase_schema,
+            }).catch((err: unknown) => {
+              console.warn('[run-build] supabase_schema save failed (non-fatal):', err)
+            })
           }
 
           // ── Step 4: Poll Vercel until deployment is READY ─────────────

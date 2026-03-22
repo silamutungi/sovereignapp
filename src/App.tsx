@@ -186,12 +186,21 @@ const PLACEHOLDERS = [
   'A todo app with team collaboration…',
 ]
 
+interface AppFileEntry {
+  path: string
+  content: string
+}
+
 interface AppSpec {
   appName: string
   tagline: string
   primaryColor: string
-  appType: 'landing-page' | 'saas' | 'waitlist'
-  template: string
+  appType: 'landing-page' | 'saas' | 'marketplace' | 'social' | 'tool' | 'ecommerce'
+  files: AppFileEntry[]
+  supabaseSchema: string
+  setupInstructions: string
+  tier?: 'SIMPLE' | 'STANDARD' | 'COMPLEX'
+  activeStandards?: string[]
 }
 
 function NdevPanel({ locale }: { locale: Locale }) {
@@ -251,7 +260,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
         setStage('idle')
         return
       }
-      console.log('[generate] template length:', data.template?.length ?? 0)
+      console.log('[generate] files count:', data.files?.length ?? 0)
       setSpec(data)
       setAllSpecs([data])
       setCurrentSpecIdx(0)
@@ -367,9 +376,11 @@ function NdevPanel({ locale }: { locale: Locale }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email,
-          appName:  spec.appName,
-          idea:     value.trim(),
-          template: spec.template,
+          appName:          spec.appName,
+          idea:             value.trim(),
+          files:            spec.files,
+          supabaseSchema:   spec.supabaseSchema,
+          setupInstructions: spec.setupInstructions,
         }),
       })
       const data = await res.json() as { buildId?: string; error?: string; message?: string }
@@ -498,19 +509,40 @@ function NdevPanel({ locale }: { locale: Locale }) {
               </>
             )}
 
-            <div className="gen-preview-wrap" style={{ borderColor: spec.primaryColor + '55', position: 'relative' }}>
-              <p className="gen-preview-label">Preview</p>
-              <iframe
-                className="gen-preview"
-                srcDoc={spec.template}
-                title={`Preview of ${spec.appName}`}
-                sandbox="allow-scripts"
-              />
-              <div className="gen-preview-fade" aria-hidden="true">
-                <span className="gen-preview-hint">Scroll to see more ↓</span>
+            <div className="gen-preview-wrap" style={{ borderColor: spec.primaryColor + '55', position: 'relative', minHeight: '280px', padding: '24px' }}>
+              <p className="gen-preview-label">Generated app</p>
+
+              {/* Color swatch + app name */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ width: 32, height: 32, borderRadius: 6, background: spec.primaryColor, flexShrink: 0, border: '1px solid rgba(0,0,0,0.1)' }} aria-hidden="true" />
+                <div>
+                  <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '18px', fontWeight: 600, color: '#0e0d0b', margin: 0, lineHeight: 1.2 }}>{spec.appName}</p>
+                  <p style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', color: '#6b6862', margin: '3px 0 0' }}>{spec.tagline}</p>
+                </div>
               </div>
+
+              {/* File list */}
+              <div style={{ background: '#0e0d0b', borderRadius: 8, padding: '12px 16px', maxHeight: 160, overflowY: 'auto' }}>
+                <p style={{ fontFamily: 'DM Mono, monospace', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b6862', margin: '0 0 8px' }}>
+                  {spec.files?.length ?? 0} files generated
+                </p>
+                {(spec.files ?? []).map(f => (
+                  <p key={f.path} style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', color: '#c8c4bc', margin: '2px 0', lineHeight: 1.4 }}>{f.path}</p>
+                ))}
+              </div>
+
+              {/* Tier badge */}
+              {spec.tier && (
+                <div style={{ marginTop: '12px', display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'DM Mono, monospace', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: spec.primaryColor, border: `1px solid ${spec.primaryColor}55`, padding: '2px 8px', borderRadius: 100 }}>{spec.tier}</span>
+                  {(spec.activeStandards ?? []).slice(0, 3).map(s => (
+                    <span key={s} style={{ fontFamily: 'DM Mono, monospace', fontSize: '10px', color: '#6b6862' }}>{s}</span>
+                  ))}
+                </div>
+              )}
+
               {isRegenerating && (
-                <div style={{ position: 'absolute', inset: 0, background: 'rgba(242,239,232,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'DM Mono, monospace', fontSize: '12px', color: '#6b6862' }} aria-live="polite">
+                <div style={{ position: 'absolute', inset: 0, background: 'rgba(242,239,232,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'DM Mono, monospace', fontSize: '12px', color: '#6b6862', borderRadius: 'inherit' }} aria-live="polite">
                   <span>Generating new version…</span>
                 </div>
               )}

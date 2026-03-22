@@ -1,34 +1,46 @@
 // api/start-build.ts — Vercel Serverless Function
 //
 // POST /api/start-build
-// Body: { email, appName, idea, template? }
+// Body: { email, appName, idea, files, supabaseSchema, setupInstructions }
 // Returns: { buildId }
 //
 // Creates a row in the `builds` table and returns its UUID.
 // The build ID is threaded as `state` through both OAuth flows.
 //
-// Required Supabase SQL (run once in SQL editor):
+// Required Supabase SQL (run in SQL editor before using this endpoint):
 //
-//   CREATE TABLE builds (
-//     id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-//     email       text        NOT NULL,
-//     app_name    text        NOT NULL,
-//     idea        text        NOT NULL DEFAULT '',
-//     template    text        NOT NULL DEFAULT 'react-vite-ts',
-//     github_token text,
-//     vercel_token text,
-//     status      text        NOT NULL DEFAULT 'pending_github',
-//     step        text,
-//     repo_url    text,
-//     deploy_url  text,
-//     error       text,
-//     created_at  timestamptz DEFAULT now(),
-//     updated_at  timestamptz DEFAULT now()
+//   CREATE TABLE IF NOT EXISTS builds (
+//     id                uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+//     email             text        NOT NULL,
+//     app_name          text        NOT NULL,
+//     idea              text        NOT NULL DEFAULT '',
+//     files             jsonb       DEFAULT NULL,
+//     supabase_schema   text        DEFAULT NULL,
+//     setup_instructions text       DEFAULT NULL,
+//     github_token      text,
+//     vercel_token      text,
+//     status            text        NOT NULL DEFAULT 'pending_github',
+//     step              text,
+//     repo_url          text,
+//     deploy_url        text,
+//     error             text,
+//     next_steps        jsonb       DEFAULT NULL,
+//     created_at        timestamptz DEFAULT now(),
+//     updated_at        timestamptz DEFAULT now(),
+//     deleted_at        timestamptz DEFAULT NULL
 //   );
 //   ALTER TABLE builds ENABLE ROW LEVEL SECURITY;
 //   -- No anon policies — all access is via service role key server-side.
 //
+// Migration for existing builds tables (add new columns):
+//   ALTER TABLE builds ADD COLUMN IF NOT EXISTS files jsonb DEFAULT NULL;
+//   ALTER TABLE builds ADD COLUMN IF NOT EXISTS supabase_schema text DEFAULT NULL;
+//   ALTER TABLE builds ADD COLUMN IF NOT EXISTS setup_instructions text DEFAULT NULL;
+//
 // Self-contained: no imports from src/ or server/.
+
+// Increase body limit — files array can be 100KB+ of React/TS source code
+export const config = { api: { bodyParser: { sizeLimit: '10mb' } } }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function handler(req: any, res: any): Promise<void> {
@@ -53,7 +65,15 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
-    const { email: rawEmail, appName, idea, template } = body ?? {}
+    const {
+      email: rawEmail,
+      appName,
+      idea,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      files,
+      supabaseSchema,
+      setupInstructions,
+    } = body as Record<string, any> ?? {}
     if (!rawEmail || !appName) {
       res.status(400).json({ error: '`email` and `appName` are required' })
       return
@@ -99,7 +119,9 @@ export default async function handler(req: any, res: any): Promise<void> {
         email,
         app_name: appName,
         idea: idea ?? '',
-        template: template ?? 'react-vite-ts',
+        files: files ?? null,
+        supabase_schema: supabaseSchema ?? null,
+        setup_instructions: setupInstructions ?? null,
         status: 'pending_github',
         step: 'Waiting for GitHub connection…',
       }),
