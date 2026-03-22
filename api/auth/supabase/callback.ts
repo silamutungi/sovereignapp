@@ -40,7 +40,10 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
+    console.log('[supabase/callback] received buildId from state:', buildId)
+
     if (!code || !buildId) {
+      console.error('[supabase/callback] missing params — code present:', !!code, '| buildId present:', !!buildId)
       res.status(400).send('Missing required parameters: code, state')
       return
     }
@@ -56,7 +59,8 @@ export default async function handler(req: any, res: any): Promise<void> {
     }
 
     // ── 1. Exchange Supabase code for access token ─────────────────────────
-    const redirectUri = `${siteBase()}/api/auth/supabase/callback`
+    const redirectUri = `${siteBase()}/auth/supabase/callback`
+    console.log('[supabase/callback] using redirect_uri for token exchange:', redirectUri)
     const tokenRes = await fetch('https://api.supabase.com/v1/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -87,11 +91,15 @@ export default async function handler(req: any, res: any): Promise<void> {
     if (!tokenData.access_token) {
       const msg = tokenData.error_description ?? tokenData.error ?? 'unknown'
       console.error('[supabase/callback] token exchange failed:', msg)
-      res.status(400).send(`Supabase token exchange failed: ${msg}`)
+      // Redirect back so the user can retry — do not strand them on a 400 page
+      const base = siteBase()
+      res.writeHead(302, { Location: `${base}/building?id=${encodeURIComponent(buildId)}&supabase_error=true` })
+      res.end()
       return
     }
 
     // ── 2. Store Supabase token in the build record ────────────────────────
+    console.log('[supabase/callback] patching build record, buildId:', buildId)
     const patchRes = await fetch(
       `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}`,
       {
@@ -100,19 +108,39 @@ export default async function handler(req: any, res: any): Promise<void> {
           apikey:          serviceKey,
           Authorization:   `Bearer ${serviceKey}`,
           'Content-Type':  'application/json',
+          Prefer:          'return=representation',
         },
         body: JSON.stringify({
           supabase_token: tokenData.access_token,
+          error: null,  // clear any previous OAuth error so the retry UI dismisses
           updated_at: new Date().toISOString(),
         }),
       },
     )
 
+    const patchBody = await patchRes.text()
+    console.log('[supabase/callback] patch status:', patchRes.status, '| body:', patchBody)
+
     if (!patchRes.ok) {
-      console.error('[supabase/callback] Supabase patch failed:', patchRes.status, await patchRes.text())
-      res.status(500).send('Failed to store Supabase token')
+      console.error('[supabase/callback] Supabase patch failed:', patchRes.status, patchBody)
+      const base = siteBase()
+      res.writeHead(302, { Location: `${base}/building?id=${encodeURIComponent(buildId)}&supabase_error=true` })
+      res.end()
       return
     }
+
+    // With Prefer: return=representation, Supabase returns the updated rows.
+    // An empty array means no row matched the WHERE clause — token was not saved.
+    let patchedRows: unknown[]
+    try { patchedRows = JSON.parse(patchBody) as unknown[] } catch { patchedRows = [] }
+    if (!Array.isArray(patchedRows) || patchedRows.length === 0) {
+      console.error('[supabase/callback] PATCH matched 0 rows — buildId not found in builds table:', buildId)
+      const base = siteBase()
+      res.writeHead(302, { Location: `${base}/building?id=${encodeURIComponent(buildId)}&supabase_error=true` })
+      res.end()
+      return
+    }
+    console.log('[supabase/callback] token saved successfully, rows updated:', patchedRows.length)
 
     // ── 3. Redirect back to the building page ──────────────────────────────
     const base = siteBase()
@@ -120,6 +148,14 @@ export default async function handler(req: any, res: any): Promise<void> {
     res.end()
   } catch (err) {
     console.error('[supabase/callback] unhandled exception:', err)
-    res.status(500).send(`Internal error: ${err instanceof Error ? err.message : String(err)}`)
+    // Best-effort redirect so the user can retry rather than seeing a raw 500
+    const fallbackBuildId = (req.query?.state ?? '') as string
+    if (fallbackBuildId) {
+      const base = siteBase()
+      res.writeHead(302, { Location: `${base}/building?id=${encodeURIComponent(fallbackBuildId)}&supabase_error=true` })
+      res.end()
+    } else {
+      res.status(500).send(`Internal error: ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
 }

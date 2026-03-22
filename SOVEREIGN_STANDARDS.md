@@ -315,12 +315,28 @@ Generated apps default to the simplest possible implementation — complexity is
 
 ---
 
+## Part 15 — Resilience & Recovery
+*iOS Human Interface Guidelines + Material Design — non-negotiable on every generated app*
+
+- Every async operation must have three designed states: loading, success, and error
+- No silent failures — every error must be visible, human-readable, and actionable
+- Every error message follows the pattern: what happened + what to do next
+- No flow ever requires the user to start over — state is always preserved
+- Auth and OAuth flows are always resumable — store state before redirecting, restore it on return
+- Failed operations always offer a one-tap retry
+- Network errors degrade gracefully — show cached state where possible
+- Forms never lose user input on error
+- Loading states appear within 100ms of any user action
+- Never show a blank screen — always show something meaningful
+
+---
+
 ## The Standards Tier System
 
 Every generated app is classified before generation begins:
 
 **SIMPLE** — personal site, portfolio, landing page, blog, restaurant site, studio
-→ Apply Tiers 1–6, 12, 13, 14
+→ Apply Tiers 1–6, 12, 13, 14, 15
 
 **STANDARD** — SaaS, booking system, directory, marketplace, membership, waitlist
 → Apply all tiers above + security hardening, analytics, onboarding, email, i18n
@@ -389,8 +405,16 @@ Before finalizing any generated app, every item must pass:
 - [ ] Are security headers present in `vercel.json`?
 - [ ] Are there no secrets in client code?
 
+**Resilience & Recovery**
+- [ ] Does every component that fetches data handle loading, error, and empty states explicitly?
+- [ ] Does every form preserve user input on submission failure?
+- [ ] Does every OAuth or external redirect store state before leaving and restore it on return?
+- [ ] Is every error message a human sentence (what happened + what to do next)?
+- [ ] Does every error state include a recovery action — retry button, alternative path, or clear next step?
+- [ ] Are there zero blank screens under any condition?
+
 ---
 
 *This document is the source of truth for every app built on Sovereign. It governs what Claude generates, how the pipeline validates output, and what the Quality Bar requires before anything ships.*
 
-*Last updated: March 2026*
+*Last updated: March 2026 — 15 standards*

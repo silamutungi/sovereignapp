@@ -81,6 +81,9 @@ export default async function handler(req: any, res: any): Promise<void> {
     const email = (rawEmail as string).trim().toLowerCase()
 
     // ── Rate limit: max 3 completed builds per email ───────────────────────
+    // Internal testing emails — bypass rate limit
+    const WHITELISTED_EMAILS = ['sila@visila.com', 'sila@juapath.com']
+
     // Note: completed builds have status = 'complete' in this codebase.
     const countRes = await fetch(
       `${supabaseUrl}/rest/v1/builds?email=eq.${encodeURIComponent(email)}&status=eq.complete&deleted_at=is.null&select=id`,
@@ -98,7 +101,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     const countMatch = contentRange.match(/\/(\d+)$/)
     const completedBuilds = countMatch ? parseInt(countMatch[1], 10) : 0
 
-    if (completedBuilds >= 3) {
+    if (completedBuilds >= 3 && !WHITELISTED_EMAILS.includes(email)) {
       res.status(429).json({
         error: 'rate_limited',
         message: 'You have used all 3 free builds. Upgrade to Pro for unlimited builds.',

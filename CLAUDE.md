@@ -587,7 +587,7 @@ Also add these to Vercel environment variables before deploying:
 - VITE_SUPABASE_OAUTH_CLIENT_ID — same value as SUPABASE_OAUTH_CLIENT_ID (public)
 - SOVEREIGN_SUPABASE_REF — the project ref for Sovereign's own Supabase instance
 - SOVEREIGN_SUPABASE_MANAGEMENT_TOKEN — personal access token from app.supabase.com → Account → Access Tokens
-Register the redirect URI with Supabase OAuth App: https://sovereignapp.dev/api/auth/supabase/callback
+Register the redirect URI with Supabase OAuth App: https://sovereignapp.dev/auth/supabase/callback
 
 ### 2026-03-21 — magic_links table (create if missing)
 
@@ -648,3 +648,12 @@ ALTER TABLE magic_links ENABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS magic_links_token_idx ON magic_links(token);
 CREATE INDEX IF NOT EXISTS magic_links_email_idx ON magic_links(email);
 ```
+
+## Supabase provisioning
+- Migration required: ALTER TABLE builds ADD COLUMN IF NOT EXISTS supabase_token TEXT DEFAULT NULL
+- Sovereign-hosted path uses SOVEREIGN_SUPABASE_MANAGEMENT_TOKEN (service role key) — never expose client-side
+- Own Supabase path uses token stored in builds.supabase_token — retrieved server-side only
+- All generated app schemas get build_id (uuid not null) prepended to every CREATE TABLE
+- Supabase OAuth redirect URL: https://sovereignapp.dev/auth/supabase/callback
+- Test sovereign path first — it works without OAuth app credentials
+- Test own path second — requires SUPABASE_OAUTH_CLIENT_ID and SUPABASE_OAUTH_CLIENT_SECRET in Vercel env vars

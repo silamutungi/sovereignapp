@@ -226,6 +226,15 @@ ACCESSIBILITY REQUIREMENTS — non-negotiable:
 - Every image must have descriptive alt text
 - All form inputs must have visible labels, not just placeholders
 
+RESILIENCE RULES — non-negotiable on every generated file:
+- Every component that fetches data must handle loading, error, and empty states explicitly
+- Every form must preserve input on submission failure
+- Every OAuth or external redirect must store the current state in localStorage before redirecting and restore it on return
+- Error messages must be human sentences, not error codes
+- Every error state must include a recovery action (retry button, alternative path, or clear next step)
+- Never show a blank screen — always show something meaningful
+Treat a missing error state as a build failure.
+
 COLOR AUDIT COMMENT — include at the top of every generated <style> block:
 /*
  * COLOR AUDIT
@@ -338,6 +347,29 @@ Reading level: 8th grade maximum (Flesch-Kincaid). Short sentences. Active voice
 - Every page has exactly one H1 and a logical heading hierarchy beneath it
 - Controlled vocabulary: choose terms the user uses, not internal jargon
 - Organisation scheme matches user mental models, not the company org chart
+
+15. RESILIENCE & RECOVERY (iOS HIG + Material Design)
+Active when: ALL APPS — this standard is non-negotiable regardless of tier
+
+RESILIENCE RULES (non-negotiable):
+- Every component that fetches data must handle loading, error, and empty states explicitly
+- Every form must preserve input on submission failure
+- Every OAuth or external redirect must store the current state in localStorage before redirecting and restore it on return
+- Error messages must be human sentences, not error codes
+- Every error state must include a recovery action (retry button, alternative path, or clear next step)
+- Never show a blank screen — always show something meaningful
+
+Additional rules:
+- Every async operation has three designed states: loading, success, error — no exceptions
+- No silent failures — every error must be visible, human-readable, and actionable
+- Every error message follows the pattern: what happened + what to do next
+- No flow ever requires the user to start over — state is always preserved
+- Auth and OAuth flows are always resumable — store state before redirecting, restore it on return
+- Failed operations always offer a one-tap retry
+- Network errors degrade gracefully — show cached state where possible
+- Loading states appear within 100ms of any user action
+
+Treat a missing error state as a build failure. Treat a blank screen as a build failure.
 
 ─── TIER 2 — STANDARD AND COMPLEX APPS ────────────────────────
 

@@ -725,7 +725,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
-    const { id: buildId, supabaseChoice } = body ?? {}
+    const { id: buildId, supabaseChoice, forceRetry } = body ?? {}
     if (!buildId) {
       res.status(400).json({ error: '`id` (buildId) is required' })
       return
@@ -742,16 +742,44 @@ export default async function handler(req: any, res: any): Promise<void> {
       'github_token:', build.github_token ? 'SET' : 'NULL',
       'vercel_token:', build.vercel_token ? 'SET' : 'NULL')
 
-    // Idempotency guard — prevents double-trigger from React StrictMode
+    // Idempotency guard — prevents double-trigger from React StrictMode.
+    // forceRetry=true bypasses this when the user explicitly retries after a
+    // token-not-found hold: the build never progressed (no GitHub/Vercel resources
+    // were created), so it is safe to reset to 'queued' and run again.
     if (build.status !== 'queued') {
-      console.log('[run-build] skipping — status is', build.status)
-      res.status(200).json({ ok: true, skipped: true, status: build.status })
-      return
+      if (!forceRetry) {
+        console.log('[run-build] skipping — status is', build.status)
+        res.status(200).json({ ok: true, skipped: true, status: build.status })
+        return
+      }
+      // forceRetry: confirm token exists before resetting — if still missing, nothing has changed
+      if (sbChoice === 'own' && !build.supabase_token) {
+        console.error('[run-build] forceRetry=true but supabase_token still null — cannot proceed. buildId:', buildId)
+        res.status(200).json({ ok: true, skipped: true, reason: 'supabase_token_missing' })
+        return
+      }
+      console.log('[run-build] forceRetry — resetting build to queued, prev status:', build.status, 'buildId:', buildId)
+      await updateBuild(supabaseUrl, serviceKey, buildId, { status: 'queued', error: null, step: null })
     }
 
     if (!build.github_token || !build.vercel_token) {
       console.log('[run-build] missing tokens — github_token:', build.github_token ? 'SET' : 'NULL', 'vercel_token:', build.vercel_token ? 'SET' : 'NULL')
       res.status(400).json({ error: 'Build is missing OAuth tokens — complete both OAuth steps first' })
+      return
+    }
+
+    // ── Supabase token gate — must be checked BEFORE any step() call ─────────
+    // step() sets status → 'building'. If we let the build advance to 'building'
+    // before confirming the token exists, the user cannot retry OAuth (the
+    // idempotency guard blocks re-runs for any status other than 'queued').
+    // Returning early here keeps status === 'queued' so the user can reconnect
+    // and re-trigger run-build on the next page load.
+    if (sbChoice === 'own' && !build.supabase_token) {
+      console.error('[run-build] sbChoice=own but supabase_token is null — holding at queued. buildId:', buildId)
+      await updateBuild(supabaseUrl, serviceKey, buildId, {
+        error: 'Supabase OAuth token not found. Please reconnect your Supabase account.',
+      })
+      res.status(200).json({ ok: true, skipped: true, reason: 'supabase_token_missing' })
       return
     }
 
@@ -816,7 +844,9 @@ export default async function handler(req: any, res: any): Promise<void> {
 
           if (sbChoice === 'own') {
             // User connected their own Supabase via OAuth
+            console.log('[run-build] sbChoice=own — supabase_token present:', !!build.supabase_token, '| buildId:', buildId)
             if (!build.supabase_token) {
+              console.error('[run-build] supabase_token is null on build record — OAuth callback may not have saved it. buildId:', buildId)
               await updateBuild(supabaseUrl, serviceKey, buildId, {
                 status: 'error', step: 'Database auth missing',
                 error: 'Supabase OAuth token not found. Please reconnect your Supabase account.',

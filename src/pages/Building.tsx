@@ -193,13 +193,22 @@ const S = {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function Building() {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const buildId = searchParams.get('id')
 
   const [status, setStatus] = useState<BuildStatus | null>(null)
   const [pollError, setPollError] = useState<string | null>(null)
+  // supabaseRetry=true shows the retry UI and blocks run-build from auto-firing
+  const [supabaseRetry, setSupabaseRetry] = useState(false)
+  const [retrying, setRetrying] = useState(false)
   const [dbChoice, setDbChoice] = useState<'own' | 'sovereign' | null>(() => {
     if (!buildId) return null
+    // If returning from a failed OAuth, reset localStorage so run-build does not
+    // auto-fire before the user re-authorizes.
+    if (new URLSearchParams(window.location.search).get('supabase_error') === 'true') {
+      localStorage.removeItem(`sb_choice_${buildId}`)
+      return null
+    }
     return (localStorage.getItem(`sb_choice_${buildId}`) as 'own' | 'sovereign') ?? null
   })
 
@@ -207,6 +216,7 @@ export default function Building() {
   const pollIntervalRef        = useRef<ReturnType<typeof setInterval> | null>(null)
   const consecutiveErrorsRef   = useRef(0)
   const pollStartRef           = useRef(Date.now())
+  const supabaseErrorHandledRef = useRef(false)
   const MAX_POLL_MS            = 5 * 60 * 1000  // 5 minutes
   const MAX_CONSECUTIVE_ERRORS = 3
 
@@ -233,6 +243,19 @@ export default function Building() {
       setDbChoice('sovereign')
     }
   }, [buildId, dbChoice, status])
+
+  // Detect ?supabase_error=true from a failed OAuth callback, clean the URL,
+  // and surface the retry UI. Runs once per mount.
+  useEffect(() => {
+    if (supabaseErrorHandledRef.current) return
+    if (searchParams.get('supabase_error') === 'true') {
+      supabaseErrorHandledRef.current = true
+      setSupabaseRetry(true)
+      const next = new URLSearchParams(searchParams)
+      next.delete('supabase_error')
+      setSearchParams(next, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
 
   // Poll build status every 2 s
   useEffect(() => {
@@ -271,6 +294,20 @@ export default function Building() {
         if (data.status === 'complete' || data.status === 'error') {
           stopPolling()
         }
+        // run-build set an error but kept status='queued' — Supabase token was
+        // missing. Show retry UI and reset dbChoice so run-build doesn't re-fire
+        // automatically on the same page load.
+        if (
+          data.status === 'queued' && data.error &&
+          (data.error.toLowerCase().includes('reconnect') ||
+           data.error.toLowerCase().includes('supabase oauth token'))
+        ) {
+          if (!supabaseRetry && buildId) {
+            setSupabaseRetry(true)
+            setDbChoice(null)
+            localStorage.removeItem(`sb_choice_${buildId}`)
+          }
+        }
       } catch {
         consecutiveErrorsRef.current++
         if (consecutiveErrorsRef.current >= MAX_CONSECUTIVE_ERRORS) {
@@ -296,22 +333,38 @@ export default function Building() {
       setDbChoice('sovereign')
     } else {
       // Redirect to Supabase OAuth — token exchange happens in the callback
-      const clientId   = import.meta.env.VITE_SUPABASE_OAUTH_CLIENT_ID as string | undefined
-      const base       = window.location.origin
-      const redirectUri = `${base}/api/auth/supabase/callback`
+      const clientId    = import.meta.env.VITE_SUPABASE_OAUTH_CLIENT_ID as string | undefined
+      const redirectUri = `${window.location.origin}/auth/supabase/callback`
       if (!clientId) {
         console.error('[building] VITE_SUPABASE_OAUTH_CLIENT_ID not set')
+        setPollError('Supabase OAuth is not configured. Please contact support or choose "Use Sovereign\'s for now" to continue.')
         return
       }
+      console.log('[building] Supabase OAuth redirect_uri:', redirectUri)
       const oauthUrl =
         `https://api.supabase.com/v1/oauth/authorize` +
         `?client_id=${encodeURIComponent(clientId)}` +
         `&redirect_uri=${encodeURIComponent(redirectUri)}` +
         `&response_type=code` +
-        `&scope=all` +
         `&state=${encodeURIComponent(buildId)}`
       window.location.href = oauthUrl
     }
+  }
+
+  // ── Direct build retry (token already saved, no OAuth needed) ───────────
+  // Calls run-build with forceRetry=true, which resets status to 'queued' if
+  // it drifted to 'error', then proceeds immediately. No OAuth redirect.
+
+  const handleRetryBuild = () => {
+    if (!buildId || retrying) return
+    setRetrying(true)
+    setSupabaseRetry(false)
+    setPollError(null)
+    fetch('/api/run-build', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: buildId, supabaseChoice: 'own', forceRetry: true }),
+    }).catch(() => {/* polling will surface any error */})
   }
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -332,6 +385,14 @@ export default function Building() {
   const isDone   = status?.status === 'complete'
   const isFailed = status?.status === 'error'
   const stepIdx  = resolvedStepIndex(status?.step ?? null)
+  // True when the build is stalled on a Supabase token error — show retry UI
+  const supabaseTokenMsg = (s: string) =>
+    s.toLowerCase().includes('reconnect') || s.toLowerCase().includes('supabase oauth token')
+  const needsSupabaseRetry = !retrying && (
+    supabaseRetry ||
+    (isFailed && !!status?.error && supabaseTokenMsg(status.error)) ||
+    (!!pollError && supabaseTokenMsg(pollError))
+  )
 
   return (
     <>
@@ -346,8 +407,36 @@ export default function Building() {
             <h1 style={S.appName}>{status.appName}</h1>
           )}
 
-          {/* ── Database choice (shown before build starts) ─────────────── */}
-          {status?.status === 'queued' && dbChoice === null && (
+          {/* ── Supabase token retry (token saved, build lost the thread) ── */}
+          {needsSupabaseRetry && !isDone && (
+            <div style={{ marginBottom: '32px' }}>
+              <p style={{ ...S.subtitle, marginBottom: '24px', color: 'rgba(255,255,255,0.6)' }}>
+                Your Supabase is connected but we lost the thread. Tap below to retry.
+              </p>
+              <button
+                onClick={handleRetryBuild}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  background: '#c8f060',
+                  color: '#0e0d0b',
+                  fontFamily: "'DM Mono', 'Courier New', monospace",
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  border: 'none',
+                  padding: '14px 24px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  letterSpacing: '0.01em',
+                }}
+              >
+                Retry build →
+              </button>
+            </div>
+          )}
+
+          {/* ── Database choice (shown before build starts, first time) ── */}
+          {status?.status === 'queued' && dbChoice === null && !needsSupabaseRetry && (
             <div style={{ marginBottom: '32px' }}>
               <p style={{ ...S.subtitle, marginBottom: '24px' }}>
                 Where should your database live?
@@ -398,6 +487,8 @@ export default function Building() {
           <p style={S.subtitle}>
             {isDone
               ? 'This is yours now. You own everything.'
+              : needsSupabaseRetry
+              ? ''
               : isFailed
               ? 'Something went wrong during provisioning.'
               : dbChoice === null && status?.status === 'queued'
@@ -405,8 +496,8 @@ export default function Building() {
               : 'Provisioning your app — this takes about 60 seconds…'}
           </p>
 
-          {/* Progress log — only shown after db choice is made */}
-          <div style={{ ...S.log, display: dbChoice === null && status?.status === 'queued' ? 'none' : 'flex' }}>
+          {/* Progress log — only shown after db choice is made and no retry needed */}
+          <div style={{ ...S.log, display: (dbChoice === null && status?.status === 'queued') || needsSupabaseRetry ? 'none' : 'flex' }}>
             {LOG_STEPS.map((logStep, i) => {
               const done   = i < stepIdx
               const active = i === stepIdx
@@ -448,8 +539,8 @@ export default function Building() {
             })}
           </div>
 
-          {/* Error state */}
-          {isFailed && (
+          {/* Error state — suppressed when retry UI is already showing */}
+          {isFailed && !needsSupabaseRetry && (
             <div style={S.errorBox} role="alert">
               <strong>Build failed:</strong>{' '}
               {status?.error ?? 'Unknown error. Check your GitHub and Vercel connections.'}
