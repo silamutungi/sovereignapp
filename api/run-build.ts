@@ -688,6 +688,60 @@ function addBuildIdToSchema(schema: string, buildId: string): string {
   )
 }
 
+// ── Lessons: auto-capture build failures ──────────────────────────────────────
+//
+// Inserts a lesson row whenever a build ends in error. Fails silently so
+// a logging failure never affects the build flow.
+
+async function recordFailureLesson(
+  supabaseUrl: string,
+  serviceKey: string,
+  errorMessage: string,
+  step: string | null,
+): Promise<void> {
+  try {
+    const lower = errorMessage.toLowerCase()
+    const stepLower = (step ?? '').toLowerCase()
+
+    let category = 'deployment'
+    if (lower.includes('typescript') || lower.includes('tsc') || lower.includes('no files') || lower.includes('generate')) {
+      category = 'generation'
+    } else if (lower.includes('oauth') || lower.includes('token') || lower.includes('auth')) {
+      category = 'oauth'
+    } else if (
+      lower.includes('schema') || lower.includes('table') || lower.includes('rls') ||
+      lower.includes('migration') || stepLower.includes('database') ||
+      lower.includes('supabase organisation')
+    ) {
+      category = 'database'
+    } else if (lower.includes('env') || lower.includes('not configured') || lower.includes('missing key')) {
+      category = 'env_vars'
+    } else if (lower.includes('vercel') || lower.includes('github') || lower.includes('repo') || lower.includes('deploy')) {
+      category = 'deployment'
+    }
+
+    await fetch(`${supabaseUrl}/rest/v1/lessons`, {
+      method: 'POST',
+      headers: {
+        apikey:         serviceKey,
+        Authorization:  `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json',
+        Prefer:         'return=minimal',
+      },
+      body: JSON.stringify({
+        category,
+        source:               'build_failure',
+        problem:              step ? `[Step: ${step}] ${errorMessage}` : errorMessage,
+        solution:             '',
+        applied_automatically: false,
+        build_count:          1,
+      }),
+    })
+  } catch {
+    // Intentionally silent — never crash the build flow over a logging call
+  }
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 const PROVISION_TIMEOUT_MS = 250_000 // 250s — leaves 50s margin within the 300s maxDuration
@@ -1082,11 +1136,13 @@ export default async function handler(req: any, res: any): Promise<void> {
       ])
     } catch (provisionErr) {
       console.error('[run-build] provisioning error:', provisionErr)
+      const errMsg = provisionErr instanceof Error ? provisionErr.message : String(provisionErr)
       await updateBuild(supabaseUrl, serviceKey, buildId, {
         status: 'error',
         step: 'Build failed',
-        error: provisionErr instanceof Error ? provisionErr.message : String(provisionErr),
+        error: errMsg,
       }).catch(() => {/* ignore secondary write error */})
+      void recordFailureLesson(supabaseUrl, serviceKey, errMsg, 'Build failed')
     }
 
     // Respond after work is complete (or after error is written to DB)

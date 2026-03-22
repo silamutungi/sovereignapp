@@ -657,3 +657,16 @@ CREATE INDEX IF NOT EXISTS magic_links_email_idx ON magic_links(email);
 - Supabase OAuth redirect URL: https://sovereignapp.dev/auth/supabase/callback
 - Test sovereign path first — it works without OAuth app credentials
 - Test own path second — requires SUPABASE_OAUTH_CLIENT_ID and SUPABASE_OAUTH_CLIENT_SECRET in Vercel env vars
+
+## Lessons Knowledge Base
+- Every build failure (caught by the outer provisionErr catch in run-build.ts) is automatically inserted into the lessons table via recordFailureLesson()
+- Lesson category is inferred from error message: 'generation' (typescript/files), 'oauth' (token/auth), 'database' (schema/table/supabase org), 'env_vars' (not configured), 'deployment' (vercel/github/deploy)
+- solution field is empty on auto-captured failures — to be reviewed and filled in manually
+- Seed data (42 lessons) extracted from CLAUDE.md founder notes: run api/migrations/seed-lessons.sql after create-lessons-table.sql
+- Migration order: (1) create-lessons-table.sql, (2) seed-lessons.sql — run both in Supabase SQL Editor
+- GET /api/lessons returns all lessons where solution != '', ordered by build_count desc
+- Optional ?category= filter: generation, deployment, oauth, database, env_vars, ux, stack
+- Response cached for 5 minutes (Cache-Control: public, max-age=300)
+- RLS: public read (anon) for rows with solution != ''. All writes are service role only.
+- lessons table: id, category, source, problem, solution, applied_automatically, build_count, created_at
+- Future: increment build_count when a lesson pattern recurs; feed high-count lessons back into generation system prompt automatically
