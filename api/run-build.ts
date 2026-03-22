@@ -862,7 +862,10 @@ export default async function handler(req: any, res: any): Promise<void> {
               { headers: { Authorization: `Bearer ${sbToken}` } },
               NET,
             )
-            const orgs = await orgsRes.json() as Array<{ id: string; name: string }>
+            const orgsBody = await orgsRes.text()
+            console.log('[run-build] GET /v1/organizations status:', orgsRes.status, '| body:', orgsBody)
+            let orgs: Array<{ id: string; name: string }>
+            try { orgs = JSON.parse(orgsBody) as Array<{ id: string; name: string }> } catch { orgs = [] }
             const orgId = orgs[0]?.id
             if (!orgId) {
               await updateBuild(supabaseUrl, serviceKey, buildId, {

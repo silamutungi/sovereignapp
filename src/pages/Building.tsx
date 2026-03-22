@@ -301,12 +301,16 @@ export default function Building() {
           return (
             l.includes('reconnect') ||
             l.includes('supabase oauth token') ||
+            l.includes('no supabase organisation found on this account') ||
             l.includes('no supabase organisation found') ||
             l.includes('supabase project')
           )
         }
+        // Trigger reconnect UI for queued builds with a Supabase error AND
+        // for error-state builds where Supabase provisioning failed.
         if (
-          data.status === 'queued' && data.error && isSupabaseErr(data.error)
+          data.error && isSupabaseErr(data.error) &&
+          (data.status === 'queued' || data.status === 'error')
         ) {
           if (!supabaseRetry && buildId) {
             setSupabaseRetry(true)
@@ -353,24 +357,9 @@ export default function Building() {
         `&redirect_uri=${encodeURIComponent(redirectUri)}` +
         `&response_type=code` +
         `&state=${encodeURIComponent(buildId)}`
+      // No scope parameter — Supabase Management API OAuth does not accept a scope param.
       window.location.href = oauthUrl
     }
-  }
-
-  // ── Direct build retry (token already saved, no OAuth needed) ───────────
-  // Calls run-build with forceRetry=true, which resets status to 'queued' if
-  // it drifted to 'error', then proceeds immediately. No OAuth redirect.
-
-  const handleRetryBuild = () => {
-    if (!buildId || retrying) return
-    setRetrying(true)
-    setSupabaseRetry(false)
-    setPollError(null)
-    fetch('/api/run-build', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: buildId, supabaseChoice: 'own', forceRetry: true }),
-    }).catch(() => {/* polling will surface any error */})
   }
 
   // ── Supabase reconnect (clears token + resets build, re-shows db choice) ─
@@ -414,19 +403,20 @@ export default function Building() {
   const isFailed = status?.status === 'error'
   const stepIdx  = resolvedStepIndex(status?.step ?? null)
   // True when the build is stalled on a Supabase provisioning error — show reconnect UI
-  const supabaseTokenMsg = (s: string) => {
+  const isSupabaseProvisioningError = (s: string) => {
     const l = s.toLowerCase()
     return (
       l.includes('reconnect') ||
       l.includes('supabase oauth token') ||
+      l.includes('no supabase organisation found on this account') ||
       l.includes('no supabase organisation found') ||
       l.includes('supabase project')
     )
   }
   const needsSupabaseRetry = !retrying && (
     supabaseRetry ||
-    (isFailed && !!status?.error && supabaseTokenMsg(status.error)) ||
-    (!!pollError && supabaseTokenMsg(pollError))
+    (!!status?.error && isSupabaseProvisioningError(status.error)) ||
+    (!!pollError && isSupabaseProvisioningError(pollError))
   )
 
   return (
