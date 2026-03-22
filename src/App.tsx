@@ -778,9 +778,21 @@ function NdevPanel({ locale }: { locale: Locale }) {
                     </svg>
                     Connect Vercel
                   </div>
+
+                  {/* Step 3 — Database choice shown on the building page after GitHub + Vercel complete. */}
+                  <div
+                    className="gen-oauth-btn"
+                    style={{ borderColor: spec.primaryColor + '22', opacity: 0.3, cursor: 'default' }}
+                    aria-label="Database choice happens on the next screen"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                      <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/>
+                    </svg>
+                    Connect Database
+                  </div>
                 </div>
                 <p style={{ fontSize: '11px', color: 'var(--text-dim)', textAlign: 'center', marginTop: '10px' }}>
-                  GitHub → Vercel connection happens automatically in sequence
+                  GitHub → Vercel → Database in sequence
                 </p>
               </div>
             )}

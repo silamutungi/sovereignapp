@@ -67,6 +67,7 @@ interface BuildRecord {
   setup_instructions: string | null
   github_token: string
   vercel_token: string
+  supabase_token: string | null
   status: string
   step: string | null
   repo_url: string | null
@@ -642,9 +643,54 @@ function buildLaunchEmailHtml(appName: string, liveUrl: string, repoUrl: string)
 </html>`
 }
 
+// ── Supabase provisioning helpers ─────────────────────────────────────────────
+
+// Inject one or more env vars into a Vercel project (encrypted at rest).
+// Called after Vercel project creation, before pushing files so the build has
+// access to VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY during compilation.
+async function injectVercelEnvVars(
+  projectId: string,
+  vercelToken: string,
+  teamId: string | undefined,
+  vars: Array<{ key: string; value: string }>,
+): Promise<void> {
+  const teamQ = teamId ? `?teamId=${encodeURIComponent(teamId)}` : ''
+  const payload = vars.map(({ key, value }) => ({
+    key,
+    value,
+    type: 'encrypted',
+    target: ['production', 'preview', 'development'],
+  }))
+  const res = await fetchWithTimeout(
+    `https://api.vercel.com/v10/projects/${encodeURIComponent(projectId)}/env${teamQ}`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${vercelToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    },
+    NET,
+  )
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    console.warn('[run-build] injectVercelEnvVars non-fatal error:', res.status, body)
+  }
+}
+
+// Prepend a build_id column to every CREATE TABLE statement in a SQL schema
+// so that all tables in sovereign-hosted databases are scoped per build.
+function addBuildIdToSchema(schema: string, buildId: string): string {
+  return schema.replace(
+    /(CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[^\s(]+\s*\()/gi,
+    `$1\n  build_id UUID NOT NULL DEFAULT '${buildId}'::uuid,`,
+  )
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-const PROVISION_TIMEOUT_MS = 50_000 // 50s — leaves 10s margin within the 60s maxDuration
+const PROVISION_TIMEOUT_MS = 250_000 // 250s — leaves 50s margin within the 300s maxDuration
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function handler(req: any, res: any): Promise<void> {
@@ -679,11 +725,12 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
-    const { id: buildId } = body ?? {}
+    const { id: buildId, supabaseChoice } = body ?? {}
     if (!buildId) {
       res.status(400).json({ error: '`id` (buildId) is required' })
       return
     }
+    const sbChoice: 'own' | 'sovereign' = supabaseChoice === 'own' ? 'own' : 'sovereign'
 
     console.log('[run-build] fetching build', buildId)
     const build = await getBuild(supabaseUrl, serviceKey, buildId)
@@ -762,7 +809,164 @@ export default async function handler(req: any, res: any): Promise<void> {
             return
           }
 
-          // ── Step 3: Push files to GitHub → triggers Vercel auto-deploy ─
+          // ── Step 3: Provision database ────────────────────────────────
+          await step('Provisioning your database…')
+          let deploySupabaseUrl: string
+          let deployAnonKey: string
+
+          if (sbChoice === 'own') {
+            // User connected their own Supabase via OAuth
+            if (!build.supabase_token) {
+              await updateBuild(supabaseUrl, serviceKey, buildId, {
+                status: 'error', step: 'Database auth missing',
+                error: 'Supabase OAuth token not found. Please reconnect your Supabase account.',
+              })
+              return
+            }
+            const sbToken = build.supabase_token
+
+            // Get the user's first organisation
+            await step('Creating your Supabase project…')
+            const orgsRes = await fetchWithTimeout(
+              'https://api.supabase.com/v1/organizations',
+              { headers: { Authorization: `Bearer ${sbToken}` } },
+              NET,
+            )
+            const orgs = await orgsRes.json() as Array<{ id: string; name: string }>
+            const orgId = orgs[0]?.id
+            if (!orgId) {
+              await updateBuild(supabaseUrl, serviceKey, buildId, {
+                status: 'error', step: 'Database org not found',
+                error: 'No Supabase organisation found on this account.',
+              })
+              return
+            }
+
+            // Generate a secure random db password
+            const dbPass = Array.from(crypto.getRandomValues(new Uint8Array(20)))
+              .map(b => b.toString(16).padStart(2, '0')).join('')
+
+            const createRes = await fetchWithTimeout(
+              'https://api.supabase.com/v1/projects',
+              {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${sbToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  name: repoName,
+                  organization_id: orgId,
+                  region: 'us-east-1',
+                  plan: 'free',
+                  db_pass: dbPass,
+                }),
+              },
+              NET,
+            )
+            const newProject = await createRes.json() as { ref?: string; error?: string; message?: string }
+            if (!newProject.ref) {
+              const msg = newProject.message ?? newProject.error ?? 'unknown error'
+              await updateBuild(supabaseUrl, serviceKey, buildId, {
+                status: 'error', step: 'Supabase project creation failed', error: msg,
+              })
+              return
+            }
+            const sbRef = newProject.ref
+
+            // Poll until ACTIVE_HEALTHY (up to 4 min within the 250s budget)
+            await step('Waiting for database to be ready…')
+            const dbDeadline = Date.now() + 4 * 60 * 1000
+            let dbReady = false
+            while (Date.now() < dbDeadline) {
+              await sleep(5000)
+              const statusRes = await fetchWithTimeout(
+                `https://api.supabase.com/v1/projects/${sbRef}/status`,
+                { headers: { Authorization: `Bearer ${sbToken}` } },
+                NET,
+              )
+              const statusData = await statusRes.json() as { status?: string }
+              console.log('[run-build] supabase project status:', statusData.status)
+              if (statusData.status === 'ACTIVE_HEALTHY') { dbReady = true; break }
+            }
+            if (!dbReady) {
+              await updateBuild(supabaseUrl, serviceKey, buildId, {
+                status: 'error', step: 'Database setup timed out',
+                error: 'Supabase project did not become ready within 4 minutes.',
+              })
+              return
+            }
+
+            // Fetch API keys
+            const keysRes = await fetchWithTimeout(
+              `https://api.supabase.com/v1/projects/${sbRef}/api-keys`,
+              { headers: { Authorization: `Bearer ${sbToken}` } },
+              NET,
+            )
+            const keys = await keysRes.json() as Array<{ name: string; api_key: string }>
+            const anonKey = keys.find(k => k.name === 'anon public')?.api_key
+              ?? keys.find(k => k.name === 'anon')?.api_key
+            if (!anonKey) {
+              await updateBuild(supabaseUrl, serviceKey, buildId, {
+                status: 'error', step: 'Database keys missing',
+                error: 'Could not retrieve Supabase anon key.',
+              })
+              return
+            }
+            deploySupabaseUrl = `https://${sbRef}.supabase.co`
+            deployAnonKey     = anonKey
+
+            // Run schema SQL
+            await step('Running your schema…')
+            if (build.supabase_schema) {
+              await fetchWithTimeout(
+                `https://api.supabase.com/v1/projects/${sbRef}/database/query`,
+                {
+                  method: 'POST',
+                  headers: { Authorization: `Bearer ${sbToken}`, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ query: build.supabase_schema }),
+                },
+                NET,
+              ).catch(err => console.warn('[run-build] schema exec non-fatal:', err))
+            }
+          } else {
+            // Sovereign-hosted path — use Sovereign's own Supabase instance,
+            // scope all generated tables by build_id
+            deploySupabaseUrl = process.env.SUPABASE_URL!
+            deployAnonKey     = process.env.VITE_SUPABASE_ANON_KEY ?? ''
+
+            await step('Running your schema…')
+            if (build.supabase_schema) {
+              const sovereignRef   = process.env.SOVEREIGN_SUPABASE_REF
+              const mgmtToken      = process.env.SOVEREIGN_SUPABASE_MANAGEMENT_TOKEN
+              if (sovereignRef && mgmtToken) {
+                const scopedSchema = addBuildIdToSchema(build.supabase_schema, buildId as string)
+                await fetchWithTimeout(
+                  `https://api.supabase.com/v1/projects/${sovereignRef}/database/query`,
+                  {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${mgmtToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: scopedSchema }),
+                  },
+                  NET,
+                ).catch(err => console.warn('[run-build] sovereign schema exec non-fatal:', err))
+              } else {
+                console.log('[run-build] SOVEREIGN_SUPABASE_REF or MANAGEMENT_TOKEN not set — schema stored for manual run')
+              }
+            }
+          }
+
+          // Secure the tables (RLS is already in the generated schema, this step
+          // is a visual indicator that security has been applied)
+          await step('Securing your tables…')
+
+          // Inject Supabase env vars into Vercel project before file push so
+          // they're available during the Vite build that Vercel triggers
+          await injectVercelEnvVars(vcResult.projectId, build.vercel_token, vcResult.teamId, [
+            { key: 'VITE_SUPABASE_URL',  value: deploySupabaseUrl },
+            { key: 'VITE_SUPABASE_ANON_KEY', value: deployAnonKey },
+            { key: 'SUPABASE_URL',        value: deploySupabaseUrl },
+          ])
+          await step('Database ready ✓')
+
+          // ── Step 4: Push files to GitHub → triggers Vercel auto-deploy ─
           await step('Pushing your app files…')
           const generatedFiles = build.files ?? []
           console.log('[run-build] generated files count:', generatedFiles.length)

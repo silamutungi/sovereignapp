@@ -24,13 +24,18 @@ interface LogStep {
 }
 
 const LOG_STEPS: LogStep[] = [
-  { matchOn: 'Reading your idea…',           icon: '✦',  label: 'Reading your idea' },
-  { matchOn: 'Creating your GitHub repo…',   icon: '⚙',  label: 'Creating your GitHub repo…' },
-  { matchOn: ['Repo created at', 'Deploying to Vercel…'], icon: '✅', label: 'Repo created', urlKey: 'repoUrl' },
-  { matchOn: 'Deploying to Vercel…',         icon: '⚙',  label: 'Deploying to Vercel…' },
+  { matchOn: 'Creating your GitHub repo…',    icon: '⚙',  label: 'Creating your GitHub repo…' },
+  { matchOn: 'Repo created at',               icon: '✅', label: 'Repo created', urlKey: 'repoUrl' },
+  { matchOn: 'Provisioning your database…',   icon: '⚙',  label: 'Provisioning your database…' },
+  { matchOn: 'Creating your Supabase project…', icon: '⚙', label: 'Creating your Supabase project…' },
+  { matchOn: 'Waiting for database to be ready…', icon: '⏳', label: 'Waiting for database to be ready…' },
+  { matchOn: 'Running your schema…',          icon: '⚙',  label: 'Running your schema…' },
+  { matchOn: 'Securing your tables…',         icon: '⚙',  label: 'Securing your tables…' },
+  { matchOn: 'Database ready ✓',              icon: '✅', label: 'Database ready ✓' },
+  { matchOn: 'Deploying to Vercel…',          icon: '⚙',  label: 'Deploying to Vercel…' },
   { matchOn: ['Live at', 'Sending your live URL…', 'done'], icon: '✅', label: 'Live on Vercel', urlKey: 'deployUrl' },
-  { matchOn: 'Sending your live URL…',       icon: '📧', label: 'Sending your live URL…' },
-  { matchOn: 'done',                         icon: '🎉', label: 'You own everything. Welcome to Sovereign.', terminal: true },
+  { matchOn: 'Sending your live URL…',        icon: '📧', label: 'Sending your live URL…' },
+  { matchOn: 'done',                          icon: '🎉', label: 'You own everything. Welcome to Sovereign.', terminal: true },
 ]
 
 // Returns index of the most advanced step reached given the current step string.
@@ -193,6 +198,10 @@ export default function Building() {
 
   const [status, setStatus] = useState<BuildStatus | null>(null)
   const [pollError, setPollError] = useState<string | null>(null)
+  const [dbChoice, setDbChoice] = useState<'own' | 'sovereign' | null>(() => {
+    if (!buildId) return null
+    return (localStorage.getItem(`sb_choice_${buildId}`) as 'own' | 'sovereign') ?? null
+  })
 
   const hasTriggeredRef        = useRef(false)
   const pollIntervalRef        = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -201,17 +210,29 @@ export default function Building() {
   const MAX_POLL_MS            = 5 * 60 * 1000  // 5 minutes
   const MAX_CONSECUTIVE_ERRORS = 3
 
-  // Trigger run-build once (idempotent — server checks status === 'queued')
+  // Trigger run-build once — but only after the user has chosen their database.
+  // dbChoice === null means the choice UI is still showing; we wait.
   useEffect(() => {
     if (!buildId || hasTriggeredRef.current) return
+    if (dbChoice === null) return  // wait for user to pick db
     hasTriggeredRef.current = true
 
     fetch('/api/run-build', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: buildId }),
+      body: JSON.stringify({ id: buildId, supabaseChoice: dbChoice }),
     }).catch(() => {/* build-status polling will surface the error */})
-  }, [buildId])
+  }, [buildId, dbChoice])
+
+  // If the build is already past 'queued' (e.g. user refreshes mid-build),
+  // skip the db choice UI — the choice was already made and honoured.
+  useEffect(() => {
+    if (!buildId || dbChoice !== null) return
+    if (status && status.status !== 'queued') {
+      // Build is in progress or done — treat as if choice was already made
+      setDbChoice('sovereign')
+    }
+  }, [buildId, dbChoice, status])
 
   // Poll build status every 2 s
   useEffect(() => {
@@ -266,6 +287,33 @@ export default function Building() {
     }
   }, [buildId])
 
+  // ── Database choice handler ───────────────────────────────────────────────
+
+  const handleDbChoice = (choice: 'own' | 'sovereign') => {
+    if (!buildId) return
+    localStorage.setItem(`sb_choice_${buildId}`, choice)
+    if (choice === 'sovereign') {
+      setDbChoice('sovereign')
+    } else {
+      // Redirect to Supabase OAuth — token exchange happens in the callback
+      const clientId   = import.meta.env.VITE_SUPABASE_OAUTH_CLIENT_ID as string | undefined
+      const base       = window.location.origin
+      const redirectUri = `${base}/api/auth/supabase/callback`
+      if (!clientId) {
+        console.error('[building] VITE_SUPABASE_OAUTH_CLIENT_ID not set')
+        return
+      }
+      const oauthUrl =
+        `https://api.supabase.com/v1/oauth/authorize` +
+        `?client_id=${encodeURIComponent(clientId)}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&response_type=code` +
+        `&scope=all` +
+        `&state=${encodeURIComponent(buildId)}`
+      window.location.href = oauthUrl
+    }
+  }
+
   // ── Render ───────────────────────────────────────────────────────────────
 
   if (!buildId) {
@@ -297,16 +345,68 @@ export default function Building() {
           {status?.appName && (
             <h1 style={S.appName}>{status.appName}</h1>
           )}
+
+          {/* ── Database choice (shown before build starts) ─────────────── */}
+          {status?.status === 'queued' && dbChoice === null && (
+            <div style={{ marginBottom: '32px' }}>
+              <p style={{ ...S.subtitle, marginBottom: '24px' }}>
+                Where should your database live?
+              </p>
+              <button
+                onClick={() => handleDbChoice('own')}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  background: '#c8f060',
+                  color: '#0e0d0b',
+                  fontFamily: "'DM Mono', 'Courier New', monospace",
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  border: 'none',
+                  padding: '14px 24px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  marginBottom: '12px',
+                  letterSpacing: '0.01em',
+                }}
+              >
+                Connect your Supabase →
+              </button>
+              <button
+                onClick={() => handleDbChoice('sovereign')}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  background: 'transparent',
+                  color: 'rgba(200,240,96,0.7)',
+                  fontFamily: "'DM Mono', 'Courier New', monospace",
+                  fontSize: '13px',
+                  fontWeight: 400,
+                  border: 'none',
+                  padding: '8px 0',
+                  cursor: 'pointer',
+                  letterSpacing: '0.01em',
+                  textDecoration: 'underline',
+                  textDecorationColor: 'rgba(200,240,96,0.3)',
+                }}
+              >
+                Use Sovereign's for now →
+              </button>
+            </div>
+          )}
+
           <p style={S.subtitle}>
             {isDone
               ? 'This is yours now. You own everything.'
               : isFailed
               ? 'Something went wrong during provisioning.'
-              : 'Provisioning your app — this takes about 30 seconds…'}
+              : dbChoice === null && status?.status === 'queued'
+              ? ''
+              : 'Provisioning your app — this takes about 60 seconds…'}
           </p>
 
-          {/* Progress log */}
-          <div style={S.log}>
+          {/* Progress log — only shown after db choice is made */}
+          <div style={{ ...S.log, display: dbChoice === null && status?.status === 'queued' ? 'none' : 'flex' }}>
             {LOG_STEPS.map((logStep, i) => {
               const done   = i < stepIdx
               const active = i === stepIdx
