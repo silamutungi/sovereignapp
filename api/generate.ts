@@ -189,7 +189,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     console.log('[generate] Creating Anthropic stream...')
     const stream = client.messages.stream({
       model: 'claude-opus-4-6',
-      max_tokens: 16000,
+      max_tokens: 24000,
       system: SYSTEM_PROMPT,
       tools: [
         {
@@ -198,6 +198,19 @@ export default async function handler(req: any, res: any): Promise<void> {
           input_schema: {
             type: 'object' as const,
             properties: {
+              files: {
+                type: 'array',
+                description: 'GENERATE THIS FIRST. Complete array of all 18 Phase 1 scaffold files. Every file must have complete, working content — never truncated, never placeholder. Write all 18 files before writing supabaseSchema.',
+                items: {
+                  type: 'object',
+                  properties: {
+                    path: { type: 'string', description: 'File path relative to repo root, e.g. "src/pages/Home.tsx"' },
+                    content: { type: 'string', description: 'Complete file content. No comments. No console.log. No placeholder text. Under 100 lines per component where possible.' },
+                  },
+                  required: ['path', 'content'],
+                  additionalProperties: false,
+                },
+              },
               appName: {
                 type: 'string',
                 description: 'Short, memorable app name relevant to the idea. 2–3 words max. No generic words like "App" or "Pro".',
@@ -214,19 +227,6 @@ export default async function handler(req: any, res: any): Promise<void> {
                 type: 'string',
                 enum: ['landing-page', 'saas', 'marketplace', 'social', 'tool', 'ecommerce'],
                 description: 'The best-fit app type. landing-page = public-facing site only, saas = subscription service, marketplace = buyers and sellers, social = community/network, tool = single-purpose utility, ecommerce = product sales.',
-              },
-              files: {
-                type: 'array',
-                description: 'Complete array of all source files for the app. Every file must have complete content — never truncated, never placeholder. Include all required base files plus all feature-specific files for this idea.',
-                items: {
-                  type: 'object',
-                  properties: {
-                    path: { type: 'string', description: 'File path relative to repo root, e.g. "src/pages/Home.tsx"' },
-                    content: { type: 'string', description: 'Complete file content. Never truncated. No TODO comments. No placeholder components.' },
-                  },
-                  required: ['path', 'content'],
-                  additionalProperties: false,
-                },
               },
               supabaseSchema: {
                 type: 'string',

@@ -558,14 +558,41 @@ You are generating a complete React + Vite + TypeScript + Tailwind CSS + Supabas
 
 ### PHASE 1 SCAFFOLD — generate exactly these files, no more
 
-This is Phase 1 generation. Output only the files listed below. Do not add extra pages or feature-specific components — the goal is a deployable, working app under 60 seconds. Feature pages are added in Phase 2.
+CRITICAL OUTPUT ORDER: Generate the files array FIRST. Generate supabaseSchema LAST. Never write supabaseSchema before all 18 files are complete. The tool schema fills in property order — files is the first property, supabaseSchema is last.
 
-package.json, index.html, vite.config.ts, tailwind.config.js, postcss.config.js, tsconfig.json,
-src/index.css, src/main.tsx, src/App.tsx, src/lib/supabase.ts, src/types/index.ts,
-src/pages/Home.tsx, src/pages/Login.tsx, src/pages/Signup.tsx, src/pages/Dashboard.tsx,
-src/components/Navbar.tsx, src/components/ProtectedRoute.tsx, src/components/Footer.tsx
+This is Phase 1 generation. Output only the 18 files listed below. Do not add extra pages or feature-specific components — the goal is a deployable, working app under 60 seconds.
 
-That is 18 files. Do not exceed this list. Privacy and Terms pages are linked from the footer as placeholders — do not generate them now. The dashboard must be real and functional for the core use case.
+Required files (exactly these 18, in this order):
+1. package.json
+2. index.html
+3. vite.config.ts
+4. tailwind.config.js
+5. postcss.config.js
+6. tsconfig.json
+7. src/index.css
+8. src/main.tsx
+9. src/App.tsx
+10. src/lib/supabase.ts
+11. src/types/index.ts
+12. src/pages/Home.tsx
+13. src/pages/Login.tsx
+14. src/pages/Signup.tsx
+15. src/pages/Dashboard.tsx
+16. src/components/Navbar.tsx
+17. src/components/ProtectedRoute.tsx
+18. src/components/Footer.tsx
+
+Do not exceed 18 files. Privacy and Terms pages are linked from the footer as placeholders — do not generate them. The dashboard must be real and functional for the core use case.
+
+### FILE VERBOSITY RULES — keep files concise
+
+- No comments in generated code (no // or /* */ blocks)
+- No console.log or console.error statements
+- Tailwind classes only — no inline styles, no <style> tags, no custom CSS
+- Components under 100 lines each where possible
+- No placeholder text blocks — essential UI only
+- No decorative emoji or filler copy
+- Imports only what is used — no unused imports
 
 ### EXACT FILE CONTRACTS
 
