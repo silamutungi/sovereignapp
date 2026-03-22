@@ -512,6 +512,17 @@ The app-launch welcome email told users their app was live but gave no guidance 
 Fix: added a "One more step" card to the app-launch email template with a link to https://supabase.com/dashboard.
 Learned: 2026-03-21.
 
+**api/generate hits Vercel 10-second default timeout for multi-file generation — fix: SSE + maxDuration**
+Wrong assumption: a regular JSON response was sufficient for generate.ts even after upgrading to 32000 max_tokens generating 20+ files.
+Correct behaviour: multi-file generation takes 30–120 seconds. Vercel serverless functions time out after 10 seconds by default. The client receives a 504 and the user sees an infinite spinner.
+Fix: three changes required together:
+  1. `export const maxDuration = 300` in api/generate.ts (Vercel Pro allows up to 300s)
+  2. `"functions": { "api/*.ts": { "maxDuration": 300 } }` in vercel.json
+  3. Convert api/generate.ts from res.json() to SSE streaming — set `Content-Type: text/event-stream` headers, stream `{type:'progress', message}` events as Anthropic's inputJson callback fires, send `{type:'done', spec}` on completion
+Rule: any route that calls the Anthropic API with max_tokens > 4096 must use SSE + maxDuration. Never return a single JSON response from a long-running AI call.
+Client-side rule: callGenerateAPI() must detect `content-type: text/event-stream` and read with getReader(); fall back to JSON for pre-flight errors (429, 400) that are returned before SSE headers are set.
+Learned: 2026-03-21.
+
 ## Architectural Features Pending (not yet built)
 
 The following items were audited on 2026-03-21 and confirmed as not yet built. They require decisions and migrations before implementation. Do not attempt to build them without reading this section first.
