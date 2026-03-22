@@ -546,6 +546,9 @@ Add lessons here as you work on this app. Format: bold title, what went wrong, w
 **Sanitize template HTML before pushing to GitHub**
 Strip all localhost script tags (<script src="http://localhost...">), localhost link tags, and Vite HMR injection from index.html before committing to GitHub. These are dev artifacts that must never appear in a deployed repo.
 
+**React.FormEvent / React.ReactNode without React import = hard tsc failure**
+With "jsx":"react-jsx" the automatic JSX transform is active — React does not need to be imported for JSX syntax. BUT namespace references like React.FormEvent, React.ReactNode, React.ChangeEvent still require React to be in scope. Every generated component that uses these patterns without importing React fails with "Cannot find namespace 'React'." and tsc exits non-zero before Vite runs. Fix: always use named type imports: import { type FormEvent, type ReactNode } from 'react'. Never use the React. namespace prefix for types.
+
 CRITICAL — API RELATIVE IMPORTS REQUIRE .js
 Every relative import in api/ files must use explicit .js extension:
   import { x } from './_helper.js'    ✓ correct
@@ -593,6 +596,42 @@ Do not exceed 18 files. Privacy and Terms pages are linked from the footer as pl
 - No placeholder text blocks — essential UI only
 - No decorative emoji or filler copy
 - Imports only what is used — no unused imports
+
+### TYPESCRIPT BUILD RULES — violations cause \`tsc\` to fail and abort the Vercel build
+
+**React type imports — most common build failure:**
+Never use React.FormEvent, React.ChangeEvent, React.ReactNode, React.MouseEvent, React.KeyboardEvent etc as namespace references. With "jsx":"react-jsx" React does not need to be in scope for JSX, but namespace references still require an explicit import. Always use named type imports instead:
+  WRONG: const handleSubmit = (e: React.FormEvent) => {
+  WRONG: function Wrapper({ children }: { children: React.ReactNode })
+  RIGHT: import { type FormEvent } from 'react'  then  (e: FormEvent)
+  RIGHT: import { type ReactNode } from 'react'  then  children: ReactNode
+This applies to every file — pages, components, hooks. Never use the React. namespace prefix for types.
+
+**Every import must resolve to a file in the files array:**
+Never import a file that is not generated. Every import statement must reference a path that exists in the files array. Dead imports cause immediate \`tsc\` failure.
+
+**package.json must list every package imported in any src/ file:**
+Missing packages cause Vercel build to exit with MODULE_NOT_FOUND. Stick to the approved dependency list: react, react-dom, react-router-dom, @supabase/supabase-js. Do not import packages outside this list unless you add them to package.json.
+
+**React Router v6 syntax only — never v5:**
+  WRONG: import { useHistory, Switch } from 'react-router-dom'
+  RIGHT: import { useNavigate, Routes, Route } from 'react-router-dom'
+  WRONG: <Switch><Route exact path="/" component={Home} /></Switch>
+  RIGHT: <Routes><Route path="/" element={<Home />} /></Routes>
+
+**No path aliases — use relative imports only:**
+  WRONG: import Navbar from '@/components/Navbar'
+  RIGHT: import Navbar from './components/Navbar'  (from App.tsx)
+  RIGHT: import Navbar from '../components/Navbar' (from a page)
+Never use @/ aliases. vite.config.ts does not define them and tsc will fail with "Cannot find module '@/...'"
+
+**Every component file must have a default export:**
+  WRONG: export function Navbar() {  (named export only, no default)
+  RIGHT: export default function Navbar() {
+Files without a default export break every import X from './X' statement.
+
+**noUnusedLocals and noUnusedParameters are true — every declared variable must be used:**
+Do not declare variables, parameters, or imports you do not use. Remove unused function parameters or prefix with _ (e.g. _event).
 
 ### EXACT FILE CONTRACTS
 

@@ -553,6 +553,13 @@ Then: add supabaseSchema to generate.ts tool schema, save in run-build.ts, build
 **Dashboard Setup chip (items 29–30)**
 Blocked by supabase_schema column above. Once the column exists and is populated, build a Setup chip on the dashboard build card that opens a modal with the SQL and a Copy button.
 
+**Generated React apps fail tsc with "Cannot find namespace 'React'" — React type namespace usage**
+Root cause: with "jsx":"react-jsx" Claude omits `import React from 'react'` for JSX (correct), but still writes React.FormEvent, React.ReactNode, React.ChangeEvent etc. as namespace-qualified types. These are not JSX — they require React to be in scope. tsc exits non-zero before Vite runs.
+Confirmed in Confetti app (github.com/silamutungi/confetti-38fd59): Login.tsx, Signup.tsx, Dashboard.tsx all had `React.FormEvent` without React imported; ProtectedRoute.tsx had `React.ReactNode` without React imported. All four caused hard tsc failures.
+Fix: TYPESCRIPT BUILD RULES section added to _systemPrompt.ts. Rule: never use React. namespace prefix for types. Always use named type imports: import { type FormEvent, type ReactNode } from 'react'.
+Additional rules added to prompt: no @/ path aliases, React Router v6 syntax only (useNavigate not useHistory, Routes not Switch), every component must have a default export, noUnusedLocals/noUnusedParameters enforcement, dead imports not allowed.
+Learned: 2026-03-22.
+
 ## Supabase Schema — SQL Run in Production
 
 All statements below must be run in the Supabase SQL Editor.
