@@ -203,12 +203,73 @@ interface AppSpec {
   activeStandards?: string[]
 }
 
+// ── callGenerateAPI — SSE-aware fetch helper ──────────────────────────────
+type GenerateResult = { spec: AppSpec } | { error: string }
+
+async function callGenerateAPI(
+  body: Record<string, unknown>,
+  onProgress: (msg: string) => void,
+): Promise<GenerateResult> {
+  const res = await fetch('/api/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+  const contentType = res.headers.get('content-type') ?? ''
+  if (!contentType.includes('text/event-stream')) {
+    // Pre-flight error (rate limit, validation) — JSON response
+    const data = await res.json() as { error?: string; message?: string }
+    return { error: data.error ?? data.message ?? 'Something went wrong.' }
+  }
+
+  // Stream SSE events
+  const reader = res.body!.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue
+      const json = line.slice(6).trim()
+      if (!json) continue
+      try {
+        const event = JSON.parse(json) as {
+          type: string
+          message?: string
+          spec?: AppSpec
+          error?: string
+        }
+        if (event.type === 'progress' && event.message) {
+          onProgress(event.message)
+        } else if (event.type === 'done' && event.spec) {
+          return { spec: event.spec }
+        } else if (event.type === 'error') {
+          return { error: event.error ?? 'Generation failed.' }
+        }
+      } catch {
+        // ignore malformed SSE line
+      }
+    }
+  }
+
+  return { error: 'Generation stream ended without result.' }
+}
+
 function NdevPanel({ locale }: { locale: Locale }) {
   const [value, setValue] = useState('')
   const [phIdx, setPhIdx] = useState(0)
   const [stage, setStage] = useState<'idle' | 'generating' | 'result' | 'confirm' | 'connect'>('idle')
   const [spec, setSpec] = useState<AppSpec | null>(null)
   const [generateError, setGenerateError] = useState<string | null>(null)
+  const [generatingMessage, setGeneratingMessage] = useState('Generating your app…')
   const [email, setEmail] = useState('')
   const [emailError, setEmailError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
@@ -239,27 +300,19 @@ function NdevPanel({ locale }: { locale: Locale }) {
   const handleBuild = useCallback(async () => {
     if (stage !== 'idle') return
     setGenerateError(null)
+    setGeneratingMessage('Generating your app…')
     setStage('generating')
     try {
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        // Pass email when available so the daily rate limit can be enforced.
-        body: JSON.stringify({ idea: value.trim(), ...(email ? { email } : {}) }),
-      })
-      const data = await res.json() as AppSpec & { error?: string }
-      if (res.status === 429) {
-        setGenerateError(data.error === 'too_many_requests'
-          ? (data as unknown as { message: string }).message
-          : 'Too many requests. Try again later.')
+      const result = await callGenerateAPI(
+        { idea: value.trim(), ...(email ? { email } : {}) },
+        (msg) => setGeneratingMessage(msg),
+      )
+      if ('error' in result) {
+        setGenerateError(result.error)
         setStage('idle')
         return
       }
-      if (!res.ok || data.error) {
-        setGenerateError(data.error ?? 'Something went wrong. Please try again.')
-        setStage('idle')
-        return
-      }
+      const data = result.spec
       console.log('[generate] files count:', data.files?.length ?? 0)
       setSpec(data)
       setAllSpecs([data])
@@ -319,22 +372,16 @@ function NdevPanel({ locale }: { locale: Locale }) {
     setIsRegenerating(true)
     setPreviewAttempt(nextAttempt)
     try {
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          idea: value.trim(),
-          variationHint,
-          attempt: nextAttempt,
-          ...(email ? { email } : {}),
-        }),
-      })
-      const data = await res.json() as AppSpec & { error?: string }
-      if (!res.ok || data.error) {
+      const result = await callGenerateAPI(
+        { idea: value.trim(), variationHint, attempt: nextAttempt, ...(email ? { email } : {}) },
+        () => { /* progress during regen — no visible indicator needed */ },
+      )
+      if ('error' in result) {
         setPreviewAttempt(currentAttempt)
         setIsRegenerating(false)
         return
       }
+      const data = result.spec
       const newSpecs = [...allSpecs, data]
       setAllSpecs(newSpecs)
       setCurrentSpecIdx(newSpecs.length - 1)
@@ -453,7 +500,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
         {stage === 'generating' && (
           <div className="gen-loading" role="status" aria-live="polite">
             <span className="gen-spinner" aria-hidden="true" />
-            <p>Generating your app…</p>
+            <p>{generatingMessage}</p>
           </div>
         )}
 
