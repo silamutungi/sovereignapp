@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface BuildStatus {
-  status: 'pending_github' | 'pending_vercel' | 'queued' | 'building' | 'done' | 'failed'
+  status: 'pending_github' | 'pending_vercel' | 'queued' | 'building' | 'complete' | 'error'
   step: string | null
   appName: string
   repoUrl: string | null
@@ -247,7 +247,7 @@ export default function Building() {
         consecutiveErrorsRef.current = 0  // reset on success
         const data = await res.json() as BuildStatus
         setStatus(data)
-        if (data.status === 'done' || data.status === 'failed') {
+        if (data.status === 'complete' || data.status === 'error') {
           stopPolling()
         }
       } catch {
@@ -281,8 +281,8 @@ export default function Building() {
     )
   }
 
-  const isDone   = status?.status === 'done'
-  const isFailed = status?.status === 'failed'
+  const isDone   = status?.status === 'complete'
+  const isFailed = status?.status === 'error'
   const stepIdx  = resolvedStepIndex(status?.step ?? null)
 
   return (
