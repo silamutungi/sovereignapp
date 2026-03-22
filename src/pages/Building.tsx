@@ -294,13 +294,19 @@ export default function Building() {
         if (data.status === 'complete' || data.status === 'error') {
           stopPolling()
         }
-        // run-build set an error but kept status='queued' — Supabase token was
-        // missing. Show retry UI and reset dbChoice so run-build doesn't re-fire
-        // automatically on the same page load.
+        // run-build set an error but kept status='queued' — Supabase provisioning
+        // failed. Show reconnect UI and reset dbChoice so run-build doesn't re-fire.
+        const isSupabaseErr = (s: string) => {
+          const l = s.toLowerCase()
+          return (
+            l.includes('reconnect') ||
+            l.includes('supabase oauth token') ||
+            l.includes('no supabase organisation found') ||
+            l.includes('supabase project')
+          )
+        }
         if (
-          data.status === 'queued' && data.error &&
-          (data.error.toLowerCase().includes('reconnect') ||
-           data.error.toLowerCase().includes('supabase oauth token'))
+          data.status === 'queued' && data.error && isSupabaseErr(data.error)
         ) {
           if (!supabaseRetry && buildId) {
             setSupabaseRetry(true)
@@ -367,6 +373,28 @@ export default function Building() {
     }).catch(() => {/* polling will surface any error */})
   }
 
+  // ── Supabase reconnect (clears token + resets build, re-shows db choice) ─
+  // Calls reset-build to wipe supabase_token and reset status to 'queued',
+  // clears localStorage, then hard-navigates back to the building page so
+  // the database choice UI reappears cleanly.
+
+  const handleSupabaseReconnect = async () => {
+    if (!buildId || retrying) return
+    setRetrying(true)
+    try {
+      await fetch('/api/reset-build', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: buildId }),
+      })
+    } catch {
+      // Proceed with redirect even if reset fails — worst case, build-status
+      // polling will detect the queued state after the user re-authorizes.
+    }
+    localStorage.removeItem(`sb_choice_${buildId}`)
+    window.location.href = `/building?id=${encodeURIComponent(buildId)}`
+  }
+
   // ── Render ───────────────────────────────────────────────────────────────
 
   if (!buildId) {
@@ -385,9 +413,16 @@ export default function Building() {
   const isDone   = status?.status === 'complete'
   const isFailed = status?.status === 'error'
   const stepIdx  = resolvedStepIndex(status?.step ?? null)
-  // True when the build is stalled on a Supabase token error — show retry UI
-  const supabaseTokenMsg = (s: string) =>
-    s.toLowerCase().includes('reconnect') || s.toLowerCase().includes('supabase oauth token')
+  // True when the build is stalled on a Supabase provisioning error — show reconnect UI
+  const supabaseTokenMsg = (s: string) => {
+    const l = s.toLowerCase()
+    return (
+      l.includes('reconnect') ||
+      l.includes('supabase oauth token') ||
+      l.includes('no supabase organisation found') ||
+      l.includes('supabase project')
+    )
+  }
   const needsSupabaseRetry = !retrying && (
     supabaseRetry ||
     (isFailed && !!status?.error && supabaseTokenMsg(status.error)) ||
@@ -407,14 +442,15 @@ export default function Building() {
             <h1 style={S.appName}>{status.appName}</h1>
           )}
 
-          {/* ── Supabase token retry (token saved, build lost the thread) ── */}
+          {/* ── Supabase reconnect (any Supabase provisioning error) ── */}
           {needsSupabaseRetry && !isDone && (
             <div style={{ marginBottom: '32px' }}>
               <p style={{ ...S.subtitle, marginBottom: '24px', color: 'rgba(255,255,255,0.6)' }}>
-                Your Supabase is connected but we lost the thread. Tap below to retry.
+                We couldn't connect your Supabase account. Tap below to try again.
               </p>
               <button
-                onClick={handleRetryBuild}
+                onClick={() => { void handleSupabaseReconnect() }}
+                disabled={retrying}
                 style={{
                   display: 'block',
                   width: '100%',
@@ -426,11 +462,12 @@ export default function Building() {
                   border: 'none',
                   padding: '14px 24px',
                   borderRadius: '8px',
-                  cursor: 'pointer',
+                  cursor: retrying ? 'not-allowed' : 'pointer',
                   letterSpacing: '0.01em',
+                  opacity: retrying ? 0.6 : 1,
                 }}
               >
-                Retry build →
+                {retrying ? 'Resetting…' : 'Reconnect Supabase →'}
               </button>
             </div>
           )}
