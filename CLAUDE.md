@@ -291,11 +291,11 @@ Learned: 2026-03-20.
 
 ### Deployment & Build
 
-**nodeVersion is not a valid Vercel project creation field**
-Wrong assumption: nodeVersion could be passed in the POST /v9/projects payload to control Node version.
-Correct behaviour: Vercel rejects this with 400 — should NOT have additional property nodeVersion.
-Fix: set Node version via engines field in the generated package.json instead: { engines: { node: '20.x' } }. Never pass nodeVersion in the project creation payload.
-Learned: 2026-03-20.
+**nodeVersion and engines field both break Vercel builds**
+Wrong assumption: nodeVersion could be passed in the POST /v9/projects payload, or that engines field in package.json was a safe alternative.
+Correct behaviour: Vercel rejects nodeVersion in project creation with 400. The engines field in package.json also causes Vercel build failures and must never be included.
+Fix: remove both. Node version is controlled via Vercel project settings only. run-build.ts now programmatically strips engines from generated package.json via JSON.parse/delete/stringify. _systemPrompt.ts updated to forbid engines in the package.json file contract.
+Learned: 2026-03-20 (nodeVersion), 2026-03-21 (engines field).
 
 **Generated repos need all 6 files — not just 2**
 buildStaticFiles was only pushing index.html and vercel.json. Vercel framework: vite + npm run build requires package.json or it exits with error code 1 immediately. Every generated repo must push exactly these 6 files in one commit:
