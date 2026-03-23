@@ -199,7 +199,11 @@ export default async function handler(req: any, res: any): Promise<void> {
       // Do not downgrade to Haiku — structured tool_use with 18 files requires Sonnet-class reasoning.
       model: MODEL_GENERATION,
       max_tokens: 24000,
-      system: SYSTEM_PROMPT,
+      // Prompt caching: cache_control marks the system prompt as cacheable.
+      // Anthropic caches it for ~5 minutes. The system prompt is ~6000 tokens — caching it
+      // reduces input token costs by ~90% on repeated generation calls.
+      // Format: array of TextBlockParam instead of plain string.
+      system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       tools: [
         {
           name: 'generate_app_spec',
