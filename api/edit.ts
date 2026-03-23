@@ -13,6 +13,13 @@ import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { checkRateLimit } from './_rateLimit.js'
 
+// Model constants — change here to swap models across the file
+// MODEL_GENERATION: plain-English edit engine — reads full HTML, applies targeted edits, returns complete file
+//   Code quality matters here; Haiku produces regressions and drops CSS/JS during edits
+// MODEL_FAST: available for future pre-validation or classification tasks
+const MODEL_GENERATION = 'claude-sonnet-4-6'
+const MODEL_FAST = 'claude-haiku-4-5-20251001' // eslint-disable-line @typescript-eslint/no-unused-vars
+
 // SECURITY AUDIT
 // - Rate limited: 10/hr per IP
 // - editRequest length capped at 1000 chars
@@ -105,7 +112,10 @@ export default async function handler(req: any, res: any): Promise<void> {
 
     // Generate updated HTML via Claude
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      // Sonnet 4.6: full-file HTML editing — must preserve all CSS/JS while applying targeted change.
+      // Updated from stale claude-sonnet-4-20250514 snapshot to current Sonnet 4.6.
+      // Do not downgrade to Haiku — drops CSS/JS context during large file edits.
+      model: MODEL_GENERATION,
       max_tokens: 8000,
       messages: [
         {

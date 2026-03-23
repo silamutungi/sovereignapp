@@ -8,6 +8,13 @@ import Anthropic from '@anthropic-ai/sdk'
 import { checkRateLimit } from './_rateLimit.js'
 import { SYSTEM_PROMPT } from './_systemPrompt.js'
 
+// Model constants — change here to swap models across the file
+// MODEL_GENERATION: multi-file React app codegen (18+ files, structured tool call)
+//   Sonnet handles complex multi-file generation reliably at ~80% lower cost than Opus
+// MODEL_FAST: extraction, classification, summarization — not yet used in this file
+const MODEL_GENERATION = 'claude-sonnet-4-6'
+const MODEL_FAST = 'claude-haiku-4-5-20251001' // eslint-disable-line @typescript-eslint/no-unused-vars
+
 export const config = {
   api: {
     bodyParser: {
@@ -188,7 +195,9 @@ export default async function handler(req: any, res: any): Promise<void> {
 
     console.log('[generate] Creating Anthropic stream...')
     const stream = client.messages.stream({
-      model: 'claude-opus-4-6',
+      // Sonnet 4.6: handles 18-file React/TS/Tailwind generation at ~80% lower cost than Opus.
+      // Do not downgrade to Haiku — structured tool_use with 18 files requires Sonnet-class reasoning.
+      model: MODEL_GENERATION,
       max_tokens: 24000,
       system: SYSTEM_PROMPT,
       tools: [

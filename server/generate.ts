@@ -9,6 +9,13 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { SYSTEM_PROMPT } from '../api/_systemPrompt'
 
+// Model constants — change here to swap models across the file
+// MODEL_GENERATION: dev-mode app generation — same task as api/generate.ts, must match
+//   Sonnet 4.6 handles 18-file structured tool_use generation at ~80% lower cost than Opus
+// MODEL_FAST: available for future lightweight tasks
+const MODEL_GENERATION = 'claude-sonnet-4-6'
+const MODEL_FAST = 'claude-haiku-4-5-20251001' // eslint-disable-line @typescript-eslint/no-unused-vars
+
 export interface NextStep {
   title: string
   description: string
@@ -53,7 +60,10 @@ export async function generateAppSpec(idea: string): Promise<GenerateResult> {
 
   try {
     const response = await client.messages.create({
-      model: 'claude-opus-4-6',
+      // Sonnet 4.6: dev-mode app generation (same structured tool_use as api/generate.ts).
+      // Switched from Opus — Sonnet handles 18-file React/TS generation at ~80% lower cost.
+      // Keep in sync with api/generate.ts model choice.
+      model: MODEL_GENERATION,
       max_tokens: 16000,
       system: SYSTEM_PROMPT,
       tools: [

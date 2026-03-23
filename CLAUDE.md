@@ -481,7 +481,7 @@ Learned: 2026-03-20.
 Root cause was NOT token limits. It was Vercel's default body parser silently returning 413 on requests over 1mb. The 500 was masking the real status code.
 Fix: export const config = { api: { bodyParser: { sizeLimit: '10mb' } } } in api/generate.ts.
 Also fixed: variation hints on attempt 2/3 were pushing combined message length dangerously high. Fix: baseMessage = idea.slice(0, 2500), total capped at 3000 chars.
-Model confirmed: claude-opus-4-6 with max_tokens: 16000. Do not downgrade to Sonnet — generation quality depends on Opus.
+Model: Switched to claude-sonnet-4-6 (2026-03-23). Original lesson said "do not downgrade to Sonnet" but a deliberate cost audit found Sonnet 4.6 handles 18-file structured tool_use generation reliably at ~80% lower cost than Opus. Use Sonnet 4.6 for all generation. Only reconsider Opus if generation quality degrades measurably in production.
 Lesson: always add detailed catch logging first. Generic 500s hide the real cause every time. The error logging (constructor.name, status, prompt length) should be the first thing added to any new API route catch block.
 Learned: 2026-03-20.
 
@@ -565,6 +565,13 @@ Confirmed in Confetti app (github.com/silamutungi/confetti-38fd59): Login.tsx, S
 Fix: TYPESCRIPT BUILD RULES section added to _systemPrompt.ts. Rule: never use React. namespace prefix for types. Always use named type imports: import { type FormEvent, type ReactNode } from 'react'.
 Additional rules added to prompt: no @/ path aliases, React Router v6 syntax only (useNavigate not useHistory, Routes not Switch), every component must have a default export, noUnusedLocals/noUnusedParameters enforcement, dead imports not allowed.
 Learned: 2026-03-22.
+
+**Model selection: Sonnet 4.6 for all generation — Opus is not needed**
+Wrong assumption: 18-file React app generation requires Opus for quality. Learned 2026-03-20 but superseded.
+Correct behaviour: Sonnet 4.6 handles structured tool_use generation of 18+ files reliably. Opus costs ~5× more for no measurable quality gain on this task.
+Fix: all four Anthropic API calls now use MODEL_GENERATION = 'claude-sonnet-4-6'. MODEL_FAST = 'claude-haiku-4-5-20251001' declared as a constant for future extraction/classification tasks. Model constants live at the top of each file — one line to swap. Only escalate to Opus if measurable generation regressions appear in production.
+Estimated cost reduction: ~75% on API spend (Opus output ~$75/MTok → Sonnet ~$15/MTok).
+Learned: 2026-03-23.
 
 ## Supabase Schema — SQL Run in Production
 

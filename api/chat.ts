@@ -14,6 +14,13 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { checkRateLimit } from './_rateLimit.js'
 
+// Model constants — change here to swap models across the file
+// MODEL_GENERATION: used for chat — must parse intent and emit structured JSON edit actions
+//   Haiku is unreliable for strict JSON adherence; Sonnet required for edit intent detection
+// MODEL_FAST: available for future simple classification tasks in this file
+const MODEL_GENERATION = 'claude-sonnet-4-6'
+const MODEL_FAST = 'claude-haiku-4-5-20251001' // eslint-disable-line @typescript-eslint/no-unused-vars
+
 // SECURITY AUDIT
 // - Rate limited: 30/hr per IP
 // - message capped at 2000 chars
@@ -116,7 +123,9 @@ ALWAYS return valid JSON only. No markdown fences, no extra text outside the JSO
 
   try {
     const msg = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
+      // Sonnet 4.6: structured JSON output (reply + optional EditAction) + edit intent detection.
+      // Do not downgrade to Haiku — JSON adherence and intent classification fail at 512 tokens on Haiku.
+      model: MODEL_GENERATION,
       max_tokens: 512,
       system,
       messages: [{ role: 'user', content: message.trim() }],
