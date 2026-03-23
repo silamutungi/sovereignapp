@@ -17,7 +17,7 @@ import * as path from 'path'
 // ── Config ────────────────────────────────────────────────────────────────────
 
 const TEAM_ID    = 'team_3htcJhkd4KThrSE3itrDkLvh'
-const PROJECT_ID = 'prj_I52Ahy6XezsK8LHf9lmgXpn3qImb'  // from OIDC token
+const PROJECT_ID = 'prj_I52Ahy6Xezsk8LHf9lmgXpn3qImb'
 
 const ALL_TARGETS = ['production', 'preview', 'development']
 
