@@ -57,12 +57,12 @@ Last updated: 2026-03-23
 
 | Var | Purpose | Where to get it | Fail mode |
 |-----|---------|-----------------|-----------|
-| `SUPABASE_OAUTH_CLIENT_ID` | Supabase OAuth App client ID — user account token exchange | [app.supabase.com](https://app.supabase.com) → Account → OAuth Apps → Create app | **Hard fail** — Supabase OAuth step broken |
-| `SUPABASE_OAUTH_CLIENT_SECRET` | Supabase OAuth App client secret | Same location | **Hard fail** — Supabase OAuth step broken |
-| `VITE_SUPABASE_OAUTH_CLIENT_ID` | Same client ID — public, used by frontend to build OAuth URL | Same value as `SUPABASE_OAUTH_CLIENT_ID` | **Hard fail** — Supabase OAuth button broken |
+| `SUPABASE_OAUTH_CLIENT_ID` | Supabase OAuth App client ID — user account token exchange | [app.supabase.com](https://app.supabase.com) → Account → OAuth Apps → Sovereign | **Hard fail** — Supabase OAuth step broken. **Known value: `4c2d6168-822f-4f0f-9052-56393a467ae3`** |
+| `SUPABASE_OAUTH_CLIENT_SECRET` | Supabase OAuth App client secret | Same page — copy Secret field | **Hard fail** — Supabase OAuth step broken. ⚠️ Secret not in any local env file — get from dashboard |
+| `VITE_SUPABASE_OAUTH_CLIENT_ID` | Same client ID — public, used by frontend to build OAuth URL | Same value as `SUPABASE_OAUTH_CLIENT_ID` | **Hard fail** — Supabase OAuth button broken. **Known value: `4c2d6168-822f-4f0f-9052-56393a467ae3`** |
 
 > **Setup:** Redirect URI to register: `https://sovereignapp.dev/auth/supabase/callback`
-> **Status:** These vars are NOT yet set in Vercel. See PRODUCT.md → Manual Steps.
+> **Status:** Client ID values known. Secret requires dashboard. Run `scripts/set-vercel-env.ts` with fresh Vercel token to set the IDs automatically.
 
 ---
 
