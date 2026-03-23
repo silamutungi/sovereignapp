@@ -18,8 +18,8 @@ import { checkRateLimit } from './_rateLimit.js'
 // MODEL_GENERATION: used for chat — must parse intent and emit structured JSON edit actions
 //   Haiku is unreliable for strict JSON adherence; Sonnet required for edit intent detection
 // MODEL_FAST: available for future simple classification tasks in this file
-const MODEL_GENERATION = 'claude-sonnet-4-6'
-const MODEL_FAST = 'claude-haiku-4-5-20251001' // eslint-disable-line @typescript-eslint/no-unused-vars
+export const MODEL_GENERATION = 'claude-sonnet-4-6'
+export const MODEL_FAST = 'claude-haiku-4-5-20251001'
 
 // SECURITY AUDIT
 // - Rate limited: 30/hr per IP

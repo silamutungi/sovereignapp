@@ -12,8 +12,8 @@ import { SYSTEM_PROMPT } from './_systemPrompt.js'
 // MODEL_GENERATION: multi-file React app codegen (18+ files, structured tool call)
 //   Sonnet handles complex multi-file generation reliably at ~80% lower cost than Opus
 // MODEL_FAST: extraction, classification, summarization — not yet used in this file
-const MODEL_GENERATION = 'claude-sonnet-4-6'
-const MODEL_FAST = 'claude-haiku-4-5-20251001' // eslint-disable-line @typescript-eslint/no-unused-vars
+export const MODEL_GENERATION = 'claude-sonnet-4-6'
+export const MODEL_FAST = 'claude-haiku-4-5-20251001'
 
 export const config = {
   api: {

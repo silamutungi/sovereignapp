@@ -566,11 +566,20 @@ Fix: TYPESCRIPT BUILD RULES section added to _systemPrompt.ts. Rule: never use R
 Additional rules added to prompt: no @/ path aliases, React Router v6 syntax only (useNavigate not useHistory, Routes not Switch), every component must have a default export, noUnusedLocals/noUnusedParameters enforcement, dead imports not allowed.
 Learned: 2026-03-22.
 
-**Model selection: Sonnet 4.6 for all generation — Opus is not needed**
+**Model selection: Sonnet 4.6 for generation, Haiku for extraction/classification**
 Wrong assumption: 18-file React app generation requires Opus for quality. Learned 2026-03-20 but superseded.
 Correct behaviour: Sonnet 4.6 handles structured tool_use generation of 18+ files reliably. Opus costs ~5× more for no measurable quality gain on this task.
-Fix: all four Anthropic API calls now use MODEL_GENERATION = 'claude-sonnet-4-6'. MODEL_FAST = 'claude-haiku-4-5-20251001' declared as a constant for future extraction/classification tasks. Model constants live at the top of each file — one line to swap. Only escalate to Opus if measurable generation regressions appear in production.
-Estimated cost reduction: ~75% on API spend (Opus output ~$75/MTok → Sonnet ~$15/MTok).
+Fix: generation/edit/chat use MODEL_GENERATION = 'claude-sonnet-4-6'. extract-brief uses MODEL_FAST = 'claude-haiku-4-5-20251001' — output is bounded JSON under 500 tokens, no complex reasoning needed.
+Rule: use Haiku for any task with bounded output and a fixed JSON schema (extraction, classification, summarization). Use Sonnet for code generation, multi-step reasoning, and structured output where schema adherence is critical. Model constants live at the top of each file — one line to swap.
+Estimated cost reduction: ~75% on overall API spend.
+Learned: 2026-03-23.
+
+**api/extract-brief.ts — called before OAuth, Haiku, skips short ideas**
+POST /api/extract-brief takes { idea: string } and returns a structured AppBrief (name, description, target_user, features[], entities[], tone).
+Skip condition: idea under 200 chars with no newlines → returns { skipped: true, idea } immediately, no API call.
+On JSON parse failure → returns { error: 'extraction_failed', idea } so the caller can fall back to the raw idea. Never throws a 5xx.
+Rate limit: 60/hr per IP. idea truncated to 5000 chars before API call.
+Called before OAuth begins — after idea submit, before GitHub/Vercel OAuth steps.
 Learned: 2026-03-23.
 
 ## Supabase Schema — SQL Run in Production

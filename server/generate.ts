@@ -13,8 +13,8 @@ import { SYSTEM_PROMPT } from '../api/_systemPrompt'
 // MODEL_GENERATION: dev-mode app generation — same task as api/generate.ts, must match
 //   Sonnet 4.6 handles 18-file structured tool_use generation at ~80% lower cost than Opus
 // MODEL_FAST: available for future lightweight tasks
-const MODEL_GENERATION = 'claude-sonnet-4-6'
-const MODEL_FAST = 'claude-haiku-4-5-20251001' // eslint-disable-line @typescript-eslint/no-unused-vars
+export const MODEL_GENERATION = 'claude-sonnet-4-6'
+export const MODEL_FAST = 'claude-haiku-4-5-20251001'
 
 export interface NextStep {
   title: string

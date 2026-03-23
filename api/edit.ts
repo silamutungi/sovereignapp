@@ -17,8 +17,8 @@ import { checkRateLimit } from './_rateLimit.js'
 // MODEL_GENERATION: plain-English edit engine — reads full HTML, applies targeted edits, returns complete file
 //   Code quality matters here; Haiku produces regressions and drops CSS/JS during edits
 // MODEL_FAST: available for future pre-validation or classification tasks
-const MODEL_GENERATION = 'claude-sonnet-4-6'
-const MODEL_FAST = 'claude-haiku-4-5-20251001' // eslint-disable-line @typescript-eslint/no-unused-vars
+export const MODEL_GENERATION = 'claude-sonnet-4-6'
+export const MODEL_FAST = 'claude-haiku-4-5-20251001'
 
 // SECURITY AUDIT
 // - Rate limited: 10/hr per IP
