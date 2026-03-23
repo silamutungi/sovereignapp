@@ -119,7 +119,11 @@ File: `api/migrations/check-lessons.sql` → if count = 0, run `api/migrations/s
 Run `npx tsx scripts/check-env.ts` for live PRESENT/MISSING status.
 See `scripts/env-checklist.md` for the complete reference.
 
-Missing vars (not yet set in Vercel):
+**Local .env status (verified 2026-03-23):** 12/19 present, 4 hard-fail missing, 3 optional missing.
+
+`VITE_SUPABASE_ANON_KEY` — found in `.env.local`, added to `.env`. ✅
+
+Missing vars (not yet in Vercel):
 
 | Variable | Where to get it | Purpose |
 |---|---|---|
@@ -131,6 +135,27 @@ Missing vars (not yet set in Vercel):
 | `CRON_SECRET` | Generate: `openssl rand -hex 32` | Protects expire-builds cron endpoint |
 
 After adding env vars: trigger a redeploy (`git commit --allow-empty -m 'chore: redeploy' && git push`).
+
+### Schema status (verified 2026-03-23 via Supabase REST API probe)
+
+| Column | Status |
+|--------|--------|
+| `supabase_token` | ✅ EXISTS |
+| `deleted_at` | ✅ EXISTS |
+| `next_steps` | ✅ EXISTS |
+| `staging` | ❌ MISSING |
+| `expires_at` | ❌ MISSING |
+| `claimed_at` | ❌ MISSING |
+| `supabase_project_ref` | ❌ MISSING |
+
+**Run this in the [Supabase SQL editor](https://supabase.com/dashboard/project/gudiuktjzynkjvtqmuvi/sql/new):**
+```sql
+ALTER TABLE builds ADD COLUMN IF NOT EXISTS staging BOOLEAN DEFAULT true;
+ALTER TABLE builds ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ DEFAULT (now() + INTERVAL '7 days');
+ALTER TABLE builds ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ DEFAULT NULL;
+ALTER TABLE builds ADD COLUMN IF NOT EXISTS supabase_project_ref TEXT DEFAULT NULL;
+```
+Cannot be automated — requires Supabase Management API token (not in env files). After running, re-verify with `api/migrations/verify-schema.sql`.
 
 ### Step 4 — Register Supabase redirect URI
 Register this URI in the Supabase OAuth App settings:
