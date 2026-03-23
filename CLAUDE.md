@@ -594,6 +594,25 @@ Learned: 2026-03-23.
 - runGeneration(ideaToUse) is the internal function that calls callGenerateAPI — all entry points converge on this
 Decided: 2026-03-23.
 
+**Always run verify-schema.sql before debugging database issues**
+Wrong assumption: documented migrations have been run in production.
+Correct behaviour: migration files in api/migrations/ are never auto-run — they must be manually executed in the Supabase SQL editor. A column referenced in a query but never migrated produces a silent 500 that looks identical to an auth failure.
+Fix: api/migrations/verify-schema.sql checks every required column in one pass. Run it first before any database debugging. api/migrations/ensure-schema.sql is the safe idempotent fix if any return MISSING.
+Learned: 2026-03-23.
+
+**scripts/env-checklist.md is the definitive reference for all required env vars**
+Wrong assumption: .env.example was the complete list of env vars needed.
+Correct behaviour: .env.example was missing ANTHROPIC_API_KEY and CRON_SECRET — both hard-fail variables. The authoritative list with categories, where to get each value, and fail modes is in scripts/env-checklist.md.
+Fix: scripts/check-env.ts gives a live PRESENT/MISSING report. Run it first when debugging any 5xx. ANTHROPIC_API_KEY and CRON_SECRET have been added to .env.example.
+Rule: when adding any new env var to the codebase, update .env.example, scripts/env-checklist.md, and scripts/check-env.ts in the same session.
+Learned: 2026-03-23.
+
+**SETUP.md is the recovery guide if anything breaks**
+Context: setup and recovery procedures were scattered across CLAUDE.md and PRODUCT.md — each session had to reconstruct steps from scratch.
+Decision: SETUP.md in the repo root is now the single source of truth for setup, env vars, SQL migrations, OAuth registration, and troubleshooting.
+Rule: when adding new env vars, migrations, or external registrations, update SETUP.md in the same session.
+Decided: 2026-03-23.
+
 ## Supabase Schema — SQL Run in Production
 
 All statements below must be run in the Supabase SQL Editor.

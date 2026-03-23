@@ -104,7 +104,22 @@ See vercel.json for cron schedule entry.
 
 ## Manual Steps Needed
 
-### Environment variables — add to Vercel project settings
+> Scripts created 2026-03-23. Awaiting manual execution. See `SETUP.md` for the full recovery guide.
+
+### Step 1 — Run verify-schema.sql in Supabase SQL editor
+File: `api/migrations/verify-schema.sql`
+Purpose: Check whether all required columns exist on the builds table.
+If any return MISSING → run `api/migrations/ensure-schema.sql` (idempotent, safe to run any time).
+
+### Step 2 — Seed lessons table if empty
+File: `api/migrations/check-lessons.sql` → if count = 0, run `api/migrations/seed-lessons.sql`
+
+### Step 3 — Add env vars to Vercel
+
+Run `npx tsx scripts/check-env.ts` for live PRESENT/MISSING status.
+See `scripts/env-checklist.md` for the complete reference.
+
+Missing vars (not yet set in Vercel):
 
 | Variable | Where to get it | Purpose |
 |---|---|---|
@@ -115,27 +130,9 @@ See vercel.json for cron schedule entry.
 | `SOVEREIGN_SUPABASE_MANAGEMENT_TOKEN` | app.supabase.com → Account → Access Tokens | Sovereign-hosted DB provisioning |
 | `CRON_SECRET` | Generate: `openssl rand -hex 32` | Protects expire-builds cron endpoint |
 
-After adding env vars: trigger a redeploy (`git commit --allow-empty -m 'chore: redeploy'`).
+After adding env vars: trigger a redeploy (`git commit --allow-empty -m 'chore: redeploy' && git push`).
 
-### Supabase SQL — run in SQL editor
-
-1. **supabase_token column** (may already be run):
-   ```sql
-   ALTER TABLE builds ADD COLUMN IF NOT EXISTS supabase_token TEXT DEFAULT NULL;
-   ```
-
-2. **Verify lessons table exists** (created in previous session):
-   ```sql
-   SELECT COUNT(*) FROM information_schema.tables
-   WHERE table_schema = 'public' AND table_name = 'lessons';
-   -- Must return 1
-   ```
-
-3. **Run seed-lessons.sql** if lessons table is empty:
-   - File: `api/migrations/seed-lessons.sql`
-   - Run in Supabase SQL editor
-
-### Supabase redirect URI registration
+### Step 4 — Register Supabase redirect URI
 Register this URI in the Supabase OAuth App settings:
 `https://sovereignapp.dev/auth/supabase/callback`
 
@@ -181,6 +178,20 @@ Completed. `api/generate.ts` now uses `system: [{ type: 'text', text: SYSTEM_PRO
 
 ---
 
+## Documentation
+
+| File | Purpose |
+|------|---------|
+| `SETUP.md` | Step-by-step recovery guide — from scratch or broken state |
+| `scripts/env-checklist.md` | Definitive env var reference — where to get each value |
+| `scripts/check-env.ts` | Live PRESENT/MISSING env var report: `npx tsx scripts/check-env.ts` |
+| `api/migrations/verify-schema.sql` | Check all required DB columns exist |
+| `api/migrations/ensure-schema.sql` | Idempotent migration — add any missing columns |
+| `api/migrations/check-lessons.sql` | Check lessons table row count |
+| `api/migrations/seed-lessons.sql` | Seed 42 lessons from CLAUDE.md founder notes |
+
+---
+
 ## Morning Handoff
 
 **What's ready to test right now:**
@@ -188,12 +199,21 @@ Completed. `api/generate.ts` now uses `system: [{ type: 'text', text: SYSTEM_PRO
 2. Supabase OAuth callback — code is correct, needs env vars in Vercel before testing
 3. Lessons API — `GET /api/lessons` — test with `curl https://sovereignapp.dev/api/lessons`
 
-**What to do first tomorrow:**
-1. Add the env vars in the table above to Vercel dashboard (Settings → Environment Variables)
-2. Trigger a redeploy after adding env vars
-3. Test the Supabase OAuth flow end-to-end: click "Connect Database (own account)" on the building page
-4. Verify the cron by calling `GET /api/expire-builds` with `x-cron-secret: <your-secret>` header
+**What to do first tomorrow — in order:**
 
-**What needs manual SQL first:**
-- Verify `supabase_token` column exists on builds table
-- Verify lessons table exists and has data (42 seed rows from seed-lessons.sql)
+1. `npx tsx scripts/check-env.ts` — see which vars are missing
+2. Run `api/migrations/verify-schema.sql` in Supabase SQL editor — confirm all columns exist
+3. If any MISSING: run `api/migrations/ensure-schema.sql`
+4. Run `api/migrations/check-lessons.sql` — if count = 0, run `api/migrations/seed-lessons.sql`
+5. Add missing env vars to Vercel (see `scripts/env-checklist.md`)
+6. Redeploy: `git commit --allow-empty -m 'chore: redeploy' && git push`
+7. Test Supabase OAuth: click "Connect Database (own account)" on building page
+8. Test cron: `curl -H "x-cron-secret: <your-value>" https://sovereignapp.dev/api/expire-builds`
+
+**Reference files created this session:**
+- `SETUP.md` — full recovery guide
+- `scripts/env-checklist.md` — every env var, where to get it
+- `scripts/check-env.ts` — live PRESENT/MISSING script
+- `api/migrations/verify-schema.sql` — check DB column status
+- `api/migrations/ensure-schema.sql` — safe idempotent migration
+- `api/migrations/check-lessons.sql` — check lessons row count
