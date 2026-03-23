@@ -21,8 +21,8 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
-    // Rate limit: 120 per hour per build ID (polled every ~2s, build takes ~60s)
-    const rl = checkRateLimit(`build-status:${buildId}`, 120, 60 * 60 * 1000)
+    // Rate limit: 60 per minute per build ID (polled every 4s, build takes ~60s = ~15 polls)
+    const rl = checkRateLimit(`build-status:${buildId}`, 60, 60 * 1000)
     if (!rl.allowed) {
       res.setHeader('Retry-After', String(rl.retryAfter ?? 60))
       res.status(429).json({ error: `Too many requests. Try again in ${rl.retryAfter}s.` })

@@ -29,6 +29,11 @@ ALTER TABLE builds ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;
 -- Array of next-step recommendations returned by the generation prompt
 ALTER TABLE builds ADD COLUMN IF NOT EXISTS next_steps JSONB DEFAULT NULL;
 
+-- Supabase provisioning mode: 'sovereign' | 'sovereign_temporary' | 'own'
+-- sovereign_temporary = user chose own Supabase but we used Sovereign's temporarily (pending claim flow)
+-- own = fully migrated to user's own Supabase project
+ALTER TABLE builds ADD COLUMN IF NOT EXISTS supabase_mode TEXT DEFAULT 'sovereign';
+
 -- ── magic_links table — create if missing ───────────────────────────────────
 -- Required for magic link authentication flow.
 

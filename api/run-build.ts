@@ -68,6 +68,7 @@ interface BuildRecord {
   github_token: string
   vercel_token: string
   supabase_token: string | null
+  supabase_mode: string | null
   status: string
   step: string | null
   repo_url: string | null
@@ -897,121 +898,32 @@ export default async function handler(req: any, res: any): Promise<void> {
           let deployAnonKey: string
 
           if (sbChoice === 'own') {
-            // User connected their own Supabase via OAuth
-            console.log('[run-build] sbChoice=own — supabase_token present:', !!build.supabase_token, '| buildId:', buildId)
-            if (!build.supabase_token) {
-              console.error('[run-build] supabase_token is null on build record — OAuth callback may not have saved it. buildId:', buildId)
-              await updateBuild(supabaseUrl, serviceKey, buildId, {
-                status: 'error', step: 'Database auth missing',
-                error: 'Supabase OAuth token not found. Please reconnect your Supabase account.',
-              })
-              return
-            }
-            const sbToken = build.supabase_token
+            // TODO: full own-Supabase provisioning deferred to claim flow — too slow for build pipeline
+            // Creating a new Supabase project via Management API takes 2-4 minutes which exceeds
+            // Vercel's function timeout. For now, use Sovereign's Supabase with row-level isolation
+            // (same as the 'sovereign' path) and mark supabase_mode='sovereign_temporary' so the
+            // claim flow can migrate the user to their own project later.
+            console.log('[run-build] sbChoice=own — using sovereign_temporary path (own project creation deferred to claim flow)')
+            await step('Connecting your database…')
+            await updateBuild(supabaseUrl, serviceKey, buildId, { supabase_mode: 'sovereign_temporary' })
+            deploySupabaseUrl = process.env.SUPABASE_URL!
+            deployAnonKey     = process.env.VITE_SUPABASE_ANON_KEY ?? ''
 
-            // Get the user's first organisation
-            await step('Creating your Supabase project…')
-            const orgsRes = await fetchWithTimeout(
-              'https://api.supabase.com/v1/organizations',
-              { headers: { Authorization: `Bearer ${sbToken}` } },
-              NET,
-            )
-            const orgsBody = await orgsRes.text()
-            console.log('[run-build] GET /v1/organizations status:', orgsRes.status, '| body:', orgsBody)
-            let orgs: Array<{ id: string; name: string }>
-            try { orgs = JSON.parse(orgsBody) as Array<{ id: string; name: string }> } catch { orgs = [] }
-            const orgId = orgs[0]?.id
-            if (!orgId) {
-              await updateBuild(supabaseUrl, serviceKey, buildId, {
-                status: 'error', step: 'Database org not found',
-                error: 'No Supabase organisation found on this account.',
-              })
-              return
-            }
-
-            // Generate a secure random db password
-            const dbPass = Array.from(crypto.getRandomValues(new Uint8Array(20)))
-              .map(b => b.toString(16).padStart(2, '0')).join('')
-
-            const createRes = await fetchWithTimeout(
-              'https://api.supabase.com/v1/projects',
-              {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${sbToken}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  name: repoName,
-                  organization_id: orgId,
-                  region: 'us-east-1',
-                  plan: 'free',
-                  db_pass: dbPass,
-                }),
-              },
-              NET,
-            )
-            const newProject = await createRes.json() as { ref?: string; error?: string; message?: string }
-            if (!newProject.ref) {
-              const msg = newProject.message ?? newProject.error ?? 'unknown error'
-              await updateBuild(supabaseUrl, serviceKey, buildId, {
-                status: 'error', step: 'Supabase project creation failed', error: msg,
-              })
-              return
-            }
-            const sbRef = newProject.ref
-
-            // Poll until ACTIVE_HEALTHY (up to 4 min within the 250s budget)
-            await step('Waiting for database to be ready…')
-            const dbDeadline = Date.now() + 4 * 60 * 1000
-            let dbReady = false
-            while (Date.now() < dbDeadline) {
-              await sleep(5000)
-              const statusRes = await fetchWithTimeout(
-                `https://api.supabase.com/v1/projects/${sbRef}/status`,
-                { headers: { Authorization: `Bearer ${sbToken}` } },
-                NET,
-              )
-              const statusData = await statusRes.json() as { status?: string }
-              console.log('[run-build] supabase project status:', statusData.status)
-              if (statusData.status === 'ACTIVE_HEALTHY') { dbReady = true; break }
-            }
-            if (!dbReady) {
-              await updateBuild(supabaseUrl, serviceKey, buildId, {
-                status: 'error', step: 'Database setup timed out',
-                error: 'Supabase project did not become ready within 4 minutes.',
-              })
-              return
-            }
-
-            // Fetch API keys
-            const keysRes = await fetchWithTimeout(
-              `https://api.supabase.com/v1/projects/${sbRef}/api-keys`,
-              { headers: { Authorization: `Bearer ${sbToken}` } },
-              NET,
-            )
-            const keys = await keysRes.json() as Array<{ name: string; api_key: string }>
-            const anonKey = keys.find(k => k.name === 'anon public')?.api_key
-              ?? keys.find(k => k.name === 'anon')?.api_key
-            if (!anonKey) {
-              await updateBuild(supabaseUrl, serviceKey, buildId, {
-                status: 'error', step: 'Database keys missing',
-                error: 'Could not retrieve Supabase anon key.',
-              })
-              return
-            }
-            deploySupabaseUrl = `https://${sbRef}.supabase.co`
-            deployAnonKey     = anonKey
-
-            // Run schema SQL
             await step('Running your schema…')
             if (build.supabase_schema) {
-              await fetchWithTimeout(
-                `https://api.supabase.com/v1/projects/${sbRef}/database/query`,
-                {
-                  method: 'POST',
-                  headers: { Authorization: `Bearer ${sbToken}`, 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ query: build.supabase_schema }),
-                },
-                NET,
-              ).catch(err => console.warn('[run-build] schema exec non-fatal:', err))
+              const sovereignRef   = process.env.SOVEREIGN_SUPABASE_REF
+              const mgmtToken      = process.env.SOVEREIGN_SUPABASE_MANAGEMENT_TOKEN
+              if (sovereignRef && mgmtToken) {
+                await fetchWithTimeout(
+                  `https://api.supabase.com/v1/projects/${sovereignRef}/database/query`,
+                  {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${mgmtToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: build.supabase_schema }),
+                  },
+                  NET,
+                ).catch(err => console.warn('[run-build] own-temp schema exec non-fatal:', err))
+              }
             }
           } else {
             // Sovereign-hosted path — use Sovereign's own Supabase instance,

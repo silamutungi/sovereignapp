@@ -217,8 +217,11 @@ export default function Building() {
   const consecutiveErrorsRef   = useRef(0)
   const pollStartRef           = useRef(Date.now())
   const supabaseErrorHandledRef = useRef(false)
+  const pollIntervalMsRef      = useRef(4000)   // start at 4s, backs off on 429
   const MAX_POLL_MS            = 5 * 60 * 1000  // 5 minutes
   const MAX_CONSECUTIVE_ERRORS = 3
+  const BASE_POLL_MS           = 4000
+  const MAX_BACKOFF_MS         = 15000
 
   // Trigger run-build once — but only after the user has chosen their database.
   // dbChoice === null means the choice UI is still showing; we wait.
@@ -257,7 +260,7 @@ export default function Building() {
     }
   }, [searchParams, setSearchParams])
 
-  // Poll build status every 2 s
+  // Poll build status — starts at 4s, backs off to 15s on 429, resets on success
   useEffect(() => {
     if (!buildId) return
 
@@ -266,6 +269,11 @@ export default function Building() {
         clearInterval(pollIntervalRef.current)
         pollIntervalRef.current = null
       }
+    }
+
+    const restartInterval = () => {
+      stopPolling()
+      pollIntervalRef.current = setInterval(() => { void poll() }, pollIntervalMsRef.current)
     }
 
     const poll = async () => {
@@ -279,6 +287,13 @@ export default function Building() {
       try {
         const res = await fetch(`/api/build-status?id=${encodeURIComponent(buildId)}`)
 
+        if (res.status === 429) {
+          // Back off — double interval up to max
+          pollIntervalMsRef.current = Math.min(pollIntervalMsRef.current * 2, MAX_BACKOFF_MS)
+          restartInterval()
+          return
+        }
+
         if (!res.ok) {
           consecutiveErrorsRef.current++
           if (consecutiveErrorsRef.current >= MAX_CONSECUTIVE_ERRORS) {
@@ -288,6 +303,11 @@ export default function Building() {
           return
         }
 
+        // Reset backoff on any successful response
+        if (pollIntervalMsRef.current !== BASE_POLL_MS) {
+          pollIntervalMsRef.current = BASE_POLL_MS
+          restartInterval()
+        }
         consecutiveErrorsRef.current = 0  // reset on success
         const data = await res.json() as BuildStatus
         setStatus(data)
@@ -328,7 +348,7 @@ export default function Building() {
     }
 
     void poll() // immediate first fetch
-    pollIntervalRef.current = setInterval(() => { void poll() }, 2000)
+    pollIntervalRef.current = setInterval(() => { void poll() }, pollIntervalMsRef.current)
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
     }
