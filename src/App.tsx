@@ -191,6 +191,15 @@ interface AppFileEntry {
   content: string
 }
 
+interface AppBrief {
+  name: string
+  description: string
+  target_user: string
+  features: string[]
+  entities: string[]
+  tone: 'minimal' | 'bold' | 'playful' | 'professional' | 'warm'
+}
+
 interface AppSpec {
   appName: string
   tagline: string
@@ -280,7 +289,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
     return params.get('idea') ?? ''
   })
   const [phIdx, setPhIdx] = useState(0)
-  const [stage, setStage] = useState<'idle' | 'generating' | 'result' | 'confirm' | 'connect'>('idle')
+  const [stage, setStage] = useState<'idle' | 'generating' | 'result' | 'confirm' | 'connect' | 'briefConfirm'>('idle')
   const [spec, setSpec] = useState<AppSpec | null>(null)
   const [generateError, setGenerateError] = useState<string | null>(null)
   const [generatingMessage, setGeneratingMessage] = useState('Generating your app…')
@@ -289,6 +298,11 @@ function NdevPanel({ locale }: { locale: Locale }) {
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
   const [rateLimited, setRateLimited] = useState(false)
+  const [isExtracting, setIsExtracting] = useState(false)
+  const [brief, setBrief] = useState<AppBrief | null>(null)
+  const [resolvedIdea, setResolvedIdea] = useState('')
+  const [briefEditing, setBriefEditing] = useState(false)
+  const [briefEditText, setBriefEditText] = useState('')
   const emailInputRef = useRef<HTMLInputElement | null>(null)
   const ideaRef = useRef<HTMLTextAreaElement | null>(null)
 
@@ -311,14 +325,14 @@ function NdevPanel({ locale }: { locale: Locale }) {
     return () => clearInterval(id)
   }, [value])
 
-  const handleBuild = useCallback(async () => {
-    if (stage !== 'idle') return
+  const runGeneration = useCallback(async (ideaToUse: string) => {
+    setIsExtracting(false)
     setGenerateError(null)
     setGeneratingMessage('Generating your app…')
     setStage('generating')
     try {
       const result = await callGenerateAPI(
-        { idea: value.trim(), ...(email ? { email } : {}) },
+        { idea: ideaToUse, ...(email ? { email } : {}) },
         (msg) => setGeneratingMessage(msg),
       )
       if ('error' in result) {
@@ -338,7 +352,60 @@ function NdevPanel({ locale }: { locale: Locale }) {
       setGenerateError('Network error. Please try again.')
       setStage('idle')
     }
-  }, [stage, value, email])
+  }, [email])
+
+  const handleSubmitIdea = useCallback(async () => {
+    if (stage !== 'idle' || isExtracting) return
+    const trimmed = value.trim()
+
+    // Short ideas — skip extraction entirely, zero latency
+    if (trimmed.length < 200 && !trimmed.includes('\n')) {
+      setResolvedIdea(trimmed)
+      await runGeneration(trimmed)
+      return
+    }
+
+    // Long or multiline ideas — extract brief first
+    setIsExtracting(true)
+    try {
+      const res = await fetch('/api/extract-brief', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idea: trimmed }),
+      })
+      if (!res.ok) throw new Error('extraction failed')
+      const data = await res.json() as AppBrief & { skipped?: boolean; error?: string }
+      if (data.skipped || data.error) {
+        // Server-side skip or parse failure — fall back to raw idea silently
+        setResolvedIdea(trimmed)
+        await runGeneration(trimmed)
+      } else {
+        setBrief(data)
+        setBriefEditing(false)
+        setBriefEditText(`${data.name} — ${data.description}. Features: ${data.features.join(', ')}`)
+        setIsExtracting(false)
+        setStage('briefConfirm')
+      }
+    } catch {
+      // Network error — never block the user, fall back silently
+      setResolvedIdea(trimmed)
+      await runGeneration(trimmed)
+    }
+  }, [stage, isExtracting, value, runGeneration])
+
+  const handleBriefConfirm = useCallback(async () => {
+    if (!brief) return
+    const formatted = `${brief.name} — ${brief.description}. Features: ${brief.features.join(', ')}`
+    setResolvedIdea(formatted)
+    await runGeneration(formatted)
+  }, [brief, runGeneration])
+
+  const handleBriefEditConfirm = useCallback(async () => {
+    const trimmed = briefEditText.trim()
+    setResolvedIdea(trimmed)
+    setBriefEditing(false)
+    await runGeneration(trimmed)
+  }, [briefEditText, runGeneration])
 
   const handleEmailSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault()
@@ -387,7 +454,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
     setPreviewAttempt(nextAttempt)
     try {
       const result = await callGenerateAPI(
-        { idea: value.trim(), variationHint, attempt: nextAttempt, ...(email ? { email } : {}) },
+        { idea: resolvedIdea || value.trim(), variationHint, attempt: nextAttempt, ...(email ? { email } : {}) },
         () => { /* progress during regen — no visible indicator needed */ },
       )
       if ('error' in result) {
@@ -404,7 +471,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
       setPreviewAttempt(currentAttempt)
     }
     setIsRegenerating(false)
-  }, [isRegenerating, previewAttempt, allSpecs, value, email])
+  }, [isRegenerating, previewAttempt, allSpecs, resolvedIdea, value, email])
 
   const handlePrevPreview = useCallback(() => {
     if (currentSpecIdx <= 0) return
@@ -438,7 +505,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
         body: JSON.stringify({
           email,
           appName:          spec.appName,
-          idea:             value.trim(),
+          idea:             resolvedIdea || value.trim(),
           files:            spec.files,
           supabaseSchema:   spec.supabaseSchema,
           setupInstructions: spec.setupInstructions,
@@ -467,7 +534,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
       setStartError('Network error. Please try again.')
       setStarting(false)
     }
-  }, [email, spec, value, starting])
+  }, [email, spec, resolvedIdea, value, starting])
 
   return (
     <section className="ndev-panel" aria-label="No-code path">
@@ -502,13 +569,87 @@ function NdevPanel({ locale }: { locale: Locale }) {
             )}
             <button
               className="gobtn"
-              onClick={() => { void handleBuild() }}
-              disabled={!value.trim()}
-              aria-label={t(locale, 'ndev.btn')}
+              onClick={() => { void handleSubmitIdea() }}
+              disabled={!value.trim() || isExtracting}
+              style={{ opacity: isExtracting ? 0.7 : undefined }}
+              aria-label={isExtracting ? 'Reading your idea…' : t(locale, 'ndev.btn')}
             >
-              {t(locale, 'ndev.btn')}
+              {isExtracting ? 'Reading your idea…' : t(locale, 'ndev.btn')}
             </button>
+            {isExtracting && (
+              <p style={{ fontFamily: 'DM Mono, monospace', fontSize: '12px', color: '#6b6862', margin: '8px 0 0', textAlign: 'center' }} aria-live="polite">
+                Extracting your brief…
+              </p>
+            )}
           </>
+        )}
+
+        {stage === 'briefConfirm' && brief && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div>
+              <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '20px', fontWeight: 600, color: '#0e0d0b', margin: '0 0 16px', lineHeight: 1.3 }}>
+                Here's what we're building.
+              </p>
+              <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '26px', fontWeight: 700, color: '#8ab800', margin: '0 0 8px', lineHeight: 1.2 }}>
+                {brief.name}
+              </p>
+              <p style={{ fontFamily: 'DM Mono, monospace', fontSize: '13px', color: '#6b6862', margin: '0 0 20px', lineHeight: 1.6 }}>
+                {brief.description}
+              </p>
+              <ul style={{ listStyle: 'none', margin: '0 0 24px', padding: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {brief.features.map((f) => (
+                  <li key={f} style={{ fontFamily: 'DM Mono, monospace', fontSize: '12px', color: '#0e0d0b', display: 'flex', alignItems: 'flex-start', gap: '8px', lineHeight: 1.5 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#8ab800', flexShrink: 0, marginTop: '5px' }} aria-hidden="true" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {briefEditing ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <textarea
+                  value={briefEditText}
+                  onChange={(e) => setBriefEditText(e.target.value)}
+                  rows={5}
+                  style={{ fontFamily: 'DM Mono, monospace', fontSize: '12px', color: '#0e0d0b', background: '#f9f7f2', border: '1px solid #d8d4ca', borderRadius: '6px', padding: '12px', resize: 'vertical', lineHeight: 1.6 }}
+                  aria-label="Edit your brief"
+                />
+                <button
+                  onClick={() => { void handleBriefEditConfirm() }}
+                  disabled={!briefEditText.trim()}
+                  style={{ width: '100%', padding: '14px', background: '#8ab800', color: '#0e0d0b', border: 'none', cursor: briefEditText.trim() ? 'pointer' : 'default', fontFamily: 'DM Mono, monospace', fontSize: '13px', fontWeight: 500, borderRadius: '6px', opacity: briefEditText.trim() ? 1 : 0.6 }}
+                  type="button"
+                >
+                  Build with edited brief →
+                </button>
+                <button
+                  onClick={() => setBriefEditing(false)}
+                  style={{ width: '100%', padding: '12px', background: 'transparent', border: '1px solid #d8d4ca', color: '#6b6862', cursor: 'pointer', fontFamily: 'DM Mono, monospace', fontSize: '12px', borderRadius: '6px' }}
+                  type="button"
+                >
+                  ← Back
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <button
+                  onClick={() => { void handleBriefConfirm() }}
+                  style={{ width: '100%', padding: '14px', background: '#8ab800', color: '#0e0d0b', border: 'none', cursor: 'pointer', fontFamily: 'DM Mono, monospace', fontSize: '13px', fontWeight: 500, borderRadius: '6px' }}
+                  type="button"
+                >
+                  Looks good, build it →
+                </button>
+                <button
+                  onClick={() => setBriefEditing(true)}
+                  style={{ width: '100%', padding: '12px', background: 'transparent', border: '1px solid #d8d4ca', color: '#0e0d0b', cursor: 'pointer', fontFamily: 'DM Mono, monospace', fontSize: '12px', borderRadius: '6px' }}
+                  type="button"
+                >
+                  Edit brief →
+                </button>
+              </div>
+            )}
+          </div>
         )}
 
         {stage === 'generating' && (

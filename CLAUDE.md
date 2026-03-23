@@ -582,6 +582,18 @@ Rate limit: 60/hr per IP. idea truncated to 5000 chars before API call.
 Called before OAuth begins — after idea submit, before GitHub/Vercel OAuth steps.
 Learned: 2026-03-23.
 
+## Brief extraction frontend flow
+- extract-brief called for ideas 200+ chars or multiline (handleSubmitIdea in NdevPanel)
+- Short ideas skip extraction entirely — zero latency, set resolvedIdea = value.trim() and proceed
+- Brief confirmation screen (stage='briefConfirm') shown before generation for long inputs
+- Confirmation screen: Playfair Display heading, acid green (#8ab800) app name, DM Mono features list with green dots
+- Two paths from confirmation: "Looks good, build it →" OR "Edit brief →" (editable textarea)
+- resolvedIdea is the canonical idea string passed to the build pipeline (runGeneration, handleRegenerate, handleGitHubConnect)
+- Extraction failure (network error or parse fail) always falls back to raw idea — never blocks the user
+- isExtracting boolean drives button loading state: "Reading your idea…", disabled, opacity 0.7, "Extracting your brief…" status line below
+- runGeneration(ideaToUse) is the internal function that calls callGenerateAPI — all entry points converge on this
+Decided: 2026-03-23.
+
 ## Supabase Schema — SQL Run in Production
 
 All statements below must be run in the Supabase SQL Editor.
