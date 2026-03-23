@@ -177,7 +177,7 @@ Already exists: `api/lessons.ts`. Correct implementation — queries lessons WHE
 Standard 15 (Resilience & Recovery) is already present in `api/_systemPrompt.ts` (line 351). All 14+ standards are present. All required expert names (Don Norman, Steve Krug, Rosenfeld, Jeff Patton, Marty Cagan, Sondra Orozco, David Allen, Seth Godin, Gary Vee, Neil Patel, WCAG, OWASP, NNGroup, iOS HIG) are referenced.
 
 **Priority 8 — Prompt caching**
-`api/generate.ts` uses `system: SYSTEM_PROMPT` as a plain string. Adding `cache_control` requires changing the `system` param to an array format. The Anthropic SDK types may not include `cache_control` in the local version. This is a low-risk performance optimization — deferred to avoid breaking the working generation flow. The prompt is ~6000 chars and cached automatically by Anthropic's infrastructure on repeated identical calls anyway.
+Completed. `api/generate.ts` now uses `system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }]`. SDK 0.78 types supported this natively — no TypeScript workaround needed. Build passes clean. Reduces input token costs ~90% on repeated generation calls since the ~6000-token system prompt is cached by Anthropic for ~5 minutes.
 
 ---
 

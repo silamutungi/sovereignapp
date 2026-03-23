@@ -686,6 +686,31 @@ CREATE INDEX IF NOT EXISTS magic_links_email_idx ON magic_links(email);
 - Test sovereign path first — it works without OAuth app credentials
 - Test own path second — requires SUPABASE_OAUTH_CLIENT_ID and SUPABASE_OAUTH_CLIENT_SECRET in Vercel env vars
 
+**Anthropic SDK 0.78 supports prompt caching natively — no @ts-expect-error needed**
+Wrong assumption: cache_control on the system prompt required beta types or a TypeScript workaround.
+Correct behaviour: SDK 0.78 types `system` as `string | Array<TextBlockParam>` and `TextBlockParam` includes `cache_control?: CacheControlEphemeral`. The array format compiles cleanly with no type errors.
+Fix: `system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }]` — direct, no cast needed.
+Learned: 2026-03-23.
+
+**PRODUCT.md is required — it is the product memory equivalent of CLAUDE.md**
+Wrong assumption: keeping all context in CLAUDE.md was sufficient for product decision-making.
+Correct behaviour: CLAUDE.md is engineering memory (lessons, bugs, decisions); PRODUCT.md is product memory (feature status, architecture, manual steps, morning handoff).
+Fix: PRODUCT.md created and must be updated at the end of every session alongside CLAUDE.md. Both files together are the full continuity layer.
+Learned: 2026-03-23.
+
+**Cron endpoints need CRON_SECRET header — Vercel cron does not add auth automatically**
+Wrong assumption: Vercel cron handles authentication automatically for cron-triggered endpoints.
+Correct behaviour: Vercel cron calls the endpoint as a plain GET request with no auth. Any caller can hit the endpoint unless you add your own secret header check.
+Fix: check `req.headers['x-cron-secret'] === process.env.CRON_SECRET` before any logic. Add CRON_SECRET to Vercel env vars (generate with `openssl rand -hex 32`). The endpoint returns 401 if the header is missing or wrong.
+Learned: 2026-03-23.
+
+**Day-5 warning query window is a 24-hour band, not a point in time**
+Wrong assumption: querying "created_at between 5 and 6 days ago" is too narrow — a cron that misses a day would skip those users entirely.
+Correct behaviour: the 5-6 day window is correct for a daily cron because the cron runs every 24 hours. Each build can only fall in that window once. If the cron fails one day, builds shift to the day-7 expiry path without a warning — acceptable for v1.
+Fix: no code change. Document this limitation: if reliability is required in production, add a `warning_sent_at` column to builds and query `warning_sent_at IS NULL` instead of relying on a time window.
+Rule: document timing assumptions in cron endpoints.
+Learned: 2026-03-23.
+
 ## Lessons Knowledge Base
 - Every build failure (caught by the outer provisionErr catch in run-build.ts) is automatically inserted into the lessons table via recordFailureLesson()
 - Lesson category is inferred from error message: 'generation' (typescript/files), 'oauth' (token/auth), 'database' (schema/table/supabase org), 'env_vars' (not configured), 'deployment' (vercel/github/deploy)
