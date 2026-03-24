@@ -134,6 +134,21 @@ const ENV_VARS: Record<string, EnvVar[]> = {
     },
   ],
 
+  'Sovereign Staging Vercel': [
+    {
+      name: 'SOVEREIGN_VERCEL_TEAM_ID',
+      files: ['api/run-build.ts'],
+      failMode: 'hard' as const,
+      purpose: "Sovereign's staging Vercel team ID — all generated apps deploy here",
+    },
+    {
+      name: 'SOVEREIGN_VERCEL_TOKEN',
+      files: ['api/run-build.ts'],
+      failMode: 'hard' as const,
+      purpose: 'Token scoped to sovereign staging team — used for all Vercel API calls during builds',
+    },
+  ],
+
   'Sovereign Infrastructure': [
     {
       name: 'SOVEREIGN_SUPABASE_REF',

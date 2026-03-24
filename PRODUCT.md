@@ -52,9 +52,37 @@ User types idea
   → /api/auth/github/callback → captures token → redirect to Vercel OAuth
   → /api/auth/vercel/callback → captures token → redirect to Supabase OAuth (optional)
   → /api/auth/supabase/callback → stores token → redirect to /building
-  → /api/run-build → GitHub repo → Vercel project → Supabase provisioning → file push → poll READY
+  → /api/run-build → GitHub repo → Vercel project (sovereign staging team) → Supabase → file push → poll READY
   → Deploy URL live → welcome email → /dashboard
 ```
+
+---
+
+## Staging Architecture (as of 2026-03-23)
+
+### Vercel — Sovereign staging team
+All generated apps deploy to **Sovereign's own Vercel team**, not the user's account.
+
+| What | Where |
+|------|-------|
+| GitHub repos | User's own GitHub account (via `github_token`) |
+| Vercel projects | Sovereign's staging Vercel team (via `SOVEREIGN_VERCEL_TOKEN`) |
+| Supabase DB | Sovereign's Supabase instance (sovereign or sovereign_temporary mode) |
+
+**Why:** Creating a Vercel project in the user's account during the build pipeline is unreliable — the user's OAuth token may have insufficient scope or the API call fails in ways we can't control. Sovereign's token always works.
+
+**Claim flow (future):** When a user claims their app, Sovereign transfers the Vercel project to their account using their stored `vercel_token`. This is the correct moment to use their OAuth token.
+
+### Token lifecycle
+| Token | Captured | Used during build | Used during claim |
+|-------|----------|-------------------|-------------------|
+| `github_token` | GitHub OAuth | ✅ Creates repo, pushes files | — |
+| `vercel_token` | Vercel OAuth | ❌ Not used | ✅ Transfer ownership |
+| `supabase_token` | Supabase OAuth | ❌ Not used (deferred) | ✅ Migrate DB |
+
+### Required env vars
+- `SOVEREIGN_VERCEL_TOKEN` — hard fail if missing, all staging deploys broken
+- `SOVEREIGN_VERCEL_TEAM_ID` — hard fail if missing, team-scoped API calls fail
 
 ---
 

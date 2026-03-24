@@ -66,6 +66,17 @@ Last updated: 2026-03-23
 
 ---
 
+## Sovereign Staging Vercel Team (generated apps deploy here)
+
+| Var | Purpose | Where to get it | Fail mode |
+|-----|---------|-----------------|-----------|
+| `SOVEREIGN_VERCEL_TEAM_ID` | Sovereign's staging Vercel team ID (team_*) — all generated apps deploy here | Vercel dashboard → Team Settings → General → Team ID | **Hard fail** — staging builds cannot deploy |
+| `SOVEREIGN_VERCEL_TOKEN` | Token scoped to sovereign staging team — used for all Vercel API calls during builds | [vercel.com/account/tokens](https://vercel.com/account/tokens) → Create token scoped to staging team | **Hard fail** — staging builds cannot deploy |
+
+> **Architecture:** Generated apps deploy to Sovereign's staging team, NOT the user's Vercel account. The user's `vercel_token` is preserved on the build record for future use in the claim flow (ownership transfer).
+
+---
+
 ## Sovereign Infrastructure (sovereign-hosted DB provisioning)
 
 | Var | Purpose | Where to get it | Fail mode |

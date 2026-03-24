@@ -415,7 +415,6 @@ async function vercelFetch(
 // happens in step 3 (pushFilesToGitHub), after this project is created.
 
 async function createVercelProject(
-  token: string,
   repoName: string,
   githubRepoUrl: string,
 ): Promise<{ ok: true; projectId: string; teamId: string | undefined } | { ok: false; error: string }> {
@@ -423,17 +422,12 @@ async function createVercelProject(
   if (!match) return { ok: false, error: `Invalid GitHub repo URL: ${githubRepoUrl}` }
   const [, githubOrg, githubRepo] = match
 
-  // ── Resolve teamId ────────────────────────────────────────────────────────
-  // Integration OAuth tokens for team accounts require ?teamId=<id> on every
-  // API call, otherwise /v9/projects returns 403.
-  console.log('[run-build] Vercel: fetching user info to resolve teamId')
-  const { ok: userOk, data: vcUser } = await vercelFetch('/v2/user', token)
-  if (!userOk) {
-    console.warn('[run-build] Vercel: /v2/user failed, proceeding without teamId:', JSON.stringify(vcUser))
-  }
-  const teamId = (vcUser?.user as Record<string, unknown> | undefined)?.defaultTeamId as string | undefined
+  // Staging builds deploy to Sovereign's own Vercel team, not the user's account.
+  // The user's vercel_token is only used during the claim flow (transfer).
+  const token  = process.env.SOVEREIGN_VERCEL_TOKEN!
+  const teamId = process.env.SOVEREIGN_VERCEL_TEAM_ID
   const teamQ  = teamId ? `?teamId=${encodeURIComponent(teamId)}` : ''
-  console.log('[run-build] Vercel: defaultTeamId:', teamId ?? 'none (personal account)')
+  console.log('[run-build] Vercel: creating project on sovereign staging team, teamId:', teamId ?? 'none')
 
   // ── Create project ────────────────────────────────────────────────────────
   console.log('[run-build] Vercel: creating project', repoName, 'endpoint: /v9/projects' + teamQ)
@@ -474,12 +468,12 @@ interface VercelDeployment {
 // Fetch the last few error lines from a deployment's build log.
 // Uses a short timeout so a log API failure never blocks the main path.
 async function fetchDeploymentError(
-  token: string,
   deploymentId: string,
   teamId: string | undefined,
 ): Promise<string> {
   try {
-    const teamParam = teamId ? `?teamId=${encodeURIComponent(teamId)}` : ''
+    const token      = process.env.SOVEREIGN_VERCEL_TOKEN!
+    const teamParam  = teamId ? `?teamId=${encodeURIComponent(teamId)}` : ''
     const res = await fetchWithTimeout(
       `https://api.vercel.com/v2/deployments/${deploymentId}/events${teamParam}`,
       { headers: { Authorization: `Bearer ${token}` } },
@@ -506,12 +500,12 @@ async function fetchDeploymentError(
 }
 
 async function waitForVercelDeployment(
-  token: string,
   projectId: string,
   teamId: string | undefined,
   fallbackUrl: string,
   maxMs: number,
 ): Promise<{ ok: true; deployUrl: string } | { ok: false; error: string }> {
+  const token     = process.env.SOVEREIGN_VERCEL_TOKEN!
   const teamParam = teamId ? `&teamId=${encodeURIComponent(teamId)}` : ''
   const pollPath  = `/v6/deployments?projectId=${encodeURIComponent(projectId)}&limit=1${teamParam}`
 
@@ -551,7 +545,7 @@ async function waitForVercelDeployment(
     if (d.state === 'ERROR' || d.state === 'CANCELED') {
       let errorMsg = `Vercel deployment ended with state: ${d.state}`
       if (d.uid) {
-        const logs = await fetchDeploymentError(token, d.uid, teamId)
+        const logs = await fetchDeploymentError(d.uid, teamId)
         if (logs) errorMsg = `Build failed:\n${logs}`
       }
       return { ok: false, error: errorMsg }
@@ -651,10 +645,10 @@ function buildLaunchEmailHtml(appName: string, liveUrl: string, repoUrl: string)
 // access to VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY during compilation.
 async function injectVercelEnvVars(
   projectId: string,
-  vercelToken: string,
   teamId: string | undefined,
   vars: Array<{ key: string; value: string }>,
 ): Promise<void> {
+  const token = process.env.SOVEREIGN_VERCEL_TOKEN!
   const teamQ = teamId ? `?teamId=${encodeURIComponent(teamId)}` : ''
   const payload = vars.map(({ key, value }) => ({
     key,
@@ -667,7 +661,7 @@ async function injectVercelEnvVars(
     {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${vercelToken}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
@@ -817,9 +811,16 @@ export default async function handler(req: any, res: any): Promise<void> {
       await updateBuild(supabaseUrl, serviceKey, buildId, { status: 'queued', error: null, step: null })
     }
 
-    if (!build.github_token || !build.vercel_token) {
-      console.log('[run-build] missing tokens — github_token:', build.github_token ? 'SET' : 'NULL', 'vercel_token:', build.vercel_token ? 'SET' : 'NULL')
-      res.status(400).json({ error: 'Build is missing OAuth tokens — complete both OAuth steps first' })
+    // Staging builds use SOVEREIGN_VERCEL_TOKEN — only github_token is required from the user.
+    // vercel_token is preserved on the build record for future use in the claim flow (transfer).
+    if (!build.github_token) {
+      console.log('[run-build] missing github_token — vercel_token:', build.vercel_token ? 'SET' : 'NULL')
+      res.status(400).json({ error: 'Build is missing GitHub OAuth token — complete the GitHub OAuth step first' })
+      return
+    }
+    if (!process.env.SOVEREIGN_VERCEL_TOKEN) {
+      console.error('[run-build] SOVEREIGN_VERCEL_TOKEN not set — cannot deploy staging app')
+      res.status(500).json({ error: 'Sovereign Vercel token not configured' })
       return
     }
 
@@ -883,7 +884,7 @@ export default async function handler(req: any, res: any): Promise<void> {
           // Creating the project establishes the GitHub link so that the
           // push in step 3 triggers an automatic deployment.
           await step('Connecting Vercel to your repo…')
-          const vcResult = await createVercelProject(build.vercel_token, repoName, ghResult.repoUrl)
+          const vcResult = await createVercelProject(repoName, ghResult.repoUrl)
           if (!vcResult.ok) {
             await deleteGitHubRepo(build.github_token, ghResult.owner, repoName)
             await updateBuild(supabaseUrl, serviceKey, buildId, {
@@ -958,7 +959,7 @@ export default async function handler(req: any, res: any): Promise<void> {
 
           // Inject Supabase env vars into Vercel project before file push so
           // they're available during the Vite build that Vercel triggers
-          await injectVercelEnvVars(vcResult.projectId, build.vercel_token, vcResult.teamId, [
+          await injectVercelEnvVars(vcResult.projectId, vcResult.teamId, [
             { key: 'VITE_SUPABASE_URL',  value: deploySupabaseUrl },
             { key: 'VITE_SUPABASE_ANON_KEY', value: deployAnonKey },
             { key: 'SUPABASE_URL',        value: deploySupabaseUrl },
@@ -1007,7 +1008,7 @@ export default async function handler(req: any, res: any): Promise<void> {
           const fallbackUrl = `https://${repoName}.vercel.app`
           const pollBudgetMs = 32_000 // 32s of polling within the overall 50s budget
           const deployResult = await waitForVercelDeployment(
-            build.vercel_token, vcResult.projectId, vcResult.teamId,
+            vcResult.projectId, vcResult.teamId,
             fallbackUrl, pollBudgetMs,
           )
 

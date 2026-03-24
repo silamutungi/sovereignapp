@@ -730,6 +730,12 @@ Fix: no code change. Document this limitation: if reliability is required in pro
 Rule: document timing assumptions in cron endpoints.
 Learned: 2026-03-23.
 
+**Staging builds deploy to Sovereign's Vercel team, not the user's account**
+Context: previously run-build.ts used the user's vercel_token for all Vercel API calls. This is wrong — the user's token should only be used for the claim flow (ownership transfer) when they're ready to move the app to their own account.
+Decision: all staging builds use SOVEREIGN_VERCEL_TOKEN and SOVEREIGN_VERCEL_TEAM_ID. The user's vercel_token is captured during Vercel OAuth and stored on the build record, but never used during the build pipeline.
+Rule: createVercelProject, injectVercelEnvVars, waitForVercelDeployment, and fetchDeploymentError all read process.env.SOVEREIGN_VERCEL_TOKEN internally — they no longer accept a token parameter. SOVEREIGN_VERCEL_TOKEN is a hard-fail env var; builds will 500 if it is missing.
+Decided: 2026-03-23.
+
 ## Lessons Knowledge Base
 - Every build failure (caught by the outer provisionErr catch in run-build.ts) is automatically inserted into the lessons table via recordFailureLesson()
 - Lesson category is inferred from error message: 'generation' (typescript/files), 'oauth' (token/auth), 'database' (schema/table/supabase org), 'env_vars' (not configured), 'deployment' (vercel/github/deploy)
