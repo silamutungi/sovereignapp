@@ -744,6 +744,44 @@ Decision: all staging builds use SOVEREIGN_VERCEL_TOKEN and SOVEREIGN_VERCEL_TEA
 Rule: createVercelProject, injectVercelEnvVars, waitForVercelDeployment, and fetchDeploymentError all read process.env.SOVEREIGN_VERCEL_TOKEN internally — they no longer accept a token parameter. SOVEREIGN_VERCEL_TOKEN is a hard-fail env var; builds will 500 if it is missing.
 Decided: 2026-03-23.
 
+## The Jony Ive Bar — Design Standard
+
+Every generated app must feel like Apple hired Jony Ive as creative director and a senior engineering team to ship it. "Award-winning design. Expert implementation. World-class defaults. Out of the box."
+
+This is not a landing page generator. Founders receiving Sovereign-generated apps should be able to share them proudly the same day.
+
+**Pre-ship quality gate (mandatory):**
+- npm run build exits 0 ✓
+- No console errors on page load ✓
+- Every page works at 375px mobile ✓
+- Loading states on every async operation ✓
+- Error states with recovery actions on every async operation ✓
+- Empty states with helpful copy and a primary action ✓
+- Key elements fade+translateY in on entrance (200ms) ✓
+- Delight moments: confetti on success actions ✓
+- WCAG AA contrast on every element ✓
+- No lorem ipsum — not even in development ✓
+
+**The full quality gate and design rules are in RULES.md.**
+**All major decisions with full context are in DECISIONS.md.**
+
+Learned: 2026-03-23.
+
+**IntersectionObserver for scroll animations — useInView hook pattern**
+Wrong assumption: CSS-only animations (animate-fade-up on initial render) are sufficient for entrance animations.
+Correct behaviour: Elements below the fold should only animate when they scroll into view, not on page load. IntersectionObserver fires once, disconnects immediately to avoid performance issues.
+Fix: `useInView` hook using `useRef<HTMLDivElement>(null)` + IntersectionObserver. Returns `{ ref, visible }`. Apply inline style transitions rather than CSS class animation to control timing precisely. Type the ref as `RefObject<HTMLDivElement>` (named import from 'react') not `React.RefObject<HTMLDivElement>` (namespace would require React to be in scope).
+Learned: 2026-03-23.
+
+**Confetti component — CSS keyframe + CSS custom properties pattern**
+The confetti animation uses `--drift` CSS custom property in the keyframe to vary the horizontal drift per piece. This requires the keyframe to reference `var(--drift, 40px)` and each piece to set `style={{ '--drift': '${n}px' } as CSSProperties}`. The confetti auto-dismisses via `setTimeout(() => setVisible(false), 4000)`. Only fires when RSVP status is 'yes' — not for maybe or no.
+Learned: 2026-03-23.
+
+**Git SSH over HTTPS for Sovereign-generated repos**
+When cloning generated repos via `git clone https://github.com/...` for local editing, the HTTPS remote cannot push (no token cached). Switch to SSH before pushing: `git remote set-url origin git@github.com:user/repo.git`. The user's SSH key at `~/.ssh/id_ed25519` is configured for `silamutungi` and works for all repos they own.
+Rule: always switch generated repo remotes to SSH before attempting a push from the local environment.
+Learned: 2026-03-23.
+
 ## Lessons Knowledge Base
 - Every build failure (caught by the outer provisionErr catch in run-build.ts) is automatically inserted into the lessons table via recordFailureLesson()
 - Lesson category is inferred from error message: 'generation' (typescript/files), 'oauth' (token/auth), 'database' (schema/table/supabase org), 'env_vars' (not configured), 'deployment' (vercel/github/deploy)
