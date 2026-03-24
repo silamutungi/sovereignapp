@@ -1,0 +1,75 @@
+{
+  "industry": "ecommerce",
+  "key_metrics": [
+    "Conversion Rate",
+    "Cart Abandonment Rate",
+    "Average Order Value (AOV)",
+    "Customer Lifetime Value (LTV)",
+    "Return Rate",
+    "Revenue per Visitor (RPV)",
+    "Cost per Acquisition (CPA)",
+    "Repeat Purchase Rate",
+    "Net Promoter Score (NPS)"
+  ],
+  "benchmarks": {
+    "conversion_rate": "1–3% is average; > 4% is strong for direct-to-consumer",
+    "cart_abandonment_rate": "Industry average is ~70% — target < 60% with recovery flows",
+    "aov": "Varies by category; benchmark against your own cohorts quarter-over-quarter",
+    "repeat_purchase_rate_90d": "> 25%",
+    "return_rate": "< 15% for apparel, < 5% for electronics",
+    "email_cart_recovery_rate": "10–15% of abandoned carts recovered via email sequence"
+  },
+  "best_practices": [
+    "Optimize the checkout funnel — every additional step reduces conversion ~10%",
+    "Implement cart abandonment email sequence: 1h, 24h, 72h",
+    "Show trust signals at checkout (security badges, return policy, reviews)",
+    "Offer guest checkout — requiring account creation kills ~35% of conversions",
+    "Use product recommendations (frequently bought together, recently viewed)",
+    "Display inventory scarcity truthfully ('Only 3 left') to reduce abandonment",
+    "Mobile checkout must be one-thumb operable — Apple Pay / Google Pay reduce friction",
+    "Post-purchase email sequence: confirmation → shipping → delivery → review request"
+  ],
+  "common_risks": [
+    "Inventory management failures causing overselling or stockouts",
+    "Payment fraud — especially on new or high-AOV products",
+    "Return fraud — wardrobing, empty box returns, receipt fraud",
+    "Shipping partner failures damaging brand reputation",
+    "Counterfeit reviews inflating or deflating product scores",
+    "GDPR/CCPA exposure from marketing pixel retargeting without consent",
+    "Supply chain concentration risk — single manufacturer or supplier"
+  ],
+  "growth_patterns": [
+    "SEO on product pages — long-tail product searches have high purchase intent",
+    "Paid social (Meta, TikTok) for new customer acquisition",
+    "Email/SMS marketing for repeat purchase retention",
+    "Subscription or replenishment model for consumables (reduces CAC on repeat orders)",
+    "Influencer and UGC (user-generated content) for social proof",
+    "Bundle and upsell at checkout to increase AOV",
+    "Referral program — 'Give $10, get $10' for word-of-mouth growth"
+  ],
+  "conversion_optimization": {
+    "product_page": [
+      "Multiple high-quality images (3+ angles, zoom enabled)",
+      "Size guide or fit predictor to reduce returns",
+      "Reviews with photos visible above the fold",
+      "Clear return and shipping policy",
+      "Prominent Add to Cart button with inventory level"
+    ],
+    "checkout": [
+      "Progress indicator showing steps remaining",
+      "Address auto-complete to reduce form friction",
+      "Multiple payment methods (card, Apple Pay, Google Pay, PayPal)",
+      "Order summary visible throughout checkout",
+      "No surprise fees — show all costs before final confirmation"
+    ]
+  },
+  "recommended_integrations": [
+    "Stripe — payment processing, fraud protection, subscriptions",
+    "Shopify — if building on top of an existing store platform",
+    "Algolia — product search with typo tolerance and filters",
+    "Klaviyo — email and SMS marketing automation for DTC ecommerce",
+    "Cloudinary — product image processing, CDN, and transformation",
+    "Postmark / Resend — transactional emails (order confirmation, shipping updates)",
+    "Loop Returns — returns and exchanges management"
+  ]
+}

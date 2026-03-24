@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, type KeyboardEvent, type FormEvent, type RefObject } from 'react'
 import { t, type Locale } from './lib/i18n'
 import { joinWaitlist } from './lib/supabase'
 import './styles/global.css'
@@ -119,7 +119,7 @@ function DevPanel({ locale }: { locale: Locale }) {
     })
   }, [])
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') handleCopy()
   }, [handleCopy])
 
@@ -245,7 +245,6 @@ async function callGenerateAPI(
       if (buffer.trim()) {
         console.warn('[generate] SSE stream closed with unprocessed buffer (' + buffer.length + ' chars):', buffer.slice(0, 300))
       }
-      console.log('[generate] SSE stream closed. total_bytes:', totalBytes, 'buffer_remaining:', buffer.length)
       break
     }
     totalBytes += value?.length ?? 0
@@ -268,7 +267,6 @@ async function callGenerateAPI(
         if (event.type === 'progress' && event.message) {
           onProgress(event.message)
         } else if (event.type === 'done' && event.spec) {
-          console.log('[generate] Received done event, files:', event.spec.files?.length)
           return { spec: event.spec }
         } else if (event.type === 'error') {
           console.error('[generate] Received error event:', event.error)
@@ -341,7 +339,6 @@ function NdevPanel({ locale }: { locale: Locale }) {
         return
       }
       const data = result.spec
-      console.log('[generate] files count:', data.files?.length ?? 0)
       setSpec(data)
       setAllSpecs([data])
       setCurrentSpecIdx(0)
@@ -407,7 +404,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
     await runGeneration(trimmed)
   }, [briefEditText, runGeneration])
 
-  const handleEmailSubmit = useCallback((e: React.FormEvent) => {
+  const handleEmailSubmit = useCallback((e: FormEvent) => {
     e.preventDefault()
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email.trim())) {
@@ -959,7 +956,7 @@ function Stats({ locale }: { locale: Locale }) {
 
   return (
     <section
-      ref={ref as React.RefObject<HTMLElement>}
+      ref={ref as RefObject<HTMLElement>}
       className={`stats${inView ? ' in' : ''}`}
       aria-label="Key statistics"
     >
@@ -994,7 +991,7 @@ function Pricing({ locale }: { locale: Locale }) {
   return (
     <section
       id="pricing"
-      ref={ref as React.RefObject<HTMLElement>}
+      ref={ref as RefObject<HTMLElement>}
       className={`pricing reveal${inView ? ' in' : ''}`}
       aria-labelledby="pricing-heading"
     >
@@ -1072,7 +1069,7 @@ function Waitlist({ locale }: { locale: Locale }) {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: FormEvent) => {
     e.preventDefault()
     if (!email.includes('@')) {
       setError(t(locale, 'wl.err'))
@@ -1111,7 +1108,7 @@ function Waitlist({ locale }: { locale: Locale }) {
   return (
     <section
       id="waitlist"
-      ref={ref as React.RefObject<HTMLElement>}
+      ref={ref as RefObject<HTMLElement>}
       className={`wl reveal${inView ? ' in' : ''}`}
       aria-labelledby="waitlist-heading"
     >

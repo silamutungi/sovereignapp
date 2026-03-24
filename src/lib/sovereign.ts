@@ -44,6 +44,7 @@ export interface SovereignResult {
 // ─── runSovereign ─────────────────────────────────────────────────────────────
 
 export async function runSovereign(params: SovereignParams): Promise<SovereignResult> {
+  try {
   const {
     projectName,
     template,
@@ -99,5 +100,15 @@ export async function runSovereign(params: SovereignParams): Promise<SovereignRe
     vercel,
     supabase,
     email: emailResult,
+  }
+  } catch (err) {
+    const blank = (): SovereignResult => ({
+      success: false,
+      github:   { repoUrl: '', cloneUrl: '', success: false },
+      vercel:   { deployUrl: '', projectUrl: '', success: false },
+      supabase: { supabaseUrl: '', anonKey: '', success: false },
+      email:    { success: false },
+    })
+    return { ...blank(), error: err instanceof Error ? err.message : 'Provisioning failed' }
   }
 }

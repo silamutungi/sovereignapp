@@ -1,0 +1,52 @@
+{
+  "security": {
+    "weight": 0.20,
+    "minimum": 85,
+    "description": "Security practices: RLS on all tables, rate limiting on all routes, no secrets in code, CSP headers, input validation"
+  },
+  "code_quality": {
+    "weight": 0.15,
+    "minimum": 75,
+    "description": "TypeScript coverage, error handling, pattern consistency, no dead code, no antipatterns"
+  },
+  "performance": {
+    "weight": 0.12,
+    "minimum": 80,
+    "description": "Build size, runtime performance, lazy loading, caching headers, no N+1 queries"
+  },
+  "accessibility": {
+    "weight": 0.12,
+    "minimum": 80,
+    "description": "WCAG AA compliance (4.5:1 contrast), semantic HTML, keyboard navigation, focus states"
+  },
+  "ux": {
+    "weight": 0.10,
+    "minimum": 75,
+    "description": "Loading states, error states, empty states, error boundaries, no lorem ipsum, transitions"
+  },
+  "architecture": {
+    "weight": 0.10,
+    "minimum": 75,
+    "description": "Separation of concerns, correct file structure, no circular imports, env vars via import.meta.env"
+  },
+  "test_coverage": {
+    "weight": 0.08,
+    "minimum": 60,
+    "description": "Unit tests, integration tests, E2E tests, coverage configuration"
+  },
+  "seo": {
+    "weight": 0.05,
+    "minimum": 70,
+    "description": "Title tag, meta description, OpenGraph tags, canonical URL, semantic HTML"
+  },
+  "documentation": {
+    "weight": 0.05,
+    "minimum": 70,
+    "description": "README, CLAUDE.md, API docs, inline comments, .env.example"
+  },
+  "i18n": {
+    "weight": 0.03,
+    "minimum": 60,
+    "description": "No hardcoded locale formats, i18n library or pattern, no English-only assumptions"
+  }
+}

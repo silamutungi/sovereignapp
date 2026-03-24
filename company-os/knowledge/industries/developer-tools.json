@@ -1,0 +1,80 @@
+{
+  "industry": "developer-tools",
+  "key_metrics": [
+    "GitHub Stars",
+    "npm Downloads (weekly/monthly)",
+    "Time to Value (minutes from install to working)",
+    "Documentation Quality Score",
+    "Active Contributors",
+    "Issue Resolution Time (median)",
+    "Developer NPS",
+    "Paid Conversion Rate (OSS to commercial)",
+    "Integration Count (ecosystem breadth)"
+  ],
+  "benchmarks": {
+    "time_to_value_minutes": "< 5 for CLI tools, < 15 for SDKs, < 30 for full platforms",
+    "documentation_coverage": "> 90% of public APIs documented with examples",
+    "issue_response_time_hours": "< 48 hours for issues from active maintainers",
+    "github_stars_growth": "100+ stars in first month = strong signal",
+    "npm_weekly_downloads_for_serious_adoption": "> 10,000",
+    "paid_conversion_oss": "1–5% of OSS users convert to paid is healthy"
+  },
+  "best_practices": [
+    "README must have a working code example in the first 20 lines",
+    "Zero-config default — the tool should work before the user reads any documentation",
+    "Semantic versioning strictly enforced — breaking changes only in major versions",
+    "Changelog maintained per version (CHANGELOG.md or GitHub releases)",
+    "TypeScript types shipped with the package — no separate @types/ package for new tools",
+    "CLI tools should print --help with examples by default",
+    "Local dev setup must work in < 5 minutes with a single command",
+    "Error messages must include the fix, not just the problem",
+    "Never break backward compatibility in a minor release"
+  ],
+  "common_risks": [
+    "Dependency hell — transitive dependency conflicts block adoption",
+    "Security vulnerabilities in dependencies — npm audit failures block enterprise adoption",
+    "Abandoned maintenance — a single unmaintained package blocks upgrade paths",
+    "Breaking changes without migration guides cause immediate churn",
+    "Documentation rot — examples that no longer work erode trust",
+    "Overly complex configuration preventing quick adoption",
+    "Not working on Windows (many dev tools are developed on Mac/Linux only)"
+  ],
+  "growth_patterns": [
+    "Open source first — build community before monetizing",
+    "GitHub stars as social proof — encourage starring in README and docs",
+    "Hacker News Show HN post — best channel for initial developer awareness",
+    "Integration with popular tools (VS Code extension, GitHub Action, Vercel integration)",
+    "Technical blog posts showing real use cases on dev.to, Hashnode, personal blogs",
+    "Developer conference talks and demo videos",
+    "CLI install one-liner (npx, brew, curl | sh) for frictionless adoption"
+  ],
+  "documentation_standards": {
+    "required_sections": [
+      "Installation (one command)",
+      "Quick start (working example in < 10 lines)",
+      "API reference (every public function/option)",
+      "Examples (real-world use cases)",
+      "Configuration reference",
+      "Changelog",
+      "Contributing guide"
+    ],
+    "example_quality": "Every example must be copy-pasteable and produce working output",
+    "versioning": "Docs must be versioned or at minimum indicate which version they cover"
+  },
+  "ecosystem_integration_targets": [
+    "GitHub Actions — CI/CD integration",
+    "VS Code — editor extension or .vscode/settings.json support",
+    "Vercel / Netlify — one-click deploy integration",
+    "Docker — official Dockerfile or image",
+    "npm — published package with < 50ms require time",
+    "TypeScript — types included, not @types/ separate"
+  ],
+  "recommended_integrations": [
+    "GitHub — stars, issues, pull requests for community management",
+    "npm — package distribution",
+    "Algolia DocSearch — free search for open source documentation sites",
+    "Sentry — error tracking in CLI tools and SDKs",
+    "Resend — developer notification emails (usage alerts, upgrade prompts)",
+    "Stripe — commercial licensing and usage-based billing"
+  ]
+}

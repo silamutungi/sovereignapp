@@ -370,7 +370,6 @@ export default function Building() {
         setPollError('Supabase OAuth is not configured. Please contact support or choose "Use Sovereign\'s for now" to continue.')
         return
       }
-      console.log('[building] Supabase OAuth redirect_uri:', redirectUri)
       const oauthUrl =
         `https://api.supabase.com/v1/oauth/authorize` +
         `?client_id=${encodeURIComponent(clientId)}` +

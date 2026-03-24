@@ -1,0 +1,95 @@
+{
+  "standard": "api",
+  "description": "REST API design and implementation standards for Sovereign-generated apps.",
+  "versioning": {
+    "strategy": "URL path versioning — /api/v1/resource",
+    "rule": "Never remove or rename a field in a v1 response — add new fields, deprecate old ones",
+    "breaking_changes": "Require a new version increment (/api/v2/)",
+    "sovereign_current": "Sovereign API routes are unversioned internally — versioning applies to public-facing APIs in generated apps"
+  },
+  "error_format": {
+    "description": "All error responses must follow this consistent structure",
+    "schema": {
+      "error": "string — machine-readable error code (snake_case)",
+      "message": "string — human-readable description with the fix where possible",
+      "status": "number — HTTP status code",
+      "details": "object (optional) — additional context for debugging"
+    },
+    "example": {
+      "error": "validation_failed",
+      "message": "The 'email' field must be a valid email address",
+      "status": 400,
+      "details": { "field": "email", "received": "not-an-email" }
+    }
+  },
+  "status_codes": {
+    "200": "OK — successful GET, PATCH, or action",
+    "201": "Created — successful POST that created a resource",
+    "204": "No Content — successful DELETE with no response body",
+    "400": "Bad Request — client sent invalid or missing fields",
+    "401": "Unauthorized — missing or invalid auth token",
+    "403": "Forbidden — authenticated but not authorized for this resource",
+    "404": "Not Found — resource does not exist or is not visible to this user",
+    "409": "Conflict — duplicate resource (unique constraint violation)",
+    "422": "Unprocessable Entity — valid format but invalid business logic (e.g. past date)",
+    "429": "Too Many Requests — rate limit exceeded (must include Retry-After header)",
+    "500": "Internal Server Error — unexpected server-side failure"
+  },
+  "rate_limiting": {
+    "rule": "Every public endpoint must be rate limited",
+    "response_headers": [
+      "Retry-After: <seconds> — required on every 429 response",
+      "X-RateLimit-Limit: <max> — optional but helpful for API consumers",
+      "X-RateLimit-Remaining: <remaining> — optional",
+      "X-RateLimit-Reset: <epoch_seconds> — optional"
+    ],
+    "sovereign_limits": {
+      "generate": "20 requests / hour per IP",
+      "run_build": "10 requests / hour per IP",
+      "auth": "5 requests / 15 minutes per IP (stricter for auth endpoints)",
+      "general": "60 requests / hour per IP"
+    }
+  },
+  "pagination": {
+    "strategy": "Cursor-based pagination preferred for real-time data; offset for admin dashboards",
+    "cursor_pattern": {
+      "request": "GET /api/items?cursor=<opaque_token>&limit=20",
+      "response": {
+        "items": "array",
+        "next_cursor": "string or null (null = no more pages)",
+        "has_more": "boolean"
+      }
+    },
+    "offset_pattern": {
+      "request": "GET /api/items?page=2&per_page=20",
+      "response": {
+        "items": "array",
+        "total": "number",
+        "page": "number",
+        "per_page": "number",
+        "total_pages": "number"
+      }
+    }
+  },
+  "request_rules": [
+    "Validate method first — return 405 immediately for wrong method before any processing",
+    "Rate limit check second — return 429 before parsing body",
+    "Auth check third — return 401/403 before touching database",
+    "Input validation fourth — return 400 with specific field errors before any mutation",
+    "Business logic last — only execute when all checks pass",
+    "Always use idempotency keys for mutation endpoints that create payments or critical records"
+  ],
+  "response_rules": [
+    "Never return internal error messages in production — log internally, return generic message externally",
+    "Never include secrets, tokens, or passwords in API responses",
+    "Set Cache-Control: no-store on all auth and user-data endpoints",
+    "Set Content-Type: application/json on all JSON responses",
+    "All timestamps must be ISO 8601 format in UTC: 2026-03-21T14:30:00Z"
+  ],
+  "sovereign_specific": [
+    "All api/ routes in Sovereign use .js extensions on relative imports (Node ESM requirement)",
+    "export const config is placed after all import statements",
+    "Security audit comment block at top of every route file",
+    "Body parser size limit: export const config = { api: { bodyParser: { sizeLimit: '10mb' } } } for generation routes"
+  ]
+}

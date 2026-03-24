@@ -1,0 +1,36 @@
+{
+  "standard": "security",
+  "description": "Non-negotiable security baseline for every Sovereign-generated app.",
+  "rules": [
+    "RLS (Row Level Security) enabled with explicit policies on every Supabase table",
+    "No direct client-to-database access — all writes and reads go through server-side API routes",
+    "No secrets in client code — service role keys and API keys are server-side only",
+    "Server-side auth validation on every protected request — never trust client-supplied user IDs",
+    "Server-side input validation on every public endpoint — type, length, required fields",
+    "Secure HTTP headers via vercel.json: Content-Security-Policy, X-Frame-Options, X-Content-Type-Options",
+    "CSP must include connect-src 'self' https://*.supabase.co wss://*.supabase.co — missing connect-src blocks all Supabase calls",
+    "Rate limiting on every API route — IP-based, with Retry-After header on 429 responses",
+    "Soft deletes on all user-data tables (deleted_at column) — never hard delete user data",
+    "Security audit comment block at the top of every API route file"
+  ],
+  "checklist": [
+    { "item": "RLS enabled on all tables", "severity": "critical", "fix": "ALTER TABLE t ENABLE ROW LEVEL SECURITY with explicit policies" },
+    { "item": "No service_role key in src/ directory", "severity": "critical", "fix": "Move to api/ route using process.env only" },
+    { "item": "Rate limiting on all public API routes", "severity": "high", "fix": "Import checkRateLimit from _rateLimit.js, add as first handler check" },
+    { "item": "CSP header includes connect-src with Supabase wildcard", "severity": "high", "fix": "Add connect-src 'self' https://*.supabase.co wss://*.supabase.co to vercel.json" },
+    { "item": "Input validation on all req.body fields", "severity": "high", "fix": "Validate type, length, and required fields before processing" },
+    { "item": "Auth check on all protected routes", "severity": "high", "fix": "Verify token/session server-side before executing any protected action" },
+    { "item": "No eval() or dangerouslySetInnerHTML", "severity": "high", "fix": "Use safe alternatives — textContent, sanitized markdown renderer" },
+    { "item": "HTTPS-only URLs in all configs", "severity": "medium", "fix": "Replace all http:// with https:// in vercel.json and env vars" },
+    { "item": "Soft deletes on user data tables", "severity": "medium", "fix": "ALTER TABLE t ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL" },
+    { "item": "429 responses include Retry-After header", "severity": "low", "fix": "res.setHeader('Retry-After', retryAfterSeconds) before res.status(429)" }
+  ],
+  "references": [
+    "CVE-2025-48757 — 170+ apps exposed due to missing Supabase RLS on a competing platform",
+    "OWASP Top 10 — A01:2021 Broken Access Control (RLS violations fall here)",
+    "OWASP Top 10 — A02:2021 Cryptographic Failures (secrets in client code)",
+    "OWASP Top 10 — A03:2021 Injection (input validation)",
+    "OWASP Top 10 — A05:2021 Security Misconfiguration (missing CSP headers)"
+  ],
+  "sovereign_lesson": "Every lesson about missing RLS, exposed secrets, or missing rate limiting from CLAUDE.md is encoded here. These rules exist because each was violated in production in the first 30 days of Sovereign."
+}

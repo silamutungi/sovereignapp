@@ -1,0 +1,70 @@
+{
+  "standard": "accessibility",
+  "description": "WCAG AA compliance baseline for every Sovereign-generated app.",
+  "target_level": "WCAG 2.1 AA",
+  "rules": [
+    "Every text element must meet 4.5:1 contrast ratio against its background",
+    "UI components (buttons, inputs, focus indicators) must meet 3:1 contrast ratio",
+    "All interactive elements must be keyboard-navigable (Tab, Enter, Space, Escape, Arrow keys)",
+    "Every image must have descriptive alt text, or alt='' for decorative images",
+    "Form inputs must have associated <label> elements or aria-label attributes",
+    "Focus must be visible at all times — never use outline: none without a replacement",
+    "Page must have a logical heading hierarchy (one <h1>, nested <h2>, <h3>)",
+    "All interactive elements must have accessible names readable by screen readers",
+    "No content flashes more than 3 times per second (seizure prevention)",
+    "Color must never be the only means of conveying information"
+  ],
+  "contrast_ratios": {
+    "text_on_light": {
+      "requirement": "4.5:1 minimum",
+      "sovereign_tokens": {
+        "--text-dim on paper (#f2efe8)": "#6b6862 = 4.51:1 — passes AA",
+        "dark text on paper": "#0e0d0b = 17:1 — passes AAA"
+      }
+    },
+    "text_on_dark": {
+      "requirement": "4.5:1 minimum",
+      "sovereign_tokens": {
+        "white on ink (#0e0d0b)": "#ffffff = 18:1 — passes AAA",
+        "muted on dark": "#c8c4bc = 11:1 — passes AAA",
+        "WARNING — never use on dark": "#6b6862 on #0e0d0b = 1.8:1 — FAILS"
+      }
+    },
+    "button_background": {
+      "requirement": "4.5:1 for button text on button background",
+      "formula": "brightness = (R*299 + G*587 + B*114) / 1000. > 128 = use #1a1a1a text. <= 128 = use #ffffff text."
+    }
+  },
+  "testing_methods": [
+    "axe DevTools browser extension — automated scan catches ~30% of issues",
+    "Manual keyboard navigation test — Tab through every interactive element",
+    "Screen reader test — VoiceOver (Mac), NVDA (Windows), TalkBack (Android)",
+    "Color contrast checker — WebAIM Contrast Checker or browser DevTools",
+    "Zoom test — page must remain usable at 200% browser zoom",
+    "Reduced motion test — respect prefers-reduced-motion media query"
+  ],
+  "checklist": [
+    { "item": "Text contrast >= 4.5:1 on all backgrounds", "test": "Inspect with browser DevTools color picker, verify ratio" },
+    { "item": "All images have alt text", "test": "Run axe or wave scan — missing alt is flagged automatically" },
+    { "item": "All form inputs have labels", "test": "Tab to each input — screen reader should announce the label" },
+    { "item": "Focus ring visible on all interactive elements", "test": "Tab through page — every focused element must have visible outline" },
+    { "item": "Heading hierarchy is logical", "test": "Install Accessibility Insights — heading order view" },
+    { "item": "Keyboard navigation works for all core flows", "test": "Complete signup, login, and core action with keyboard only" },
+    { "item": "ARIA roles used correctly where semantic HTML is insufficient", "test": "Validate with axe — incorrect ARIA is flagged" },
+    { "item": "prefers-reduced-motion respected", "test": "Enable reduced motion in OS — animations should stop or fade" }
+  ],
+  "common_failures": [
+    "Placeholder text used as label (disappears on focus, low contrast)",
+    "Custom dropdown or modal not focusable with keyboard",
+    "Link that looks like a button with no href (must use <button> or add href + role)",
+    "Icon-only button with no aria-label",
+    "Error message shown only in red color with no text or icon",
+    "Modal that doesn't trap focus (Tab navigates to content behind the modal)"
+  ],
+  "references": [
+    "WCAG 2.1 — https://www.w3.org/TR/WCAG21/",
+    "Don Norman — 'The Design of Everyday Things' — affordances, feedback, discoverability",
+    "WebAIM Contrast Checker — https://webaim.org/resources/contrastchecker/",
+    "axe DevTools — https://www.deque.com/axe/devtools/"
+  ]
+}

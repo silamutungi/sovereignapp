@@ -1,0 +1,84 @@
+{
+  "industry": "healthtech",
+  "key_metrics": [
+    "Patient Outcomes Improvement",
+    "Clinical Workflow Adoption Rate",
+    "Time to Diagnosis / Time to Treatment",
+    "Patient Retention Rate",
+    "Clinician Net Promoter Score",
+    "Revenue per Patient Visit",
+    "Interoperability Success Rate (HL7/FHIR)",
+    "Data Breach Incidents (must be zero)"
+  ],
+  "benchmarks": {
+    "patient_retention": "> 70% continue using the service after 90 days",
+    "clinician_adoption": "> 50% of invited clinicians actively use within 30 days",
+    "appointment_no_show_rate": "< 10% with reminders",
+    "nps_patient": "> 50 (healthcare average is 27)",
+    "data_breach_incidents": "0 — a single breach triggers HIPAA notification requirements"
+  },
+  "compliance": {
+    "hipaa": {
+      "description": "Health Insurance Portability and Accountability Act — US federal law",
+      "covered_entities": "Health plans, healthcare providers, healthcare clearinghouses",
+      "business_associates": "Vendors handling PHI on behalf of covered entities must sign BAA",
+      "phi_definition": "18 categories of identifiers linked to health data (name, DOB, address, diagnosis, etc.)",
+      "safeguards": {
+        "administrative": "Risk assessment, workforce training, access management policies",
+        "physical": "Facility access controls, workstation security, device controls",
+        "technical": "Access controls, audit logs, encryption, automatic logoff"
+      },
+      "breach_notification": "Report breaches affecting > 500 individuals to HHS within 60 days",
+      "penalty_tiers": "Tier 1 (unknowing): $100–$50k. Tier 4 (willful neglect): $50k–$1.9M per violation"
+    },
+    "hitech": {
+      "description": "Health Information Technology for Economic and Clinical Health Act",
+      "key_rule": "Strengthens HIPAA enforcement and extends liability to business associates directly"
+    },
+    "telehealth_regulations": {
+      "interstate_licensing": "Providers must be licensed in the state where the patient is located",
+      "ryan_haight_act": "Federal law requiring in-person exam before prescribing controlled substances remotely (exceptions exist post-COVID)",
+      "parity_laws": "Many states require insurers to cover telehealth at the same rate as in-person care"
+    },
+    "fda": {
+      "software_as_medical_device": "SaMD — software intended to diagnose or treat must comply with FDA 510(k) or De Novo pathway",
+      "wellness_exemption": "General wellness apps (fitness, stress management) are exempt"
+    }
+  },
+  "phi_handling_rules": [
+    "Never store PHI in localStorage or client-side storage",
+    "All PHI must be encrypted at rest (AES-256) and in transit (TLS 1.3)",
+    "Database access to PHI tables requires audit logging with user, action, timestamp, and record ID",
+    "PHI must never appear in error messages, logs, or URLs",
+    "De-identify data for analytics — remove all 18 HIPAA identifiers",
+    "Minimum necessary principle — only access the PHI required for the specific task",
+    "Sign BAA with every vendor that handles PHI (AWS, Google Cloud, Supabase if storing PHI)",
+    "Implement automatic session timeout (15 minutes idle max for clinical users)"
+  ],
+  "best_practices": [
+    "Get legal review before building any feature touching PHI",
+    "Sign Business Associate Agreements (BAA) with Supabase, AWS, and any analytics vendor",
+    "Design role-based access control — clinicians only see their own patient panels",
+    "Build audit logs before storing any PHI — logging is a HIPAA requirement",
+    "Telehealth features require checking provider licensing per state",
+    "Interoperability: use HL7 FHIR R4 for data exchange with EHR systems",
+    "Patient consent flows must be explicit and logged with timestamp",
+    "Build offline support carefully — cached PHI on devices creates breach risk"
+  ],
+  "common_risks": [
+    "HIPAA violation from inadequate PHI protection — six-figure fines per violation",
+    "Practicing medicine without a license — AI diagnosis features require careful legal framing",
+    "Interstate licensing exposure in telehealth — providers and platforms share liability",
+    "Physician burnout from bad UX — clinical tools must reduce, not increase, cognitive load",
+    "EHR integration failures — HL7/FHIR integrations are notoriously brittle",
+    "Data breach — healthcare records sell for $250+ on dark web (10x more than credit cards)"
+  ],
+  "recommended_integrations": [
+    "Stripe — patient billing and subscription management",
+    "Twilio — HIPAA-compliant SMS reminders and telehealth SMS",
+    "Daily.co or Zoom for Healthcare — HIPAA-compliant video consultations",
+    "Health Gorilla or Particle Health — FHIR-based EHR data access",
+    "Resend — transactional emails (appointment reminders, summaries)",
+    "Supabase — with BAA signed for PHI storage"
+  ]
+}

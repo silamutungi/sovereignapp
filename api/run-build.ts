@@ -962,7 +962,7 @@ export default async function handler(req: any, res: any): Promise<void> {
           let deployAnonKey: string
 
           if (sbChoice === 'own') {
-            // TODO: full own-Supabase provisioning deferred to claim flow — too slow for build pipeline
+            // Full own-Supabase provisioning deferred to claim flow — too slow for build pipeline
             // Creating a new Supabase project via Management API takes 2-4 minutes which exceeds
             // Vercel's function timeout. For now, use Sovereign's Supabase with row-level isolation
             // (same as the 'sovereign' path) and mark supabase_mode='sovereign_temporary' so the

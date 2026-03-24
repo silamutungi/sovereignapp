@@ -20,10 +20,14 @@ export const supabase = createClient(
 //
 // Without this, anon-key inserts fail with "row-level security policy" error.
 export async function joinWaitlist(email: string, source = 'landing'): Promise<{ error: string | null }> {
-  const { error } = await supabase.from('waitlist').insert([{ email, source }])
-  if (error) {
-    if (error.code === '23505') return { error: null }
-    return { error: error.message }
+  try {
+    const { error } = await supabase.from('waitlist').insert([{ email, source }])
+    if (error) {
+      if (error.code === '23505') return { error: null }
+      return { error: error.message }
+    }
+    return { error: null }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Failed to join waitlist' }
   }
-  return { error: null }
 }

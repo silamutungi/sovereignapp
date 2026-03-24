@@ -47,18 +47,22 @@ async function ghFetch(
   method = 'GET',
   body?: unknown,
 ): Promise<{ ok: boolean; status: number; data: Record<string, unknown> }> {
-  const res = await fetch(`https://api.github.com${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      'Content-Type': 'application/json',
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  })
-  const data = await res.json() as Record<string, unknown>
-  return { ok: res.ok, status: res.status, data }
+  try {
+    const res = await fetch(`https://api.github.com${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': 'application/json',
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    })
+    const data = await res.json() as Record<string, unknown>
+    return { ok: res.ok, status: res.status, data }
+  } catch (err) {
+    return { ok: false, status: 0, data: { message: err instanceof Error ? err.message : 'Network error' } }
+  }
 }
 
 async function vercelFetch(

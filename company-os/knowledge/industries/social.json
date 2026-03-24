@@ -1,0 +1,77 @@
+{
+  "industry": "social",
+  "key_metrics": [
+    "DAU (Daily Active Users)",
+    "MAU (Monthly Active Users)",
+    "DAU/MAU Ratio (Stickiness)",
+    "Content Creation Rate (% of users who post)",
+    "Engagement Rate (likes, comments, shares per post)",
+    "Viral Coefficient (K-factor)",
+    "Average Session Length",
+    "Notification Opt-in Rate",
+    "Follower Growth Rate"
+  ],
+  "benchmarks": {
+    "dau_mau_ratio": "> 50% is exceptional (Twitter ~36%, Facebook ~66%, Instagram ~60%)",
+    "content_creation_rate": "1% creator, 9% contributor, 90% lurker rule — design for all three",
+    "engagement_rate": "> 3% engagement rate on posts is strong for public accounts",
+    "viral_coefficient": "> 1.0 means exponential growth — most apps are 0.3–0.7",
+    "session_length_minutes": "> 8 minutes per session is strong for social feeds",
+    "d7_retention": "> 25%",
+    "d30_retention": "> 15%"
+  },
+  "best_practices": [
+    "Design for the lurker majority — 90% of users consume, not create",
+    "Seed content before launch — empty feeds kill new user activation",
+    "Implement algorithmic feed ranking before scale — chronological feed degrades at volume",
+    "Notification strategy must balance re-engagement with fatigue (use frequency caps)",
+    "Moderation infrastructure before growth — bad content compounds without it",
+    "Social graph bootstrap — import contacts, suggest follows, show 'people you may know'",
+    "First-post friction reduction — make first content creation feel safe and easy",
+    "Creator tools that improve quality of top 1% will improve overall content quality"
+  ],
+  "common_risks": [
+    "Empty feed problem — new users see no content and leave before returning",
+    "Hate speech and harassment at scale — moderation backlog destroys brand perception",
+    "Bot and fake account proliferation inflating metrics and polluting feeds",
+    "Viral misinformation — once viral, corrections rarely reach the same audience",
+    "Creator burnout — power creators leaving causes follower churn cascades",
+    "Network effect collapse — if core community leaves, platform becomes worthless quickly",
+    "Regulatory pressure — EU DSA, CSAM detection requirements, election content rules"
+  ],
+  "growth_patterns": [
+    "Invite-only launch — artificial scarcity creates FOMO and quality seed community",
+    "Celebrity / influencer seeding — top creators bring their existing audiences",
+    "Cross-posting tools — let creators post to other platforms simultaneously to grow your platform",
+    "SEO on public content — user profiles, posts, and topics as long-tail landing pages",
+    "Embed / share widgets — content consumption outside the app drives new user acquisition",
+    "College campus strategy — dominate one college, then expand (Zuckerberg playbook)"
+  ],
+  "viral_loops": [
+    "Tag-a-friend mechanic — comment with @username is social activation",
+    "Share to Stories / Status — one-tap share creates impressions outside the platform",
+    "Public profiles indexed by search engines — SEO-driven organic acquisition",
+    "Challenge mechanic — user-initiated viral trends (ALS Ice Bucket, TikTok dances)",
+    "Leaderboard or status system — competition drives posting frequency"
+  ],
+  "content_moderation": {
+    "before_launch": [
+      "Clear community guidelines and terms of service",
+      "Report and appeal flow for every piece of content",
+      "Human moderation queue before automated classifiers"
+    ],
+    "at_scale": [
+      "ML-assisted content classification (hate speech, NSFW, spam)",
+      "Proactive CSAM scanning (NCMEC PhotoDNA required by law in US)",
+      "Trust and safety team with clear escalation paths"
+    ]
+  },
+  "recommended_integrations": [
+    "Cloudinary — image and video processing, CDN, moderation filters",
+    "Stream — social feeds, activity streams, and chat infrastructure",
+    "Ably or Pusher — real-time notifications and presence",
+    "Hive Moderation — AI content moderation for NSFW and hate speech",
+    "Resend — email digests, follower notification emails",
+    "Stripe — creator monetization, subscriptions, tipping"
+  ]
+}

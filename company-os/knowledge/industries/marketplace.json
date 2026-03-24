@@ -1,0 +1,70 @@
+{
+  "industry": "marketplace",
+  "key_metrics": [
+    "GMV (Gross Merchandise Value)",
+    "Take Rate",
+    "Liquidity (supply/demand ratio per category)",
+    "Repeat Purchase Rate",
+    "Buyer/Seller Ratio",
+    "Time to First Transaction",
+    "Average Order Value (AOV)",
+    "Net Promoter Score (NPS)"
+  ],
+  "benchmarks": {
+    "take_rate": "10–30% depending on category",
+    "liquidity_target": "> 70% of searches result in a transaction",
+    "repeat_purchase_rate": "> 40% within 90 days",
+    "time_to_first_transaction": "< 7 days from signup",
+    "seller_onboarding_completion": "> 60%",
+    "dispute_rate": "< 1% of transactions"
+  },
+  "best_practices": [
+    "Solve the cold-start problem by seeding supply before demand (invite sellers first)",
+    "Build trust and safety infrastructure before scaling (reviews, ID verification)",
+    "Constrain geography or category at launch — do not try to be everything everywhere",
+    "Track liquidity per category/city — not just aggregate GMV",
+    "Reduce friction to first transaction with money-back guarantee or escrow",
+    "Automate seller onboarding with guided checklist and profile completeness score",
+    "Implement dispute resolution workflow before first 100 transactions",
+    "Use network effects marketing — 'X people near you are selling Y'"
+  ],
+  "common_risks": [
+    "Chicken-and-egg problem — supply without demand or demand without supply",
+    "Disintermediation — buyers and sellers transact off-platform after first meeting",
+    "Trust failure — single fraud or safety incident can destroy reputation at scale",
+    "Thin liquidity in long-tail categories (most GMV comes from top 5% of categories)",
+    "Seller concentration risk — top 10 sellers generating > 50% of GMV",
+    "Payment fraud at scale — chargeback rates exceeding payment processor thresholds",
+    "Regulatory exposure in financial (money transmission) or gig economy contexts"
+  ],
+  "growth_patterns": [
+    "Geographic expansion — dominate one city/region before expanding",
+    "Category expansion — master one vertical before adjacent verticals",
+    "Supply-side seeding — outbound recruit top sellers with white-glove onboarding",
+    "Demand-side SEO — every listing is a long-tail landing page",
+    "Referral programs for both buyers and sellers",
+    "Enterprise/B2B channel — sell to businesses as buyers or sellers"
+  ],
+  "network_effects": [
+    "Direct network effects: more buyers attract more sellers and vice versa",
+    "Data network effects: more transactions improve matching algorithm quality",
+    "Social proof: reviews and ratings reduce buyer uncertainty at scale",
+    "Geographic density: local density creates winner-take-all dynamics per metro area"
+  ],
+  "trust_and_safety": [
+    "ID verification for sellers before first transaction",
+    "Buyer review system with fraud detection on reviews",
+    "Escrow or platform-held payments before release",
+    "Dispute resolution with human escalation path",
+    "Content moderation on listings (prohibited items policy)",
+    "Seller performance metrics (response time, cancellation rate, ratings)"
+  ],
+  "recommended_integrations": [
+    "Stripe Connect — split payments, seller payouts, escrow",
+    "Persona or Onfido — identity verification",
+    "Algolia — listing search with relevance ranking",
+    "Cloudinary — listing image processing and CDN",
+    "Twilio — buyer/seller messaging with number masking",
+    "Resend — transaction emails, dispute notifications"
+  ]
+}

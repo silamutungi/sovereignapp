@@ -1,0 +1,72 @@
+{
+  "standard": "performance",
+  "description": "Core Web Vitals targets and Lighthouse score floors for every Sovereign-generated app.",
+  "core_web_vitals": {
+    "lcp": {
+      "metric": "Largest Contentful Paint",
+      "good": "< 2.5 seconds",
+      "needs_improvement": "2.5–4.0 seconds",
+      "poor": "> 4.0 seconds",
+      "what_it_measures": "Perceived load speed — time until the main content of the page is visible",
+      "sovereign_target": "< 2.5s on mobile 4G connection"
+    },
+    "fid": {
+      "metric": "First Input Delay (legacy) / INP: Interaction to Next Paint",
+      "good": "FID < 100ms | INP < 200ms",
+      "needs_improvement": "FID 100–300ms | INP 200–500ms",
+      "poor": "FID > 300ms | INP > 500ms",
+      "what_it_measures": "Responsiveness — delay between user interaction and browser response",
+      "sovereign_target": "INP < 200ms for all interactive elements"
+    },
+    "cls": {
+      "metric": "Cumulative Layout Shift",
+      "good": "< 0.1",
+      "needs_improvement": "0.1–0.25",
+      "poor": "> 0.25",
+      "what_it_measures": "Visual stability — unexpected layout shifts as content loads",
+      "sovereign_target": "< 0.1 — no visible jumps during page load or async data arrival"
+    }
+  },
+  "lighthouse_targets": {
+    "performance": 90,
+    "accessibility": 95,
+    "best_practices": 95,
+    "seo": 90
+  },
+  "bundle_size_targets": {
+    "initial_js": "< 200KB gzipped for first load",
+    "initial_css": "< 50KB gzipped",
+    "total_page_weight": "< 1MB for initial load on landing page",
+    "image_formats": "WebP or AVIF preferred over JPEG/PNG for photography"
+  },
+  "optimization_rules": [
+    "Code-split routes with React.lazy() and Suspense — don't load all pages upfront",
+    "Lazy-load images below the fold (loading='lazy' on <img>)",
+    "Preload critical fonts with <link rel='preload'> in index.html",
+    "Use CDN for all static assets (Vercel Edge Network handles this automatically)",
+    "Avoid blocking render — critical CSS inline, defer non-critical JS",
+    "Minimize main thread work — defer analytics and tracking scripts",
+    "Use React.memo() and useMemo() only where profiling shows actual re-render cost",
+    "Avoid N+1 queries — fetch all required data in one Supabase query with joins or selects",
+    "Set cache-control headers on static assets (Vercel does this for /public/ automatically)",
+    "Compress API responses — JSON is verbose; use select() to return only needed fields"
+  ],
+  "vite_optimizations": [
+    "vite build --mode production produces optimized output automatically",
+    "manualChunks in vite.config.ts to split vendor libraries into separate chunks",
+    "Dynamic import() for page components to enable route-level code splitting",
+    "rollupOptions.output.chunkFileNames for deterministic cache-friendly filenames"
+  ],
+  "image_best_practices": [
+    "Always specify width and height on <img> elements to prevent CLS",
+    "Use Cloudinary or similar CDN for responsive image transformation",
+    "Provide srcset for different device pixel ratios",
+    "Use loading='eager' only for above-fold hero images; lazy everywhere else"
+  ],
+  "monitoring": [
+    "Vercel Analytics (free tier) — real-user CWV data on production traffic",
+    "Google Search Console — CWV field data from Chrome users",
+    "Lighthouse CI in GitHub Actions — prevent performance regression on every PR",
+    "Sentry performance monitoring — transaction tracing for API routes"
+  ]
+}

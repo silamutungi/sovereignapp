@@ -1,0 +1,71 @@
+{
+  "industry": "saas",
+  "key_metrics": [
+    "MRR",
+    "ARR",
+    "Churn Rate",
+    "NPS",
+    "LTV:CAC ratio",
+    "Payback Period",
+    "Net Revenue Retention (NRR)",
+    "Monthly Active Users (MAU)",
+    "Feature Adoption Rate"
+  ],
+  "benchmarks": {
+    "churn_monthly": "< 2%",
+    "ltv_cac": "> 3x",
+    "net_revenue_retention": "> 100%",
+    "payback_period_months": "< 12",
+    "gross_margin": "> 70%",
+    "cac_recovery": "< 18 months",
+    "expansion_mrr": "> 15% of new MRR"
+  },
+  "best_practices": [
+    "Monthly active user tracking with cohort segmentation",
+    "Cohort retention analysis by acquisition channel",
+    "Feature flags for gradual rollouts (1% → 10% → 100%)",
+    "Customer success playbooks triggered by health score drops",
+    "In-app onboarding checklists with completion tracking",
+    "Usage-based upgrade prompts when users hit plan limits",
+    "Annual billing discount (typically 15–20%) to reduce churn exposure",
+    "NPS survey triggered 30 days after activation"
+  ],
+  "common_risks": [
+    "Churn spike at 3-month and 12-month anniversaries",
+    "Feature bloat reducing activation rates for new users",
+    "Support ticket volume growing faster than revenue",
+    "Enterprise security requirements blocking deals (SOC2, SSO)",
+    "Single-person accounts with no expansion path",
+    "Free tier abuse consuming disproportionate infrastructure cost"
+  ],
+  "growth_patterns": [
+    "Product-led growth (PLG) — free tier with in-product upgrade moments",
+    "Free tier + upgrade funnel via feature gates",
+    "Annual billing discount to reduce monthly churn exposure",
+    "Usage-based pricing to align cost with customer value",
+    "Viral loops via collaboration features or public-facing outputs",
+    "Integration marketplace for ecosystem stickiness"
+  ],
+  "recommended_integrations": [
+    "Stripe — billing, subscriptions, usage-based pricing",
+    "Intercom — in-app support and customer success messaging",
+    "Mixpanel — funnel analysis and retention cohorts",
+    "PostHog — self-hosted product analytics and feature flags",
+    "Resend — transactional emails (welcome, trial ending, payment failed)",
+    "Sentry — error monitoring",
+    "Linear — product roadmap and sprint planning"
+  ],
+  "activation_events": [
+    "User creates their first core object (project, workspace, form, etc.)",
+    "User invites a collaborator",
+    "User connects an integration",
+    "User shares a public output"
+  ],
+  "churn_warning_signals": [
+    "No login in 14+ days",
+    "Support ticket opened in last 7 days",
+    "NPS score 0–6 (detractor)",
+    "Usage declined > 50% week-over-week",
+    "Payment failed or dunning email sent"
+  ]
+}

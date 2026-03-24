@@ -1,0 +1,70 @@
+{
+  "industry": "consumer",
+  "key_metrics": [
+    "DAU (Daily Active Users)",
+    "MAU (Monthly Active Users)",
+    "DAU/MAU Ratio",
+    "D1 Retention (Day 1)",
+    "D7 Retention (Day 7)",
+    "D30 Retention (Day 30)",
+    "Viral Coefficient (K-factor)",
+    "Session Length",
+    "Sessions per User per Day",
+    "Time in App"
+  ],
+  "benchmarks": {
+    "dau_mau_ratio": "> 20% is good, > 50% is exceptional (WhatsApp, Facebook)",
+    "d1_retention": "> 40% is good for social, > 25% for utility",
+    "d7_retention": "> 20%",
+    "d30_retention": "> 10%",
+    "viral_coefficient": "> 1.0 for viral growth (each user brings > 1 new user)",
+    "session_length_minutes": "varies by category — social: 8+, utility: 3–5",
+    "push_notification_opt_in": "> 50%"
+  },
+  "best_practices": [
+    "Optimize Day 1 onboarding — D1 retention is the most actionable metric",
+    "Use push notifications for re-engagement, not just promotions",
+    "Design social mechanics early — sharing, following, reactions, leaderboards",
+    "A/B test onboarding flows continuously — small changes compound",
+    "Track event-level retention by acquisition source and first action",
+    "Build habit loops: trigger → action → variable reward → investment",
+    "Identify and amplify the 'magic moment' — the first time users get core value",
+    "Mobile-first design — > 80% of consumer app usage is on mobile"
+  ],
+  "common_risks": [
+    "D1 retention cliff — users sign up, never return after first session",
+    "Notification fatigue — over-sending causes opt-out and eventual uninstall",
+    "Feature creep — adding features that don't improve core habit loop",
+    "Algorithm dependency for content feeds — content quality degrades at scale",
+    "App store policy risk — payments, content moderation, data policies",
+    "Privacy regulation risk — GDPR/CCPA for EU and California users",
+    "Platform dependency — iOS/Android OS changes breaking core features"
+  ],
+  "growth_patterns": [
+    "Viral loops — social sharing, invites, referral rewards",
+    "Content marketing — SEO from user-generated content (profiles, posts)",
+    "Influencer seeding — get 50 power users before 50,000 regular users",
+    "Word-of-mouth by design — make the app shareable by default",
+    "Mobile app install campaigns via Meta and TikTok ads",
+    "Cross-platform presence — iOS, Android, and web for maximum reach"
+  ],
+  "retention_frameworks": {
+    "d1": "Focus on onboarding — user must reach 'magic moment' within first session",
+    "d7": "Focus on habit formation — create a reason to return within 7 days",
+    "d30": "Focus on value depth — user should have unlocked > 3 features or content pieces"
+  },
+  "viral_loops": [
+    "Share output loop — user creates something worth sharing (photo, result, score)",
+    "Invite friend loop — collaboration or social features require another user",
+    "Competitive loop — leaderboard or streak system creates social pressure to return",
+    "Content discovery loop — user discovers the app via another user's shared content"
+  ],
+  "recommended_integrations": [
+    "Firebase / OneSignal — push notifications",
+    "Amplitude or Mixpanel — event tracking, retention cohorts, funnel analysis",
+    "AppsFlyer or Branch — mobile attribution and deep links",
+    "Cloudinary — image/video processing",
+    "Resend — transactional and promotional email",
+    "RevenueCat — in-app purchases and subscriptions (iOS/Android)"
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "standard": "database",
+  "description": "Supabase database patterns, migrations, and safety rules for Sovereign-generated apps.",
+  "rls": {
+    "rule": "RLS must be enabled on every table that stores user data — no exceptions",
+    "command": "ALTER TABLE <table> ENABLE ROW LEVEL SECURITY;",
+    "policy_examples": {
+      "insert_anon": "CREATE POLICY anon_insert ON waitlist FOR INSERT TO anon WITH CHECK (true);",
+      "select_own_rows": "CREATE POLICY select_own ON profiles FOR SELECT USING (auth.uid() = user_id);",
+      "update_own_rows": "CREATE POLICY update_own ON profiles FOR UPDATE USING (auth.uid() = user_id);",
+      "service_role_only": "No policies needed — service role key bypasses RLS automatically"
+    },
+    "verification": "SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname = 'public';",
+    "sovereign_lesson": "CVE-2025-48757 — 170+ apps on a competing platform exposed because RLS was missing. This is why it is the first rule."
+  },
+  "migrations": {
+    "directory": "supabase/migrations/",
+    "naming": "YYYYMMDD_description.sql — e.g. 20260321_add_deleted_at_to_builds.sql",
+    "idempotency": "Always use IF NOT EXISTS and IF EXISTS to make migrations safe to re-run",
+    "examples": {
+      "add_column": "ALTER TABLE builds ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;",
+      "create_table": "CREATE TABLE IF NOT EXISTS magic_links (...);",
+      "add_index": "CREATE INDEX IF NOT EXISTS magic_links_token_idx ON magic_links(token);"
+    },
+    "verification": "SELECT column_name FROM information_schema.columns WHERE table_name = '<table>' AND column_name = '<column>';",
+    "sovereign_rule": "Migration files are NEVER auto-run in Supabase — they must be manually executed in the SQL Editor and verified. Never assume a migration ran. Verify."
+  },
+  "soft_deletes": {
+    "rule": "Never hard-delete user data — add deleted_at TIMESTAMPTZ DEFAULT NULL to every user-data table",
+    "query_pattern": "Always add WHERE deleted_at IS NULL to queries that should exclude deleted rows",
+    "migration": "ALTER TABLE <table> ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;",
+    "rationale": "Regulatory compliance, audit requirements, accidental deletion recovery, user trust"
+  },
+  "indexing": {
+    "rule": "Add indexes to all frequently queried columns — especially foreign keys and filter columns",
+    "common_indexes": [
+      "CREATE INDEX IF NOT EXISTS idx_builds_user_id ON builds(user_id);",
+      "CREATE INDEX IF NOT EXISTS idx_builds_status ON builds(status) WHERE deleted_at IS NULL;",
+      "CREATE INDEX IF NOT EXISTS idx_magic_links_token ON magic_links(token);",
+      "CREATE INDEX IF NOT EXISTS idx_magic_links_email ON magic_links(email);"
+    ],
+    "partial_indexes": "Use WHERE clause on indexes for queries that always filter on a condition (e.g. WHERE deleted_at IS NULL)"
+  },
+  "connection_pooling": {
+    "supabase_default": "Supabase uses PgBouncer in transaction mode by default — safe for serverless",
+    "rule": "Use the pooler connection string (port 6543) for serverless functions, not the direct connection (port 5432)",
+    "serverless_warning": "Direct connections in serverless will exhaust Postgres connection limits — always use the pooler"
+  },
+  "schema_patterns": {
+    "standard_columns": [
+      "id UUID PRIMARY KEY DEFAULT gen_random_uuid()",
+      "created_at TIMESTAMPTZ DEFAULT now()",
+      "updated_at TIMESTAMPTZ DEFAULT now()",
+      "deleted_at TIMESTAMPTZ DEFAULT NULL"
+    ],
+    "user_scoping": "Add user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE to every user-owned table",
+    "build_scoping": "Add build_id UUID NOT NULL to every table in generated apps that belongs to a build"
+  },
+  "verification_queries": {
+    "check_rls": "SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname = 'public';",
+    "check_column_exists": "SELECT column_name FROM information_schema.columns WHERE table_name = '<t>' AND column_name = '<c>';",
+    "check_table_exists": "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = '<t>';",
+    "check_policies": "SELECT tablename, policyname, cmd FROM pg_policies WHERE schemaname = 'public';",
+    "verify_all_schema": "Run api/migrations/verify-schema.sql for a full check of all required columns"
+  }
+}

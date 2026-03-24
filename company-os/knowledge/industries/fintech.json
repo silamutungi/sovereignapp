@@ -1,0 +1,85 @@
+{
+  "industry": "fintech",
+  "key_metrics": [
+    "Transaction Volume (TPV)",
+    "Revenue per Transaction",
+    "Fraud Rate",
+    "Chargeback Rate",
+    "KYC Pass Rate",
+    "Account Activation Rate",
+    "Deposits / Assets Under Management (AUM)",
+    "Net Interest Margin (lending)",
+    "Payment Success Rate"
+  ],
+  "benchmarks": {
+    "fraud_rate": "< 0.1% of transaction volume",
+    "chargeback_rate": "< 0.5% (Visa/Mastercard threshold is 1%)",
+    "kyc_pass_rate": "> 85% of applicants",
+    "payment_success_rate": "> 98%",
+    "account_activation_rate": "> 60% complete setup within 7 days",
+    "support_resolution_sla": "< 24 hours for financial disputes"
+  },
+  "compliance": {
+    "kyc": {
+      "description": "Know Your Customer — identity verification required before financial transactions",
+      "minimum": "Full name, DOB, address, government ID",
+      "enhanced": "Enhanced due diligence for high-risk customers or large transactions",
+      "providers": ["Stripe Identity", "Persona", "Onfido", "Jumio"]
+    },
+    "aml": {
+      "description": "Anti-Money Laundering — transaction monitoring for suspicious patterns",
+      "requirements": "OFAC screening, SAR filing for suspicious activity > $5,000 USD",
+      "tools": ["Unit21", "Sardine", "ComplyAdvantage"]
+    },
+    "pci_dss": {
+      "description": "Payment Card Industry Data Security Standard",
+      "rule": "Never store raw card numbers — use a payment processor tokenization (Stripe, Adyen)",
+      "level_4": "< 20,000 transactions/year — self-assessment questionnaire",
+      "level_1": "> 6 million transactions/year — requires QSA audit"
+    },
+    "gdpr_ccpa": {
+      "description": "Right to erasure applies to financial data — must be able to delete personal data",
+      "exception": "Regulatory records (7 years) cannot be deleted — use pseudonymization"
+    },
+    "money_transmission": {
+      "description": "Transmitting money on behalf of users requires state/national licenses",
+      "path": "Use a regulated BaaS partner (Unit, Column, Stripe Treasury) to avoid direct licensing"
+    }
+  },
+  "security_requirements": [
+    "All financial data encrypted at rest and in transit (AES-256, TLS 1.2+)",
+    "PCI DSS compliance — never store raw card numbers, use tokenization",
+    "Multi-factor authentication for all account access",
+    "Fraud detection on every transaction (velocity checks, device fingerprinting)",
+    "Audit log of every financial operation with timestamps and actor IDs",
+    "Soft deletes with 7-year retention for regulatory compliance",
+    "IP allowlisting for admin and internal tooling",
+    "Penetration testing before launch and annually"
+  ],
+  "best_practices": [
+    "Partner with a regulated BaaS provider (Unit, Column, Stripe Treasury) before building core banking",
+    "Build fraud detection before going live — not as an afterthought",
+    "Design for disputes and chargebacks from day one — they will happen",
+    "Never store raw card numbers or bank account numbers",
+    "Use webhooks for payment status — polling creates race conditions",
+    "Implement idempotency keys on all payment mutations",
+    "Test every payment flow with declined cards and network timeouts",
+    "Display clear fee schedules — hidden fees cause chargeback spikes"
+  ],
+  "common_risks": [
+    "Regulatory non-compliance — operating without required licenses",
+    "Fraud at scale — losses can exceed revenue without proper detection",
+    "Chargeback spiral — high chargeback rates lead to account termination by Stripe/processors",
+    "Bank partner concentration risk — single banking partner means single point of failure",
+    "Data breach — financial PII (SSN, account numbers) is highest-value breach target",
+    "Operational errors in ledger — double charges, missing credits destroy user trust instantly"
+  ],
+  "recommended_integrations": [
+    "Stripe — card payments, payouts, subscriptions, identity verification",
+    "Plaid — bank account linking and ACH transfers",
+    "Unit or Column — BaaS for bank accounts, cards, and ACH",
+    "Persona or Onfido — KYC/identity verification",
+    "Sardine — fraud detection and AML",
+    "Resend — transaction confirmation emails, suspicious activity alerts"
+  ]
+}

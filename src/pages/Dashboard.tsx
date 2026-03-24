@@ -8,7 +8,7 @@
 // Auth: magic link → sessionStorage only (never localStorage)
 // Session key: 'sovereign_user' → JSON.stringify({ email: string })
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -84,7 +84,7 @@ function EmailGate({ onVerified }: { onVerified: (email: string) => void }) {
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
+    async (e: FormEvent) => {
       e.preventDefault()
       setError(null)
       setLoading(true)

@@ -1,0 +1,82 @@
+{
+  "standard": "ux",
+  "description": "UX quality standards for every Sovereign-generated app — grounded in Don Norman and Steve Krug principles.",
+  "principles": {
+    "don_norman": {
+      "affordances": "Every interactive element must visually communicate how to interact with it (buttons look clickable, inputs look typeable)",
+      "feedback": "Every user action must produce immediate, clear feedback — no silent failures",
+      "discoverability": "Users must be able to discover all features without reading a manual",
+      "constraints": "Prevent errors before they happen — disable buttons that can't be used, validate inline",
+      "mapping": "Controls must be laid out to match their effect — related actions grouped together"
+    },
+    "steve_krug": {
+      "dont_make_me_think": "Users should not have to figure out how the UI works — obvious is better than clever",
+      "omit_needless_words": "Every word in the UI must earn its place — remove anything that doesn't help users act",
+      "design_for_scanning": "Users scan, not read — use headings, bullets, and visual hierarchy to support scanning",
+      "happy_path_focus": "Design for the most common task first, then handle edge cases"
+    }
+  },
+  "required_states": {
+    "loading": {
+      "rule": "Every async operation must show a loading state",
+      "pattern": "Spinner, skeleton, or 'Loading...' text — never a frozen button with no feedback",
+      "sovereign_standard": "Button becomes disabled + shows spinner + text changes to 'Loading...' during async calls"
+    },
+    "error": {
+      "rule": "Every async operation must have an error state with a recovery action",
+      "pattern": "Error message that explains what went wrong + a button to retry or correct",
+      "sovereign_standard": "Never show a raw error code or stack trace to users — translate to human language with a fix"
+    },
+    "empty": {
+      "rule": "Every list or data view must have an empty state",
+      "pattern": "Illustration or icon + headline + subtext + primary call to action",
+      "sovereign_standard": "Empty state should tell users what the data will look like when it exists, not just 'No data found'"
+    },
+    "success": {
+      "rule": "Confirmation after every successful mutation",
+      "pattern": "Toast notification, success message, or state transition — never silent success",
+      "sovereign_standard": "Success state must be distinct from the loading state — users should know when the action completed"
+    }
+  },
+  "error_message_templates": {
+    "network_error": "Something went wrong. Check your connection and try again.",
+    "auth_error": "Incorrect email or password. Please try again.",
+    "validation_email": "Enter a valid email address.",
+    "validation_required": "<Field name> is required.",
+    "rate_limit": "Too many requests. Please wait a moment before trying again.",
+    "not_found": "We couldn't find what you were looking for.",
+    "server_error": "Something went wrong on our end. We've been notified. Please try again.",
+    "rule": "Error messages must: (1) explain the problem, (2) suggest the fix, (3) never blame the user"
+  },
+  "interaction_patterns": {
+    "transitions": "Key elements should fade+translateY on entrance (200ms ease-out) — not instant pop-in",
+    "hover_states": "All interactive elements must have a hover state that communicates interactivity",
+    "focus_states": "All interactive elements must have a visible focus ring (keyboard navigation)",
+    "disabled_states": "Disabled elements should appear muted (opacity 0.5) and have a tooltip explaining why",
+    "destructive_actions": "Actions that delete or remove data must require confirmation — never one-click delete"
+  },
+  "no_lorem_ipsum": {
+    "rule": "No placeholder text in any UI — not even in development",
+    "rationale": "Lorem ipsum makes the design look unfinished and makes it impossible to review copy quality",
+    "sovereign_standard": "Every UI element ships with real, final copy"
+  },
+  "mobile_responsiveness": {
+    "breakpoints": "375px (iPhone SE), 768px (tablet), 1280px (desktop)",
+    "rule": "Every page must be fully functional at 375px mobile width",
+    "touch_targets": "Minimum 44x44px touch target size for all interactive elements (WCAG)",
+    "testing": "Test every new component at 375px before shipping"
+  },
+  "onboarding_principles": [
+    "Show value before asking for commitment (email, credit card)",
+    "Progress indicators reduce anxiety during multi-step flows",
+    "Confirm understanding at the end of onboarding — 'Your app is live at...'",
+    "No more than 3 required fields in any registration form",
+    "Inline validation — show errors as users type, not on submit"
+  ],
+  "references": [
+    "Don Norman — 'The Design of Everyday Things'",
+    "Steve Krug — 'Don't Make Me Think'",
+    "Nielsen Norman Group — 10 Usability Heuristics",
+    "Sovereign RULES.md — the Jony Ive bar for generated apps"
+  ]
+}

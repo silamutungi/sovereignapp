@@ -1,0 +1,14 @@
+{
+  "test-build-001": {
+    "generation_quality": 70,
+    "deployment_success": 100,
+    "user_clarity": 82,
+    "security": 88,
+    "performance": 90,
+    "overall": 86,
+    "confidence_score": 82,
+    "app_name": "TestApp",
+    "build_id": "test-build-001",
+    "recorded_at": "2026-03-24T21:54:59.511Z"
+  }
+}

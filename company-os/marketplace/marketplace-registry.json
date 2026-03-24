@@ -1,0 +1,94 @@
+{
+  "version": "1.0.0",
+  "updated_at": "2026-03-24",
+  "agents": [
+    {
+      "id": "fundraising-agent",
+      "name": "Fundraising Intelligence",
+      "description": "Prepares pitch materials, analyzes funding readiness, connects to investor database. Assesses traction, team, and market size for Series A readiness.",
+      "category": "growth",
+      "activation_trigger": "manual",
+      "price": "pro",
+      "icon": "💰",
+      "unlock_condition": "Any app with revenue > $0 or 1000+ users",
+      "first_output": "Funding readiness assessment with top 3 actionable improvements"
+    },
+    {
+      "id": "partnership-agent",
+      "name": "Partnership Scout",
+      "description": "Identifies strategic partnership opportunities, drafts outreach templates, tracks partnership pipeline.",
+      "category": "growth",
+      "activation_trigger": "manual",
+      "price": "pro",
+      "icon": "🤝",
+      "unlock_condition": "Apps with B2B or platform features",
+      "first_output": "Top 5 partnership targets with outreach scripts"
+    },
+    {
+      "id": "pr-agent",
+      "name": "PR & Media Intelligence",
+      "description": "Drafts press releases, identifies relevant journalists, monitors brand mentions, generates story angles.",
+      "category": "marketing",
+      "activation_trigger": "manual",
+      "price": "pro",
+      "icon": "📰",
+      "unlock_condition": "Any app post-launch",
+      "first_output": "Press release template + 5 journalist targets in your vertical"
+    },
+    {
+      "id": "community-agent",
+      "name": "Community Builder",
+      "description": "Designs community strategy, identifies where your users hang out, creates engagement playbooks.",
+      "category": "growth",
+      "activation_trigger": "manual",
+      "price": "pro",
+      "icon": "🌍",
+      "unlock_condition": "Apps with social or collaborative features",
+      "first_output": "Community platform recommendation + launch week playbook"
+    },
+    {
+      "id": "compliance-agent",
+      "name": "Compliance Advisor",
+      "description": "GDPR, CCPA, SOC 2, HIPAA guidance. Generates compliance checklists and policy templates.",
+      "category": "legal",
+      "activation_trigger": "manual",
+      "price": "enterprise",
+      "icon": "⚖️",
+      "unlock_condition": "Apps with user data in regulated industries",
+      "first_output": "Compliance gap analysis for your app type"
+    },
+    {
+      "id": "localization-agent",
+      "name": "Localization Engine",
+      "description": "Translates app UI, adapts for regional markets, identifies highest-value localization targets.",
+      "category": "growth",
+      "activation_trigger": "manual",
+      "price": "pro",
+      "icon": "🌐",
+      "unlock_condition": "Apps with international traffic or i18n setup",
+      "first_output": "Top 3 markets to localize for based on your app type"
+    },
+    {
+      "id": "data-agent",
+      "name": "Data Intelligence",
+      "description": "Analyzes your product analytics, identifies drop-off points, recommends A/B tests.",
+      "category": "analytics",
+      "activation_trigger": "automatic",
+      "price": "pro",
+      "icon": "📊",
+      "unlock_condition": "Apps with analytics configured",
+      "first_output": "Funnel analysis and top 3 conversion opportunities"
+    },
+    {
+      "id": "investor-relations-agent",
+      "name": "Investor Relations",
+      "description": "Generates monthly investor updates, tracks metrics against targets, manages cap table context.",
+      "category": "finance",
+      "activation_trigger": "manual",
+      "price": "enterprise",
+      "icon": "📈",
+      "unlock_condition": "Apps with external investors or fundraising in progress",
+      "first_output": "Investor update template + metrics dashboard"
+    }
+  ]
+}
