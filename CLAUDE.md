@@ -730,6 +730,14 @@ Fix: no code change. Document this limitation: if reliability is required in pro
 Rule: document timing assumptions in cron endpoints.
 Learned: 2026-03-23.
 
+**Curly/smart quotes inside string literals break tsc — confirmed production failure**
+Wrong assumption: Claude generates valid TypeScript string literals when writing user-facing copy.
+Correct behaviour: Claude uses Unicode curly apostrophes (') and smart quotes (" ") in prose, which are not valid inside single-quoted or double-quoted JS/TS string literals. They terminate the string early and cause cascading parse errors that exit with code 2 on Vercel.
+Confirmed failure: `setError('Those credentials didn't work.')` — the ' after "didn" closes the string, causing 9 tsc errors on the same line.
+Fix: rule added to TYPESCRIPT BUILD RULES in _systemPrompt.ts. When a string contains an apostrophe, use double quotes or a template literal. Never use curly quotes inside any string literal.
+Triage: → CLAUDE.md ✓ → Generation prompt (_systemPrompt.ts) ✓
+Learned: 2026-03-23.
+
 **Staging builds deploy to Sovereign's Vercel team, not the user's account**
 Context: previously run-build.ts used the user's vercel_token for all Vercel API calls. This is wrong — the user's token should only be used for the claim flow (ownership transfer) when they're ready to move the app to their own account.
 Decision: all staging builds use SOVEREIGN_VERCEL_TOKEN and SOVEREIGN_VERCEL_TEAM_ID. The user's vercel_token is captured during Vercel OAuth and stored on the build record, but never used during the build pipeline.

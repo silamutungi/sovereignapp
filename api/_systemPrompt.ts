@@ -666,6 +666,15 @@ Files without a default export break every import X from './X' statement.
 **noUnusedLocals and noUnusedParameters are true — every declared variable must be used:**
 Do not declare variables, parameters, or imports you do not use. Remove unused function parameters or prefix with _ (e.g. _event).
 
+**Never use curly/smart quotes inside string literals — they break tsc:**
+String literals in TypeScript must use straight ASCII quotes only. Curly quotes (\u2018 \u2019 \u201C \u201D) and similar Unicode punctuation inside a single-quoted or double-quoted string terminate the string early and cause cascading parse errors that fail the entire build.
+  WRONG: setError('Those credentials didn\u2019t work.')   ← smart apostrophe breaks string
+  WRONG: setError("He said \u201Chello\u201D")             ← curly quotes break string
+  RIGHT: setError("Those credentials didn't work.")        ← double-quoted outer, straight apostrophe inside
+  RIGHT: setError('Those credentials did not work.')       ← reword to avoid apostrophe
+  RIGHT: setError(\`Those credentials didn't work.\`)       ← template literal is also safe
+Rule: when a string contains an apostrophe, use double quotes or a template literal. Never let a curly quote appear inside any string literal in any .ts or .tsx file.
+
 **src/vite-env.d.ts is required — omitting it breaks import.meta.env:**
 Every Vite project needs src/vite-env.d.ts containing exactly: /// <reference types="vite/client" />
 Without it tsc fails with "Property 'env' does not exist on type 'ImportMeta'" on every VITE_* env var access. This is file #7 in the required file list.
