@@ -39,11 +39,20 @@
 //
 // Self-contained: no imports from src/ or server/.
 
+import { checkRateLimit } from './_rateLimit.js'
+
 // Increase body limit — files array can be 100KB+ of React/TS source code
 export const config = { api: { bodyParser: { sizeLimit: '10mb' } } }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function handler(req: any, res: any): Promise<void> {
+  const rl = checkRateLimit(req, { limit: 20, windowMs: 60 * 60 * 1000 })
+  if (!rl.allowed) {
+    res.setHeader('Retry-After', String(rl.retryAfter ?? 3600))
+    res.status(429).json({ error: 'Too many requests' })
+    return
+  }
+
   try {
     if (req.method !== 'POST') {
       res.status(405).json({ error: 'Method not allowed' })

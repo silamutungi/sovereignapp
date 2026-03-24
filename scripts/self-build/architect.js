@@ -2,7 +2,7 @@
 // scripts/self-build/architect.js
 // Scans the codebase and produces build-plan.json
 
-import { existsSync, writeFileSync } from 'fs'
+import { existsSync, writeFileSync, statSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
@@ -77,7 +77,7 @@ const MANIFEST = [
 function classify(file) {
   const fullPath = join(ROOT, file)
   if (!existsSync(fullPath)) return 'MISSING'
-  const size = require('fs').statSync(fullPath).size
+  const size = statSync(fullPath).size
   if (size < 100) return 'EXISTS_PARTIAL'
   return 'EXISTS_COMPLETE'
 }

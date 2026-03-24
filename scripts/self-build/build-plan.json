@@ -1,0 +1,617 @@
+{
+  "generated_at": "2026-03-24T22:43:06.792Z",
+  "total_components": 54,
+  "exists_complete": 54,
+  "exists_partial": 0,
+  "missing": 0,
+  "needs_refactor": 0,
+  "estimated_build_time_hours": 0,
+  "parallel_groups": [
+    {
+      "group": 1,
+      "can_run_parallel": true,
+      "components": [
+        {
+          "id": "brain-api",
+          "file": "brain/brain-api.js",
+          "group": 1,
+          "priority": "critical",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "sovereign-rules",
+          "file": "brain/SOVEREIGN_RULES.md",
+          "group": 1,
+          "priority": "critical",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "sovereign-patterns",
+          "file": "brain/SOVEREIGN_PATTERNS.md",
+          "group": 1,
+          "priority": "critical",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "sovereign-antipatterns",
+          "file": "brain/SOVEREIGN_ANTIPATTERNS.md",
+          "group": 1,
+          "priority": "critical",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "agent-base-class",
+          "file": "shared/agent-base-class.js",
+          "group": 1,
+          "priority": "critical",
+          "depends_on": [
+            "brain-api"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "pipeline-state",
+          "file": "shared/pipeline-state.js",
+          "group": 1,
+          "priority": "critical",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "logger",
+          "file": "shared/logger.js",
+          "group": 1,
+          "priority": "high",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "dimension-weights",
+          "file": "confidence/engine/dimension-weights.json",
+          "group": 1,
+          "priority": "critical",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        }
+      ]
+    },
+    {
+      "group": 2,
+      "can_run_parallel": true,
+      "components": [
+        {
+          "id": "brain-cycle1",
+          "file": "brain/cycle1-per-project.js",
+          "group": 2,
+          "priority": "high",
+          "depends_on": [
+            "brain-api"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "brain-cycle2",
+          "file": "brain/cycle2-weekly.js",
+          "group": 2,
+          "priority": "high",
+          "depends_on": [
+            "brain-api"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "brain-cycle3",
+          "file": "brain/cycle3-monthly.js",
+          "group": 2,
+          "priority": "high",
+          "depends_on": [
+            "brain-api"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "sovereign-component-library",
+          "file": "brain/SOVEREIGN_COMPONENT_LIBRARY.md",
+          "group": 2,
+          "priority": "medium",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        }
+      ]
+    },
+    {
+      "group": 3,
+      "can_run_parallel": true,
+      "components": [
+        {
+          "id": "security-evaluator",
+          "file": "confidence/engine/evaluators/security-evaluator.js",
+          "group": 3,
+          "priority": "critical",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "code-quality-evaluator",
+          "file": "confidence/engine/evaluators/code-quality-evaluator.js",
+          "group": 3,
+          "priority": "high",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "performance-evaluator",
+          "file": "confidence/engine/evaluators/performance-evaluator.js",
+          "group": 3,
+          "priority": "high",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "accessibility-evaluator",
+          "file": "confidence/engine/evaluators/accessibility-evaluator.js",
+          "group": 3,
+          "priority": "high",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "ux-evaluator",
+          "file": "confidence/engine/evaluators/ux-evaluator.js",
+          "group": 3,
+          "priority": "high",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "architecture-evaluator",
+          "file": "confidence/engine/evaluators/architecture-evaluator.js",
+          "group": 3,
+          "priority": "high",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "test-coverage-evaluator",
+          "file": "confidence/engine/evaluators/test-coverage-evaluator.js",
+          "group": 3,
+          "priority": "medium",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "seo-evaluator",
+          "file": "confidence/engine/evaluators/seo-evaluator.js",
+          "group": 3,
+          "priority": "medium",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "documentation-evaluator",
+          "file": "confidence/engine/evaluators/documentation-evaluator.js",
+          "group": 3,
+          "priority": "medium",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "i18n-evaluator",
+          "file": "confidence/engine/evaluators/i18n-evaluator.js",
+          "group": 3,
+          "priority": "medium",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        }
+      ]
+    },
+    {
+      "group": 4,
+      "can_run_parallel": true,
+      "components": [
+        {
+          "id": "aggregator",
+          "file": "confidence/engine/aggregator.js",
+          "group": 4,
+          "priority": "critical",
+          "depends_on": [
+            "dimension-weights"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "score-history",
+          "file": "confidence/engine/score-history.js",
+          "group": 4,
+          "priority": "medium",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "report-generator",
+          "file": "confidence/reports/report-generator.js",
+          "group": 4,
+          "priority": "medium",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "migration-evaluator",
+          "file": "confidence/migration/migration-evaluator.js",
+          "group": 4,
+          "priority": "medium",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "effort-estimator",
+          "file": "confidence/migration/effort-estimator.js",
+          "group": 4,
+          "priority": "medium",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "confidence-api",
+          "file": "confidence/api/confidence-api.js",
+          "group": 4,
+          "priority": "medium",
+          "depends_on": [
+            "aggregator"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        }
+      ]
+    },
+    {
+      "group": 5,
+      "can_run_parallel": true,
+      "components": [
+        {
+          "id": "discovery-agent",
+          "file": "agents/intake/discovery-agent.js",
+          "group": 5,
+          "priority": "high",
+          "depends_on": [
+            "agent-base-class"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "insight-agent",
+          "file": "agents/elevation/insight-agent.js",
+          "group": 5,
+          "priority": "high",
+          "depends_on": [
+            "agent-base-class"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "creative-director-agent",
+          "file": "agents/elevation/creative-director-agent.js",
+          "group": 5,
+          "priority": "high",
+          "depends_on": [
+            "agent-base-class"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "ia-agent",
+          "file": "agents/elevation/ia-agent.js",
+          "group": 5,
+          "priority": "high",
+          "depends_on": [
+            "agent-base-class"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "reviewer-agent",
+          "file": "agents/review/reviewer-agent.js",
+          "group": 5,
+          "priority": "critical",
+          "depends_on": [
+            "agent-base-class",
+            "aggregator"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "shipper-agent",
+          "file": "agents/ship/shipper-agent.js",
+          "group": 5,
+          "priority": "critical",
+          "depends_on": [
+            "agent-base-class"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        }
+      ]
+    },
+    {
+      "group": 6,
+      "can_run_parallel": true,
+      "components": [
+        {
+          "id": "ceo-agent",
+          "file": "agents/vision/ceo-agent.js",
+          "group": 6,
+          "priority": "high",
+          "depends_on": [
+            "agent-base-class"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "product-agent",
+          "file": "agents/vision/product-agent.js",
+          "group": 6,
+          "priority": "high",
+          "depends_on": [
+            "agent-base-class"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "design-agent",
+          "file": "agents/vision/design-agent.js",
+          "group": 6,
+          "priority": "high",
+          "depends_on": [
+            "agent-base-class"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "design-tokens-agent",
+          "file": "agents/vision/design-tokens-agent.js",
+          "group": 6,
+          "priority": "high",
+          "depends_on": [
+            "agent-base-class"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "marketing-agent",
+          "file": "agents/vision/marketing-agent.js",
+          "group": 6,
+          "priority": "medium",
+          "depends_on": [
+            "agent-base-class"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "seo-agent",
+          "file": "agents/vision/seo-agent.js",
+          "group": 6,
+          "priority": "medium",
+          "depends_on": [
+            "agent-base-class"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "onboarding-agent",
+          "file": "agents/vision/onboarding-agent.js",
+          "group": 6,
+          "priority": "medium",
+          "depends_on": [
+            "agent-base-class"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "i18n-agent",
+          "file": "agents/vision/i18n-agent.js",
+          "group": 6,
+          "priority": "medium",
+          "depends_on": [
+            "agent-base-class"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        }
+      ]
+    },
+    {
+      "group": 9,
+      "can_run_parallel": true,
+      "components": [
+        {
+          "id": "handoff-protocol",
+          "file": "company-os/handoff/handoff-protocol.js",
+          "group": 9,
+          "priority": "critical",
+          "depends_on": [
+            "brain-api"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "context-transfer",
+          "file": "company-os/handoff/context-transfer.js",
+          "group": 9,
+          "priority": "high",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "unlock-system",
+          "file": "company-os/functional/unlock-system.js",
+          "group": 9,
+          "priority": "high",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "marketplace-registry",
+          "file": "company-os/marketplace/marketplace-registry.json",
+          "group": 9,
+          "priority": "high",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "activation-system",
+          "file": "company-os/marketplace/activation-system.js",
+          "group": 9,
+          "priority": "high",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        }
+      ]
+    },
+    {
+      "group": 13,
+      "can_run_parallel": true,
+      "components": [
+        {
+          "id": "coach-engine",
+          "file": "company-os/coach/coach-engine.js",
+          "group": 13,
+          "priority": "critical",
+          "depends_on": [
+            "handoff-protocol"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "coach-personality",
+          "file": "company-os/coach/coach-personality.js",
+          "group": 13,
+          "priority": "critical",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "coach-interventions",
+          "file": "company-os/coach/coach-interventions.js",
+          "group": 13,
+          "priority": "high",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "coach-memory",
+          "file": "company-os/coach/coach-memory.js",
+          "group": 13,
+          "priority": "high",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "coach-outcomes",
+          "file": "company-os/coach/coach-outcomes.js",
+          "group": 13,
+          "priority": "medium",
+          "depends_on": [],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        },
+        {
+          "id": "coach-weekly-brief",
+          "file": "company-os/coach/coach-weekly-brief.js",
+          "group": 13,
+          "priority": "high",
+          "depends_on": [
+            "coach-engine"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        }
+      ]
+    },
+    {
+      "group": 14,
+      "can_run_parallel": true,
+      "components": [
+        {
+          "id": "brain-dashboard",
+          "file": "src/pages/brain-dashboard.tsx",
+          "group": 14,
+          "priority": "medium",
+          "depends_on": [
+            "brain-api"
+          ],
+          "status": "EXISTS_COMPLETE",
+          "estimated_hours": 2
+        }
+      ]
+    }
+  ],
+  "critical_path": [
+    "brain-api",
+    "sovereign-rules",
+    "sovereign-patterns",
+    "sovereign-antipatterns",
+    "agent-base-class",
+    "pipeline-state",
+    "security-evaluator",
+    "dimension-weights",
+    "aggregator",
+    "reviewer-agent",
+    "shipper-agent",
+    "handoff-protocol",
+    "coach-engine",
+    "coach-personality"
+  ],
+  "confidence_target": 85
+}
