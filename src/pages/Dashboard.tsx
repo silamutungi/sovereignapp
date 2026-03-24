@@ -235,7 +235,21 @@ function EmailGate({ onVerified }: { onVerified: (email: string) => void }) {
               </div>
             ) : (
               <form onSubmit={(e) => { void handleSubmit(e) }} noValidate>
+                <label
+                  htmlFor="dashboard-email"
+                  style={{
+                    display: 'block',
+                    font: '11px/1 DM Mono, Courier New, monospace',
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: '#6b6862',
+                    margin: '0 0 8px',
+                  }}
+                >
+                  Email address
+                </label>
                 <input
+                  id="dashboard-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -249,14 +263,15 @@ function EmailGate({ onVerified }: { onVerified: (email: string) => void }) {
                     border: '1px solid #d8d4ca',
                     background: 'white',
                     color: '#0e0d0b',
-                    outline: 'none',
                     display: 'block',
+                    boxSizing: 'border-box',
                   }}
                   onFocus={(e) => (e.target.style.borderColor = '#0e0d0b')}
                   onBlur={(e) => (e.target.style.borderColor = '#d8d4ca')}
                 />
                 {error && (
                   <p
+                    role="alert"
                     style={{
                       font: '12px/1 DM Mono, Courier New, monospace',
                       color: '#c0392b',
@@ -621,10 +636,11 @@ function EditPanel({
           padding: 10px 12px;
           font: 16px/1.5 DM Mono, Courier New, monospace;
           resize: none; min-height: 44px; max-height: 140px;
-          overflow-y: auto; outline: none;
+          overflow-y: auto;
         }
         .ep-textarea::placeholder { color: #6b6862; }
         .ep-textarea:focus { border-color: #8ab800; }
+        .ep-textarea:focus-visible { outline: 2px solid #8ab800; outline-offset: 2px; }
         .ep-send-btn {
           width: 40px; height: 40px; border-radius: 8px;
           background: #8ab800; color: #0e0d0b;
@@ -1214,7 +1230,7 @@ function SetupDBModal({ build, onClose }: { build: Build; onClose: () => void })
 
   return (
     <>
-      <style>{`.setup-modal-overlay{position:fixed;inset:0;z-index:1100;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);padding:24px} .setup-modal{background:#0e0d0b;border-radius:12px;width:100%;max-width:600px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden} .setup-sql{flex:1;overflow-y:auto;background:#111009;padding:16px 20px;font:12px/1.7 DM Mono,Courier New,monospace;color:#c8c4bc;white-space:pre-wrap;word-break:break-all;border:none;outline:none;resize:none;width:100%;box-sizing:border-box} .setup-sql::-webkit-scrollbar{width:4px} .setup-sql::-webkit-scrollbar-thumb{background:#3a3830;border-radius:2px}`}</style>
+      <style>{`.setup-modal-overlay{position:fixed;inset:0;z-index:1100;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);padding:24px} .setup-modal{background:#0e0d0b;border-radius:12px;width:100%;max-width:600px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden} .setup-sql{flex:1;overflow-y:auto;background:#111009;padding:16px 20px;font:12px/1.7 DM Mono,Courier New,monospace;color:#c8c4bc;white-space:pre-wrap;word-break:break-all;border:none;resize:none;width:100%;box-sizing:border-box} .setup-sql:focus-visible{outline:2px solid #8ab800;outline-offset:-2px} .setup-sql::-webkit-scrollbar{width:4px} .setup-sql::-webkit-scrollbar-thumb{background:#3a3830;border-radius:2px}`}</style>
       <div
         className="setup-modal-overlay"
         onClick={(e) => { if (e.target === e.currentTarget) onClose() }}

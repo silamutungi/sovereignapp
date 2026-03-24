@@ -99,7 +99,7 @@ function checkInteractiveElementLabels(projectPath, issues) {
     }
 
     // Check icon buttons (button with only an svg/icon child)
-    const iconButtonMatches = content.match(/<button\b[^>]*>\s*(?:<svg|<Icon)[^<]*(?:<\/svg>|>|/>)\s*<\/button>/g) || []
+    const iconButtonMatches = content.match(/<button\b[^>]*>\s*(?:<svg|<Icon)[^<]*(?:<\/svg>|[/]>|>)\s*<\/button>/g) || []
     for (const btn of iconButtonMatches) {
       if (!/aria-label/.test(btn)) {
         issues.push({

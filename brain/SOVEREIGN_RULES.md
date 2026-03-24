@@ -140,6 +140,50 @@ Right: `"source": "/((?!api/).*)"` — excludes API
 
 ---
 
+## Accessibility Rules — WCAG AA Non-Negotiable
+
+Sovereign's own dashboard scored 50/100 on its first accessibility audit (2026-03-24).
+The 50 was a crash-default from a broken evaluator — but the real issues were real.
+We cannot ask customers to meet WCAG AA if our own product does not.
+
+**1. Every form input must have an accessible label.**
+Wrong: `<input placeholder="your@email.com" />` — placeholder disappears on focus, not read by all screen readers
+Right: `<label htmlFor="email-id">Email address</label><input id="email-id" .../>` — OR `aria-label="Email address"`
+Why: Screen reader users navigate by form labels. Placeholder alone is insufficient.
+
+**2. Never set `outline: none` on interactive elements.**
+Wrong: `style={{ outline: 'none' }}` on an `<input>` or `<textarea>`
+Right: Remove it entirely — `global.css` has `:focus-visible` that handles all interactive elements
+Why: Keyboard users rely on visible focus rings. `outline: none` makes tab navigation invisible.
+
+**3. All icon-only buttons require `aria-label`.**
+Wrong: `<button><svg .../></button>`
+Right: `<button aria-label="Close dialog"><svg aria-hidden="true" .../></button>`
+The `aria-hidden="true"` on the SVG prevents the screen reader from reading it twice.
+
+**4. Error messages must use `role="alert"`.**
+Wrong: `{error && <p style={{color: 'red'}}>{error}</p>}`
+Right: `{error && <p role="alert" ...>{error}</p>}`
+Why: Without role="alert", screen readers may not announce the error when it appears.
+
+**5. Heading hierarchy must not skip levels.**
+Don't go h1 → h3. Every page must have an h1. Subheadings must follow in sequence.
+Why: Screen readers use headings for navigation. Skipped levels break document outline.
+
+**6. CSS `:focus-visible` must exist globally.**
+`global.css` (or equivalent) must contain: `:focus-visible { outline: 2px solid <brand-color>; outline-offset: 3px; }`
+This covers every interactive element automatically. Never remove it.
+
+**7. `aria-hidden="true"` on decorative elements.**
+Decorative SVGs, spinner icons, visual-only dots: add `aria-hidden="true"`.
+Status indicators with live text: use `aria-live="polite"` on the container.
+
+**Run the accessibility evaluator before every commit that touches UI:**
+`node confidence/engine/evaluators/accessibility-evaluator.js`
+Target: 100/100. Minimum to ship: 85/100.
+
+---
+
 ## Quality Gate
 
 Before any agent marks output complete:
@@ -154,6 +198,13 @@ Before any agent marks output complete:
 - [ ] WCAG AA contrast: brightness formula applied
   `brightness = (R*299 + G*587 + B*114) / 1000`
   `> 128 → use #1a1a1a text; ≤ 128 → use #ffffff text`
+
+### Accessibility (WCAG AA — non-negotiable)
+- [ ] Every form input has a `<label htmlFor>` or `aria-label`
+- [ ] No `outline: none` on any interactive element
+- [ ] All icon-only buttons have `aria-label`
+- [ ] Error messages have `role="alert"`
+- [ ] Accessibility evaluator score ≥ 85/100
 
 ### Engineering
 - [ ] Loading states on every async operation
@@ -177,4 +228,4 @@ Every agent MUST:
 
 ---
 
-*Last updated: 2026-03-24. Every rule here maps to a real production failure.*
+*Last updated: 2026-03-24 (accessibility rules added — Sovereign scored 50→100/100 on first audit). Every rule here maps to a real production failure.*
