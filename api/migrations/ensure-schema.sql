@@ -34,6 +34,13 @@ ALTER TABLE builds ADD COLUMN IF NOT EXISTS next_steps JSONB DEFAULT NULL;
 -- own = fully migrated to user's own Supabase project
 ALTER TABLE builds ADD COLUMN IF NOT EXISTS supabase_mode TEXT DEFAULT 'sovereign';
 
+-- Checkpoint array for retry-from-failure — tracks which major steps completed
+-- Values: 'github', 'vercel', 'database', 'files'
+ALTER TABLE builds ADD COLUMN IF NOT EXISTS completed_steps JSONB DEFAULT '[]';
+
+-- Vercel project ID for the staging deployment — stored so retries can skip project creation
+ALTER TABLE builds ADD COLUMN IF NOT EXISTS vercel_project_id TEXT DEFAULT NULL;
+
 -- ── magic_links table — create if missing ───────────────────────────────────
 -- Required for magic link authentication flow.
 

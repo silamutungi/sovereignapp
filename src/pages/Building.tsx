@@ -439,6 +439,30 @@ export default function Building() {
     (!!pollError && isSupabaseProvisioningError(pollError))
   )
 
+  // Login Connection = Vercel GitHub app not installed for this repo on sovereign team.
+  // Show a manual fallback rather than a generic error.
+  const isLoginConnectionError = isFailed &&
+    !!status?.error &&
+    status.error.toLowerCase().includes("login connection")
+
+  // General infra failure (not Supabase, not login connection) — offer retry from checkpoint.
+  const canRetryFromCheckpoint = isFailed && !needsSupabaseRetry && !isLoginConnectionError && !retrying
+
+  const handleRetryFromCheckpoint = async () => {
+    if (!buildId || retrying) return
+    setRetrying(true)
+    try {
+      await fetch('/api/run-build', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: buildId, supabaseChoice: dbChoice ?? 'sovereign', forceRetry: true }),
+      })
+      setRetrying(false)
+    } catch {
+      setRetrying(false)
+    }
+  }
+
   return (
     <>
       {/* Spinner keyframe — can't use App.css from this standalone page */}
@@ -586,12 +610,37 @@ export default function Building() {
             })}
           </div>
 
-          {/* Error state — suppressed when retry UI is already showing */}
-          {isFailed && !needsSupabaseRetry && (
+          {/* Login Connection error — manual Vercel fallback */}
+          {isLoginConnectionError && (
+            <div style={S.errorBox} role="alert">
+              <strong>Vercel link failed.</strong>{' '}
+              We couldn't connect Vercel to your repo automatically.{' '}
+              <a
+                href={`https://vercel.com/new/git/import?s=${encodeURIComponent(status?.repoUrl ?? '')}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: '#c8f060', textDecoration: 'underline' }}
+              >
+                Click here to connect manually →
+              </a>
+            </div>
+          )}
+
+          {/* General error with retry-from-checkpoint */}
+          {isFailed && !needsSupabaseRetry && !isLoginConnectionError && (
             <div style={S.errorBox} role="alert">
               <strong>Build failed:</strong>{' '}
               {status?.error ?? 'Unknown error. Check your GitHub and Vercel connections.'}
             </div>
+          )}
+          {canRetryFromCheckpoint && (
+            <button
+              onClick={() => { void handleRetryFromCheckpoint() }}
+              disabled={retrying}
+              style={{ ...S.ctaBtn, marginTop: '12px', opacity: retrying ? 0.6 : 1, cursor: retrying ? 'not-allowed' : 'pointer' }}
+            >
+              {retrying ? 'Retrying…' : 'Retry from last checkpoint →'}
+            </button>
           )}
 
           {/* Poll error */}
