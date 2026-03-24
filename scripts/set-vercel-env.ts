@@ -88,6 +88,16 @@ const VARS_TO_SET: Array<{key: string; value: string | undefined; sensitive: boo
     value: getEnv('CRON_SECRET'),
     sensitive: true,
   },
+  {
+    key: 'SOVEREIGN_VERCEL_TEAM_ID',
+    value: getEnv('SOVEREIGN_VERCEL_TEAM_ID'),
+    sensitive: false,
+  },
+  {
+    key: 'SOVEREIGN_VERCEL_TOKEN',
+    value: getEnv('SOVEREIGN_VERCEL_TOKEN'),
+    sensitive: true,
+  },
 ]
 
 // ── Vercel API helpers ────────────────────────────────────────────────────────
