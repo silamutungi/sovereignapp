@@ -777,6 +777,13 @@ Learned: 2026-03-23.
 The confetti animation uses `--drift` CSS custom property in the keyframe to vary the horizontal drift per piece. This requires the keyframe to reference `var(--drift, 40px)` and each piece to set `style={{ '--drift': '${n}px' } as CSSProperties}`. The confetti auto-dismisses via `setTimeout(() => setVisible(false), 4000)`. Only fires when RSVP status is 'yes' — not for maybe or no.
 Learned: 2026-03-23.
 
+**CSP missing connect-src kills all Supabase calls — every generated app was broken**
+Wrong assumption: `default-src 'self'` in vercel.json only blocks scripts and styles.
+Correct behaviour: `default-src` is the fallback for ALL directives including `connect-src`. Without explicit `connect-src`, every fetch/XHR to an external origin (including Supabase) is blocked. Auth signup, login, and all database queries silently fail with a CSP violation — showing a generic error with no obvious cause.
+Fix: add `connect-src 'self' https://*.supabase.co wss://*.supabase.co` to the CSP header. The `wss://` covers Supabase Realtime websocket connections. Updated in api/run-build.ts (scaffold injector) and api/_systemPrompt.ts (generation prompt) so every future app gets it automatically.
+Rule: every generated app's CSP must include `connect-src` covering the Supabase wildcard. Never rely on `default-src` fallback for network-connected apps.
+Learned: 2026-03-23.
+
 **Git SSH over HTTPS for Sovereign-generated repos**
 When cloning generated repos via `git clone https://github.com/...` for local editing, the HTTPS remote cannot push (no token cached). Switch to SSH before pushing: `git remote set-url origin git@github.com:user/repo.git`. The user's SSH key at `~/.ssh/id_ed25519` is configured for `silamutungi` and works for all repos they own.
 Rule: always switch generated repo remotes to SSH before attempting a push from the local environment.
