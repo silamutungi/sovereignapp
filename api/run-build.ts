@@ -709,8 +709,33 @@ async function injectVercelEnvVars(
   if (!res.ok) {
     const body = await res.text().catch(() => '')
     console.error('[run-build] injectVercelEnvVars FAILED:', res.status, body, '— projectId:', projectId, 'teamId:', teamId ?? 'MISSING', 'keys:', keys)
-  } else {
-    console.log('[run-build] injectVercelEnvVars OK — injected:', keys.join(', '))
+    return
+  }
+  console.log('[run-build] injectVercelEnvVars OK — injected:', keys.join(', '))
+
+  // Verify the vars actually landed — a 200 from the POST doesn't guarantee
+  // the correct teamId was used. A missing teamId causes the project to be
+  // found on the wrong team and the response may still be 200 with no-op.
+  try {
+    const verifyRes = await fetchWithTimeout(
+      `https://api.vercel.com/v10/projects/${encodeURIComponent(projectId)}/env${teamQ}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+      NET,
+    )
+    if (verifyRes.ok) {
+      const verifyData = await verifyRes.json() as { envs?: Array<{ key: string }> }
+      const presentKeys = (verifyData.envs ?? []).map((e) => e.key)
+      const missing = keys.filter((k) => !presentKeys.includes(k))
+      if (missing.length > 0) {
+        console.error('[run-build] injectVercelEnvVars VERIFY FAILED — keys not present after injection:', missing, 'projectId:', projectId, 'teamId:', teamId ?? 'MISSING')
+      } else {
+        console.log('[run-build] injectVercelEnvVars VERIFY OK — all keys confirmed present:', keys.join(', '))
+      }
+    } else {
+      console.warn('[run-build] injectVercelEnvVars verify GET failed:', verifyRes.status)
+    }
+  } catch (verifyErr) {
+    console.warn('[run-build] injectVercelEnvVars verify threw (non-fatal):', verifyErr)
   }
 }
 
