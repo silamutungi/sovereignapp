@@ -677,6 +677,17 @@ async function injectVercelEnvVars(
 ): Promise<void> {
   const token = process.env.SOVEREIGN_VERCEL_TOKEN!
   const teamQ = teamId ? `?teamId=${encodeURIComponent(teamId)}` : ''
+  const keys  = vars.map(v => v.key)
+  const emptyKeys = vars.filter(v => !v.value).map(v => v.key)
+
+  console.log('[run-build] injectVercelEnvVars: projectId:', projectId, 'teamId:', teamId ?? 'MISSING', 'keys:', keys)
+  if (emptyKeys.length > 0) {
+    console.error('[run-build] injectVercelEnvVars: empty values for keys:', emptyKeys, '— generated app will have no Supabase credentials')
+  }
+  if (!teamId) {
+    console.error('[run-build] injectVercelEnvVars: SOVEREIGN_VERCEL_TEAM_ID is not set — env var injection will fail (project belongs to staging team, teamId is required)')
+  }
+
   const payload = vars.map(({ key, value }) => ({
     key,
     value,
@@ -697,7 +708,9 @@ async function injectVercelEnvVars(
   )
   if (!res.ok) {
     const body = await res.text().catch(() => '')
-    console.warn('[run-build] injectVercelEnvVars non-fatal error:', res.status, body)
+    console.error('[run-build] injectVercelEnvVars FAILED:', res.status, body, '— projectId:', projectId, 'teamId:', teamId ?? 'MISSING', 'keys:', keys)
+  } else {
+    console.log('[run-build] injectVercelEnvVars OK — injected:', keys.join(', '))
   }
 }
 
@@ -971,7 +984,7 @@ export default async function handler(req: any, res: any): Promise<void> {
             await step('Connecting your database…')
             await updateBuild(supabaseUrl, serviceKey, buildId, { supabase_mode: 'sovereign_temporary' })
             deploySupabaseUrl = process.env.SUPABASE_URL!
-            deployAnonKey     = process.env.VITE_SUPABASE_ANON_KEY ?? ''
+            deployAnonKey     = process.env.VITE_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? ''
 
             await step('Running your schema…')
             if (build.supabase_schema) {
@@ -993,7 +1006,7 @@ export default async function handler(req: any, res: any): Promise<void> {
             // Sovereign-hosted path — use Sovereign's own Supabase instance,
             // scope all generated tables by build_id
             deploySupabaseUrl = process.env.SUPABASE_URL!
-            deployAnonKey     = process.env.VITE_SUPABASE_ANON_KEY ?? ''
+            deployAnonKey     = process.env.VITE_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? ''
 
             await step('Running your schema…')
             if (build.supabase_schema) {

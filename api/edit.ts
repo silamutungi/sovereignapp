@@ -4,8 +4,9 @@
 // Body: { buildId, appName, repoUrl, editRequest }
 // Returns: { success: true, message: string }
 //
-// Fetches current index.html from the user's GitHub repo, runs the edit
-// through Claude, and pushes the updated file back. Vercel auto-deploys.
+// Fetches current index.html from the GitHub repo, runs the edit
+// through Claude, pushes the updated file back, then explicitly
+// triggers a Vercel redeploy on the sovereign-staging team.
 //
 // Rate limit: 10 edits per hour per IP
 
@@ -24,7 +25,8 @@ export const MODEL_FAST = 'claude-haiku-4-5-20251001'
 // - Rate limited: 10/hr per IP
 // - editRequest length capped at 1000 chars
 // - HTML output validated before push (must contain doctype/html tag)
-// - github_token fetched from Supabase (never from client)
+// - SOVEREIGN_GITHUB_TOKEN used for all GitHub operations (staging repos in Sovereign org)
+// - SOVEREIGN_VERCEL_TOKEN + SOVEREIGN_VERCEL_TEAM_ID used for Vercel redeploy
 // - build must not be soft-deleted
 
 function getSupabase() {
@@ -75,45 +77,61 @@ export default async function handler(req: any, res: any): Promise<void> {
   try {
     const supabase = getSupabase()
 
-    // Fetch build to retrieve github_token
+    // Fetch build to retrieve vercel_project_id (github_token kept for reference)
     const { data: build, error: buildError } = await supabase
       .from('builds')
-      .select('github_token, email')
+      .select('github_token, email, vercel_project_id')
       .eq('id', buildId)
       .is('deleted_at', null)
       .single()
 
     if (buildError || !build) {
+      console.error('[edit] build not found, buildId:', buildId, 'error:', buildError?.message)
       res.status(404).json({ error: 'Build not found' })
+      return
+    }
+
+    // Staging repos are committed using SOVEREIGN_GITHUB_TOKEN so Sovereign's
+    // GitHub org retains write access even if the user's OAuth token expires.
+    const githubToken = process.env.SOVEREIGN_GITHUB_TOKEN
+    if (!githubToken) {
+      console.error('[edit] SOVEREIGN_GITHUB_TOKEN is not set — cannot commit to staging repo')
+      res.status(500).json({ error: 'Server configuration error' })
       return
     }
 
     // Parse owner/repo from repoUrl (format: https://github.com/owner/repo)
     const repoPath = String(repoUrl).replace('https://github.com/', '')
+    console.log('[edit] repo target:', repoPath, 'buildId:', buildId)
+    console.log('[edit] using SOVEREIGN_GITHUB_TOKEN for GitHub operations')
 
     // Fetch current index.html from GitHub
+    console.log('[edit] fetching index.html from GitHub…')
     const githubRes = await fetch(
       `https://api.github.com/repos/${repoPath}/contents/index.html`,
       {
         headers: {
-          Authorization: `Bearer ${build.github_token}`,
+          Authorization: `Bearer ${githubToken}`,
           Accept: 'application/vnd.github.v3+json',
         },
       },
     )
 
     if (!githubRes.ok) {
+      const body = await githubRes.text().catch(() => '')
+      console.error('[edit] GitHub read failed:', githubRes.status, body, 'repo:', repoPath)
       res.status(500).json({ error: 'Could not read your app code' })
       return
     }
 
     const fileData = await githubRes.json() as { content: string; sha: string }
     const currentHtml = Buffer.from(fileData.content, 'base64').toString('utf-8')
+    console.log('[edit] fetched index.html, sha:', fileData.sha, 'length:', currentHtml.length)
 
     // Generate updated HTML via Claude
+    console.log('[edit] generating edit via Claude, model:', MODEL_GENERATION)
     const message = await anthropic.messages.create({
       // Sonnet 4.6: full-file HTML editing — must preserve all CSS/JS while applying targeted change.
-      // Updated from stale claude-sonnet-4-20250514 snapshot to current Sonnet 4.6.
       // Do not downgrade to Haiku — drops CSS/JS context during large file edits.
       model: MODEL_GENERATION,
       max_tokens: 8000,
@@ -140,17 +158,20 @@ Apply the change. Keep everything else identical. Return the complete updated in
       .trim()
 
     if (!updatedHtml.includes('<!DOCTYPE') && !updatedHtml.includes('<html')) {
+      console.error('[edit] Claude returned non-HTML output, length:', updatedHtml.length)
       res.status(500).json({ error: 'Could not generate the edit' })
       return
     }
+    console.log('[edit] Claude edit generated, length:', updatedHtml.length)
 
-    // Push updated file to GitHub
+    // Push updated file to GitHub using SOVEREIGN_GITHUB_TOKEN
+    console.log('[edit] pushing updated index.html to GitHub repo:', repoPath)
     const pushRes = await fetch(
       `https://api.github.com/repos/${repoPath}/contents/index.html`,
       {
         method: 'PUT',
         headers: {
-          Authorization: `Bearer ${build.github_token}`,
+          Authorization: `Bearer ${githubToken}`,
           Accept: 'application/vnd.github.v3+json',
           'Content-Type': 'application/json',
         },
@@ -163,8 +184,63 @@ Apply the change. Keep everything else identical. Return the complete updated in
     )
 
     if (!pushRes.ok) {
+      const pushBody = await pushRes.text().catch(() => '')
+      console.error('[edit] GitHub push FAILED:', pushRes.status, pushBody, 'repo:', repoPath)
       res.status(500).json({ error: 'Could not save the change' })
       return
+    }
+
+    const pushData = await pushRes.json() as { commit?: { sha: string } }
+    console.log('[edit] GitHub push OK, commit sha:', pushData.commit?.sha ?? 'unknown')
+
+    // Explicitly trigger a Vercel redeploy on the sovereign-staging team.
+    // We do not rely on GitHub auto-deploy because the GitHub app on the
+    // sovereign-staging team may not cover all user repos.
+    const vcProjectId = build.vercel_project_id
+    const vcTeamId    = process.env.SOVEREIGN_VERCEL_TEAM_ID
+    const vcToken     = process.env.SOVEREIGN_VERCEL_TOKEN
+
+    console.log('[edit] Vercel redeploy: projectId:', vcProjectId ?? 'MISSING', 'teamId:', vcTeamId ?? 'MISSING', 'token set:', !!vcToken)
+
+    if (vcProjectId && vcTeamId && vcToken) {
+      // Fetch the latest deployment for this project so we can redeploy it
+      const deployListRes = await fetch(
+        `https://api.vercel.com/v6/deployments?projectId=${encodeURIComponent(vcProjectId)}&teamId=${encodeURIComponent(vcTeamId)}&limit=1`,
+        { headers: { Authorization: `Bearer ${vcToken}` } },
+      )
+
+      if (deployListRes.ok) {
+        const deployList = await deployListRes.json() as { deployments?: Array<{ uid: string; state?: string }> }
+        const latest = deployList.deployments?.[0]
+        console.log('[edit] latest deployment uid:', latest?.uid ?? 'none', 'state:', latest?.state ?? 'none')
+
+        if (latest?.uid) {
+          const redeployRes = await fetch(
+            `https://api.vercel.com/v13/deployments?forceNew=1&teamId=${encodeURIComponent(vcTeamId)}`,
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${vcToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ deploymentId: latest.uid }),
+            },
+          )
+          const redeployBody = await redeployRes.text().catch(() => '')
+          if (!redeployRes.ok) {
+            console.warn('[edit] Vercel redeploy non-fatal:', redeployRes.status, redeployBody)
+          } else {
+            console.log('[edit] Vercel redeploy triggered OK, status:', redeployRes.status)
+          }
+        } else {
+          console.warn('[edit] no existing deployment found for project:', vcProjectId, '— relying on GitHub auto-deploy')
+        }
+      } else {
+        const listBody = await deployListRes.text().catch(() => '')
+        console.warn('[edit] failed to list Vercel deployments:', deployListRes.status, listBody, '— relying on GitHub auto-deploy')
+      }
+    } else {
+      console.warn('[edit] missing Vercel env vars (projectId:', vcProjectId ?? 'MISSING', 'teamId:', vcTeamId ?? 'MISSING', 'token:', !!vcToken, ') — relying on GitHub auto-deploy')
     }
 
     // Update build status
