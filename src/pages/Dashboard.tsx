@@ -903,7 +903,7 @@ function AuthDashboard({ email }: { email: string }) {
 
   // Next steps from most recent complete build
   const latestComplete = builds.find((b) => b.status === 'complete')
-  const nextSteps: NextStep[] = latestComplete?.next_steps ?? []
+  const nextSteps: NextStep[] = Array.isArray(latestComplete?.next_steps) ? latestComplete.next_steps : []
 
   return (
     <>

@@ -720,9 +720,9 @@ function NdevPanel({ locale }: { locale: Locale }) {
 
               <div style={{ background: '#0e0d0b', borderRadius: 8, padding: '12px 16px', maxHeight: 160, overflowY: 'auto' }}>
                 <p style={{ fontFamily: 'DM Mono, monospace', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b6862', margin: '0 0 8px' }}>
-                  {spec.files?.length ?? 0} files generated
+                  {(Array.isArray(spec.files) ? spec.files : []).length} files generated
                 </p>
-                {(spec.files ?? []).map(f => (
+                {(Array.isArray(spec.files) ? spec.files : []).map(f => (
                   <p key={f.path} style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', color: '#c8c4bc', margin: '2px 0', lineHeight: 1.4 }}>{f.path}</p>
                 ))}
               </div>
@@ -730,7 +730,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
               {spec.tier && (
                 <div style={{ marginTop: '12px', display: 'flex', gap: 8, alignItems: 'center' }}>
                   <span style={{ fontFamily: 'DM Mono, monospace', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: spec.primaryColor, border: `1px solid ${spec.primaryColor}55`, padding: '2px 8px', borderRadius: 100 }}>{spec.tier}</span>
-                  {(spec.activeStandards ?? []).slice(0, 3).map(s => (
+                  {(Array.isArray(spec.activeStandards) ? spec.activeStandards : []).slice(0, 3).map(s => (
                     <span key={s} style={{ fontFamily: 'DM Mono, monospace', fontSize: '10px', color: '#6b6862' }}>{s}</span>
                   ))}
                 </div>
