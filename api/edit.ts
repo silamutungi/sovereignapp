@@ -91,12 +91,14 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
-    // Staging repos are committed using SOVEREIGN_GITHUB_TOKEN so Sovereign's
-    // GitHub org retains write access even if the user's OAuth token expires.
-    const githubToken = process.env.SOVEREIGN_GITHUB_TOKEN
+    // Prefer SOVEREIGN_GITHUB_TOKEN (staging repos in Sovereign's org).
+    // Fall back to the user's stored github_token so edits work even if
+    // SOVEREIGN_GITHUB_TOKEN has not yet been set in Vercel env vars.
+    const githubToken = process.env.SOVEREIGN_GITHUB_TOKEN ?? build.github_token
+    console.log('[edit] using token:', process.env.SOVEREIGN_GITHUB_TOKEN ? 'sovereign' : 'user')
     if (!githubToken) {
-      console.error('[edit] SOVEREIGN_GITHUB_TOKEN is not set — cannot commit to staging repo')
-      res.status(500).json({ error: 'Server configuration error' })
+      console.error('[edit] no GitHub token available — SOVEREIGN_GITHUB_TOKEN not set and build has no github_token')
+      res.status(500).json({ error: "We couldn't make that change. Please try again in a moment." })
       return
     }
 

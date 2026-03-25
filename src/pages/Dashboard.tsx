@@ -24,6 +24,8 @@ interface Build {
   error: string | null
   next_steps: NextStep[] | null
   supabase_schema: string | null
+  supabase_mode: string | null
+  claimed_at: string | null
   created_at: string
 }
 
@@ -1459,8 +1461,10 @@ function AppCard({
         </a>
       )}
 
-      {/* Setup DB chip — only when supabase_schema is available */}
-      {build.supabase_schema && (
+      {/* Setup DB chip — only for builds the user must configure themselves.
+          Sovereign-hosted builds (sovereign / sovereign_temporary) already have
+          the schema running on Sovereign's DB — nothing for the user to do. */}
+      {build.supabase_schema && !build.claimed_at && (build.supabase_mode == null || build.supabase_mode === 'own') && (
         <button
           onClick={() => setSetupOpen(true)}
           style={{
