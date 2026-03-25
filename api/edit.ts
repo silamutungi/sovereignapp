@@ -5,8 +5,9 @@
 // Returns: { success: true, message: string }
 //
 // Fetches current index.html from the GitHub repo, runs the edit
-// through Claude, pushes the updated file back, then explicitly
-// triggers a Vercel redeploy on the sovereign-staging team.
+// through Claude, pushes the updated file back, triggers a Vercel
+// redeploy, then polls until the deployment reaches READY state.
+// Build status is updated throughout — never inserts a new row.
 //
 // Rate limit: 10 edits per hour per IP
 
@@ -14,20 +15,20 @@ import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { checkRateLimit } from './_rateLimit.js'
 
-// Model constants — change here to swap models across the file
-// MODEL_GENERATION: plain-English edit engine — reads full HTML, applies targeted edits, returns complete file
-//   Code quality matters here; Haiku produces regressions and drops CSS/JS during edits
-// MODEL_FAST: available for future pre-validation or classification tasks
+// Allow up to 5 minutes so polling doesn't cut off mid-deploy
+export const config = { maxDuration: 300 }
+
+// Model constants
 export const MODEL_GENERATION = 'claude-sonnet-4-6'
-export const MODEL_FAST = 'claude-haiku-4-5-20251001'
 
 // SECURITY AUDIT
 // - Rate limited: 10/hr per IP
 // - editRequest length capped at 1000 chars
 // - HTML output validated before push (must contain doctype/html tag)
-// - SOVEREIGN_GITHUB_TOKEN used for all GitHub operations (staging repos in Sovereign org)
+// - SOVEREIGN_GITHUB_TOKEN used for GitHub ops, falls back to build.github_token
 // - SOVEREIGN_VERCEL_TOKEN + SOVEREIGN_VERCEL_TEAM_ID used for Vercel redeploy
 // - build must not be soft-deleted
+// - always UPDATE existing build row — never INSERT
 
 function getSupabase() {
   return createClient(
@@ -37,6 +38,8 @@ function getSupabase() {
 }
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function handler(req: any, res: any): Promise<void> {
@@ -74,10 +77,22 @@ export default async function handler(req: any, res: any): Promise<void> {
     return
   }
 
-  try {
-    const supabase = getSupabase()
+  const supabase = getSupabase()
 
-    // Fetch build to retrieve vercel_project_id (github_token kept for reference)
+  // Helper — always UPDATE the existing build row, never INSERT
+  const setBuildStatus = async (
+    status: string,
+    step: string | null,
+    error: string | null = null,
+  ) => {
+    await supabase
+      .from('builds')
+      .update({ status, step, ...(error !== null ? { error } : {}) })
+      .eq('id', buildId)
+  }
+
+  try {
+    // Fetch build record
     const { data: build, error: buildError } = await supabase
       .from('builds')
       .select('github_token, email, vercel_project_id')
@@ -91,23 +106,22 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
-    // Prefer SOVEREIGN_GITHUB_TOKEN (staging repos in Sovereign's org).
-    // Fall back to the user's stored github_token so edits work even if
-    // SOVEREIGN_GITHUB_TOKEN has not yet been set in Vercel env vars.
+    // Prefer SOVEREIGN_GITHUB_TOKEN; fall back to stored user token
     const githubToken = process.env.SOVEREIGN_GITHUB_TOKEN ?? build.github_token
     console.log('[edit] using token:', process.env.SOVEREIGN_GITHUB_TOKEN ? 'sovereign' : 'user')
     if (!githubToken) {
-      console.error('[edit] no GitHub token available — SOVEREIGN_GITHUB_TOKEN not set and build has no github_token')
+      console.error('[edit] no GitHub token available')
       res.status(500).json({ error: "We couldn't make that change. Please try again in a moment." })
       return
     }
 
-    // Parse owner/repo from repoUrl (format: https://github.com/owner/repo)
+    // Mark build as 'building' immediately so the dashboard reflects the edit
+    await setBuildStatus('building', 'Applying your edit…')
+
     const repoPath = String(repoUrl).replace('https://github.com/', '')
     console.log('[edit] repo target:', repoPath, 'buildId:', buildId)
-    console.log('[edit] using SOVEREIGN_GITHUB_TOKEN for GitHub operations')
 
-    // Fetch current index.html from GitHub
+    // ── Step 1: Fetch current index.html from GitHub ─────────────────────────
     console.log('[edit] fetching index.html from GitHub…')
     const githubRes = await fetch(
       `https://api.github.com/repos/${repoPath}/contents/index.html`,
@@ -121,7 +135,8 @@ export default async function handler(req: any, res: any): Promise<void> {
 
     if (!githubRes.ok) {
       const body = await githubRes.text().catch(() => '')
-      console.error('[edit] GitHub read failed:', githubRes.status, body, 'repo:', repoPath)
+      console.error('[edit] GitHub read failed:', githubRes.status, body)
+      await setBuildStatus('error', null, 'Could not read app code from GitHub')
       res.status(500).json({ error: 'Could not read your app code' })
       return
     }
@@ -130,11 +145,11 @@ export default async function handler(req: any, res: any): Promise<void> {
     const currentHtml = Buffer.from(fileData.content, 'base64').toString('utf-8')
     console.log('[edit] fetched index.html, sha:', fileData.sha, 'length:', currentHtml.length)
 
-    // Generate updated HTML via Claude
+    // ── Step 2: Generate updated HTML via Claude ─────────────────────────────
     console.log('[edit] generating edit via Claude, model:', MODEL_GENERATION)
+    await setBuildStatus('building', 'Generating your edit…')
+
     const message = await anthropic.messages.create({
-      // Sonnet 4.6: full-file HTML editing — must preserve all CSS/JS while applying targeted change.
-      // Do not downgrade to Haiku — drops CSS/JS context during large file edits.
       model: MODEL_GENERATION,
       max_tokens: 8000,
       messages: [
@@ -161,13 +176,16 @@ Apply the change. Keep everything else identical. Return the complete updated in
 
     if (!updatedHtml.includes('<!DOCTYPE') && !updatedHtml.includes('<html')) {
       console.error('[edit] Claude returned non-HTML output, length:', updatedHtml.length)
+      await setBuildStatus('error', null, 'Could not generate the edit')
       res.status(500).json({ error: 'Could not generate the edit' })
       return
     }
     console.log('[edit] Claude edit generated, length:', updatedHtml.length)
 
-    // Push updated file to GitHub using SOVEREIGN_GITHUB_TOKEN
+    // ── Step 3: Push updated file to GitHub ──────────────────────────────────
     console.log('[edit] pushing updated index.html to GitHub repo:', repoPath)
+    await setBuildStatus('building', 'Pushing your change…')
+
     const pushRes = await fetch(
       `https://api.github.com/repos/${repoPath}/contents/index.html`,
       {
@@ -187,7 +205,8 @@ Apply the change. Keep everything else identical. Return the complete updated in
 
     if (!pushRes.ok) {
       const pushBody = await pushRes.text().catch(() => '')
-      console.error('[edit] GitHub push FAILED:', pushRes.status, pushBody, 'repo:', repoPath)
+      console.error('[edit] GitHub push FAILED:', pushRes.status, pushBody)
+      await setBuildStatus('error', null, 'Could not push change to GitHub')
       res.status(500).json({ error: 'Could not save the change' })
       return
     }
@@ -195,17 +214,19 @@ Apply the change. Keep everything else identical. Return the complete updated in
     const pushData = await pushRes.json() as { commit?: { sha: string } }
     console.log('[edit] GitHub push OK, commit sha:', pushData.commit?.sha ?? 'unknown')
 
-    // Explicitly trigger a Vercel redeploy on the sovereign-staging team.
-    // We do not rely on GitHub auto-deploy because the GitHub app on the
-    // sovereign-staging team may not cover all user repos.
+    // ── Step 4: Trigger Vercel redeploy ───────────────────────────────────────
+    await setBuildStatus('building', 'Deploying your edit…')
+
     const vcProjectId = build.vercel_project_id
     const vcTeamId    = process.env.SOVEREIGN_VERCEL_TEAM_ID
     const vcToken     = process.env.SOVEREIGN_VERCEL_TOKEN
 
     console.log('[edit] Vercel redeploy: projectId:', vcProjectId ?? 'MISSING', 'teamId:', vcTeamId ?? 'MISSING', 'token set:', !!vcToken)
 
+    let newDeployId: string | null = null
+
     if (vcProjectId && vcTeamId && vcToken) {
-      // Fetch the latest deployment for this project so we can redeploy it
+      // Fetch latest deployment to get uid + name for the redeploy call
       const deployListRes = await fetch(
         `https://api.vercel.com/v6/deployments?projectId=${encodeURIComponent(vcProjectId)}&teamId=${encodeURIComponent(vcTeamId)}&limit=1`,
         { headers: { Authorization: `Bearer ${vcToken}` } },
@@ -232,37 +253,100 @@ Apply the change. Keep everything else identical. Return the complete updated in
               }),
             },
           )
+
           const redeployBody = await redeployRes.text().catch(() => '')
           if (!redeployRes.ok) {
             console.warn('[edit] Vercel redeploy non-fatal:', redeployRes.status, redeployBody)
           } else {
-            console.log('[edit] Vercel redeploy triggered OK, status:', redeployRes.status)
+            try {
+              const redeployData = JSON.parse(redeployBody) as { id?: string; uid?: string }
+              newDeployId = redeployData.id ?? redeployData.uid ?? null
+              console.log('[edit] Vercel redeploy triggered OK, new deploymentId:', newDeployId)
+            } catch {
+              console.warn('[edit] could not parse redeploy response:', redeployBody.slice(0, 200))
+            }
           }
         } else {
-          console.warn('[edit] no existing deployment found for project:', vcProjectId, '— relying on GitHub auto-deploy')
+          console.warn('[edit] no existing deployment found for project:', vcProjectId)
         }
       } else {
         const listBody = await deployListRes.text().catch(() => '')
-        console.warn('[edit] failed to list Vercel deployments:', deployListRes.status, listBody, '— relying on GitHub auto-deploy')
+        console.warn('[edit] failed to list Vercel deployments:', deployListRes.status, listBody)
       }
     } else {
-      console.warn('[edit] missing Vercel env vars (projectId:', vcProjectId ?? 'MISSING', 'teamId:', vcTeamId ?? 'MISSING', 'token:', !!vcToken, ') — relying on GitHub auto-deploy')
+      console.warn('[edit] missing Vercel env vars — relying on GitHub auto-deploy')
     }
 
-    // Update build status
-    await supabase
-      .from('builds')
-      .update({ status: 'building', step: 'Deploying your edit…' })
-      .eq('id', buildId)
+    // ── Step 5: Poll until deployment reaches READY (max 180s) ───────────────
+    // Polling happens server-side so the build status is authoritative.
+    // The client waits for this response; maxDuration: 300 prevents timeout.
+    if (newDeployId && vcTeamId && vcToken) {
+      console.log('[edit] polling deployment:', newDeployId)
+      const POLL_MAX_MS      = 180_000
+      const POLL_INTERVAL_MS = 3_000
+      const pollDeadline     = Date.now() + POLL_MAX_MS
+      let   resolved         = false
 
-    void appName // referenced in request body, logged by Vercel automatically
+      while (!resolved && Date.now() < pollDeadline) {
+        await sleep(POLL_INTERVAL_MS)
+
+        let pollOk  = false
+        let state: string | undefined
+
+        try {
+          const pollRes = await fetch(
+            `https://api.vercel.com/v13/deployments/${encodeURIComponent(newDeployId)}?teamId=${encodeURIComponent(vcTeamId)}`,
+            { headers: { Authorization: `Bearer ${vcToken}` } },
+          )
+          if (pollRes.ok) {
+            const pollData = await pollRes.json() as { readyState?: string; state?: string }
+            state  = pollData.readyState ?? pollData.state
+            pollOk = true
+            console.log('[edit] deployment state:', state)
+          } else {
+            console.warn('[edit] poll request failed:', pollRes.status)
+          }
+        } catch (pollErr) {
+          console.warn('[edit] poll threw:', pollErr)
+        }
+
+        if (!pollOk) continue
+
+        if (state === 'READY') {
+          await setBuildStatus('complete', null, null)
+          console.log('[edit] deployment READY — build marked complete')
+          resolved = true
+        } else if (state === 'ERROR' || state === 'CANCELED') {
+          await setBuildStatus('error', null, 'Edit deployment failed')
+          console.log('[edit] deployment', state, '— build marked error')
+          resolved = true
+        }
+        // BUILDING / QUEUED — keep polling
+      }
+
+      if (!resolved) {
+        // Timed out — deploy is probably still running; optimistically mark complete
+        await setBuildStatus('complete', null, null)
+        console.log('[edit] poll timed out after 180s — optimistically marking complete')
+      }
+    } else {
+      // No deploy ID to poll — optimistically resolve; auto-deploy will handle it
+      await setBuildStatus('complete', null, null)
+      console.log('[edit] no deploymentId to poll — optimistically marking complete')
+    }
+
+    void appName
 
     res.status(200).json({
       success: true,
-      message: 'Change applied — deploying now',
+      message: 'Change applied — your app is updating',
     })
   } catch (err) {
     console.error('[edit] Error:', err)
+    // Best-effort: reset status so the dashboard doesn't stay stuck on 'building'
+    try {
+      await setBuildStatus('error', null, 'Something went wrong during the edit')
+    } catch { /* ignore */ }
     res.status(500).json({ error: 'Something went wrong. Please try again.' })
   }
 }
