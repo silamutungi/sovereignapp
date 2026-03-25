@@ -3,6 +3,11 @@
 // GET /api/build-status?id=buildId
 // Returns: { status, step, repoUrl, deployUrl, appName, error }
 //
+// When status is 'building' and vercel_project_id is set, this endpoint
+// also checks the latest Vercel deployment state and auto-resolves to
+// 'complete' or 'error' — making it self-healing for post-edit deployments.
+// The dashboard's existing 4s polling loop picks up changes automatically.
+//
 // Self-contained: no imports from src/ or server/.
 
 import { checkRateLimit } from './_rateLimit.js'
@@ -32,27 +37,16 @@ export default async function handler(req: any, res: any): Promise<void> {
     const supabaseUrl = process.env.SUPABASE_URL
     const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-    console.log('[build-status] env:', {
-      supabaseUrl:  !!supabaseUrl,
-      serviceRole:  !!serviceKey,
-    })
-
     if (!supabaseUrl || !serviceKey) {
       res.status(500).json({ error: 'Supabase not configured' })
       return
     }
 
-    console.log('[build-status] Querying build:', buildId)
-    console.log('[build-status] Fetching URL:',
-      `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&deleted_at=is.null&select=...`,
-    )
-    console.log('[build-status] About to fetch from Supabase')
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let dbRes: any
     try {
       dbRes = await fetch(
-        `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&deleted_at=is.null&select=status,step,app_name,repo_url,deploy_url,error`,
+        `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&deleted_at=is.null&select=status,step,app_name,repo_url,deploy_url,error,vercel_project_id`,
         {
           headers: {
             apikey: serviceKey,
@@ -61,29 +55,16 @@ export default async function handler(req: any, res: any): Promise<void> {
           },
         },
       )
-      console.log('[build-status] Fetch completed, status:', dbRes.status)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (fetchErr: any) {
-      console.error('[build-status] FETCH CRASHED:',
-        fetchErr.message,
-        fetchErr.cause?.message ?? '',
-      )
+      console.error('[build-status] FETCH CRASHED:', fetchErr.message, fetchErr.cause?.message ?? '')
       res.status(502).json({ error: 'Failed to reach Supabase' })
       return
     }
 
     if (!dbRes.ok) {
-      let errorBody = ''
-      try {
-        errorBody = await dbRes.text()
-      } catch {
-        errorBody = 'could not read body'
-      }
-      console.error('[build-status] Supabase FAILED:',
-        'status:', dbRes.status,
-        'statusText:', dbRes.statusText,
-        'body:', errorBody,
-      )
+      const errorBody = await dbRes.text().catch(() => 'could not read body')
+      console.error('[build-status] Supabase FAILED:', dbRes.status, dbRes.statusText, errorBody)
       res.status(502).json({ error: 'Failed to query Supabase' })
       return
     }
@@ -95,6 +76,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       repo_url: string | null
       deploy_url: string | null
       error: string | null
+      vercel_project_id: string | null
     }>
 
     if (!rows.length) {
@@ -102,7 +84,62 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
-    const row = rows[0]
+    let row = rows[0]
+
+    // ── Auto-resolve building builds via Vercel deployment state ─────────────
+    // When a build is 'building' with a known vercel_project_id, check Vercel's
+    // latest deployment. If it's READY/ERROR, update Supabase and return the
+    // resolved status — the dashboard polling loop picks it up on the next tick.
+    if (row.status === 'building' && row.vercel_project_id) {
+      const vcToken  = process.env.SOVEREIGN_VERCEL_TOKEN
+      const vcTeamId = process.env.SOVEREIGN_VERCEL_TEAM_ID
+
+      if (vcToken && vcTeamId) {
+        try {
+          const deployRes = await fetch(
+            `https://api.vercel.com/v6/deployments?projectId=${encodeURIComponent(row.vercel_project_id)}&teamId=${encodeURIComponent(vcTeamId)}&limit=1`,
+            { headers: { Authorization: `Bearer ${vcToken}` } },
+          )
+
+          if (deployRes.ok) {
+            const deployData = await deployRes.json() as {
+              deployments?: Array<{ uid: string; readyState?: string; state?: string }>
+            }
+            const latest = deployData.deployments?.[0]
+            const state  = latest?.readyState ?? latest?.state
+
+            console.log('[build-status] vercel check — project:', row.vercel_project_id, 'state:', state ?? 'none')
+
+            if (state === 'READY' || state === 'ERROR' || state === 'CANCELED') {
+              const newStatus = state === 'READY' ? 'complete' : 'error'
+              const newError  = state === 'READY' ? null : 'Deployment failed'
+
+              // Update Supabase — best-effort, non-blocking for the response
+              await fetch(
+                `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}`,
+                {
+                  method: 'PATCH',
+                  headers: {
+                    apikey: serviceKey,
+                    Authorization: `Bearer ${serviceKey}`,
+                    'Content-Type': 'application/json',
+                    Prefer: 'return=minimal',
+                  },
+                  body: JSON.stringify({ status: newStatus, step: null, ...(newError ? { error: newError } : {}) }),
+                },
+              ).catch((e) => console.warn('[build-status] status patch failed (non-fatal):', e))
+
+              console.log('[build-status] auto-resolved build to', newStatus)
+              row = { ...row, status: newStatus, step: null, error: newError }
+            }
+          }
+        } catch (vcErr) {
+          // Non-fatal — return current Supabase status as-is
+          console.warn('[build-status] vercel check failed (non-fatal):', vcErr)
+        }
+      }
+    }
+
     res.status(200).json({
       status:    row.status,
       step:      row.step,
