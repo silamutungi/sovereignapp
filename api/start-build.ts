@@ -46,7 +46,8 @@ export const config = { api: { bodyParser: { sizeLimit: '10mb' } } }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function handler(req: any, res: any): Promise<void> {
-  const rl = checkRateLimit(req, { limit: 20, windowMs: 60 * 60 * 1000 })
+  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ?? 'unknown'
+  const rl = checkRateLimit(`start-build:${ip}`, 20, 60 * 60 * 1000)
   if (!rl.allowed) {
     res.setHeader('Retry-After', String(rl.retryAfter ?? 3600))
     res.status(429).json({ error: 'Too many requests' })

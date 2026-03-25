@@ -50,16 +50,21 @@ function LangBar({ locale, setLocale }: { locale: Locale; setLocale: (l: Locale)
 
 // ── Nav ──────────────────────────────────────────────────────────────────────
 function Nav({ locale }: { locale: Locale }) {
+  const scrollToBuildFlow = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
+
   return (
     <header>
       <nav className="nav" aria-label="Main navigation">
         <a href="/" className="logo" aria-label="Sovereign App home">
-          sovereign<em>_app</em>
+          sovereign
         </a>
         <div className="nav-r">
-          <a href="#docs" className="nav-link">{t(locale, 'nav.docs')}</a>
-          <a href="https://github.com" className="nav-link" target="_blank" rel="noreferrer">{t(locale, 'nav.github')}</a>
-          <a href="#waitlist" className="nav-link nav-cta">{t(locale, 'nav.waitlist')}</a>
+          <a href="#how-it-works" className="nav-link">{t(locale, 'nav.howItWorks')}</a>
+          <a href="#pricing" className="nav-link">{t(locale, 'nav.pricing')}</a>
+          <a href="/dashboard" className="nav-link">{t(locale, 'nav.dashboard')}</a>
+          <button className="nav-link nav-cta" onClick={scrollToBuildFlow}>{t(locale, 'nav.cta')}</button>
         </div>
       </nav>
     </header>
@@ -67,38 +72,59 @@ function Nav({ locale }: { locale: Locale }) {
 }
 
 // ── Hero ─────────────────────────────────────────────────────────────────────
-function Hero({ locale, path, setPath }: { locale: Locale; path: 'dev' | 'ndev'; setPath: (p: 'dev' | 'ndev') => void }) {
+function Hero({
+  locale,
+  path,
+  setPath,
+}: {
+  locale: Locale
+  path: 'dev' | 'idea'
+  setPath: (p: 'dev' | 'idea') => void
+}) {
+  const door = path === 'idea' ? 'idea' : 'dev'
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        setPath(path === 'idea' ? 'dev' : 'idea')
+      }
+    },
+    [path, setPath],
+  )
+
   return (
     <section className="hero" aria-labelledby="hero-heading">
       <div className="hero-ring" aria-hidden="true"><span className="ring-dot" /></div>
       <div className="hero-ring hero-ring-2" aria-hidden="true"><span className="ring-dot" /></div>
 
-      <p className="hero-eye">{t(locale, 'hero.eyebrow')}</p>
+      <p className="hero-eye">{t(locale, `hero.${door}.eyebrow`)}</p>
       <h1 className="hero-h" id="hero-heading">
-        <span>{t(locale, 'hero.line1')}</span><br />
-        <span>{t(locale, 'hero.line2')}</span><br />
-        <em>{t(locale, 'hero.line3')}</em>
+        <span>{t(locale, `hero.${door}.line1`)}</span><br />
+        <span>{t(locale, `hero.${door}.line2`)}</span><br />
+        <em>{t(locale, `hero.${door}.line3`)}</em>
       </h1>
-      <p className="hero-sub">
-        {t(locale, 'hero.sub1')}<br />
-        <strong>{t(locale, 'hero.sub2')}</strong>{t(locale, 'hero.sub3')}
-      </p>
+      <p className="hero-sub">{t(locale, `hero.${door}.sub`)}</p>
 
-      <div className="toggle" role="group" aria-label={t(locale, 'toggle.label')}>
+      <div
+        className="toggle"
+        role="group"
+        aria-label={t(locale, 'toggle.label')}
+        onKeyDown={handleKeyDown}
+      >
         <span className="toggle-lbl">{t(locale, 'toggle.label')}</span>
+        <button
+          className={`t-opt${path === 'idea' ? ' on' : ''}`}
+          aria-pressed={path === 'idea'}
+          onClick={() => setPath('idea')}
+        >
+          {t(locale, 'toggle.idea')}
+        </button>
         <button
           className={`t-opt${path === 'dev' ? ' on' : ''}`}
           aria-pressed={path === 'dev'}
           onClick={() => setPath('dev')}
         >
           {t(locale, 'toggle.dev')}
-        </button>
-        <button
-          className={`t-opt${path === 'ndev' ? ' on' : ''}`}
-          aria-pressed={path === 'ndev'}
-          onClick={() => setPath('ndev')}
-        >
-          {t(locale, 'toggle.ndev')}
         </button>
       </div>
     </section>
@@ -107,7 +133,7 @@ function Hero({ locale, path, setPath }: { locale: Locale; path: 'dev' | 'ndev';
 
 // ── DevPanel ─────────────────────────────────────────────────────────────────
 const CMD = 'npx sovereign-app@latest'
-const STACKS = ['React + Vite', 'Next.js', 'Vue', 'SvelteKit', 'Supabase', 'Vercel']
+const STACKS = ['React + Vite', 'TypeScript', 'Tailwind', 'Supabase', 'Vercel', 'GitHub']
 
 function DevPanel({ locale }: { locale: Locale }) {
   const [copied, setCopied] = useState(false)
@@ -119,59 +145,39 @@ function DevPanel({ locale }: { locale: Locale }) {
     })
   }, [])
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter' || e.key === ' ') handleCopy()
   }, [handleCopy])
 
   return (
     <section className="dev-panel" aria-label="Developer path">
-      <div className="dev-grid">
-        <div className="dev-left">
-          <h2 className="dev-h">
-            {t(locale, 'dev.h').split('\n').map((line, i) => (
-              <span key={i}>{line}{i === 0 && <br />}</span>
-            ))}
-          </h2>
-          <p className="dev-sub">{t(locale, 'dev.sub')}</p>
+      <div className="dev-inner">
+        <h2 className="dev-h">
+          {t(locale, 'dev.h').split('\n').map((line, i) => (
+            <span key={i}>{line}{i === 0 && <br />}</span>
+          ))}
+        </h2>
+        <p className="dev-sub">{t(locale, 'dev.sub')}</p>
 
-          <div
-            className="cmd"
-            role="button"
-            tabIndex={0}
-            aria-label={`${CMD} — ${t(locale, 'dev.copy')}`}
-            onClick={handleCopy}
-            onKeyDown={handleKeyDown}
-          >
-            <span className="cmd-prompt" aria-hidden="true">$</span>
-            <span className="cmd-text">{CMD}</span>
-            <span className={copied ? 'cmd-done' : 'cmd-copy'} aria-live="polite">
-              {copied ? '✓' : t(locale, 'dev.copy')}
-            </span>
-          </div>
-
-          <div className="pills" aria-label="Supported stacks">
-            {STACKS.map((s) => (
-              <span key={s} className="pill">{s}</span>
-            ))}
-          </div>
+        <div
+          className="cmd"
+          role="button"
+          tabIndex={0}
+          aria-label={`${CMD} — ${t(locale, 'dev.copy')}`}
+          onClick={handleCopy}
+          onKeyDown={handleKeyDown}
+        >
+          <span className="cmd-prompt" aria-hidden="true">$</span>
+          <span className="cmd-text">{CMD}</span>
+          <span className={copied ? 'cmd-done' : 'cmd-copy'} aria-live="polite">
+            {copied ? t(locale, 'dev.copied') : t(locale, 'dev.copy')}
+          </span>
         </div>
 
-        <div className="dev-right">
-          <blockquote className="qcard">
-            <p>
-              <span className="qhl">{t(locale, 'q1.hl')}</span>{' '}
-              {t(locale, 'q1.rest')}
-            </p>
-            <cite className="qs">{t(locale, 'q1.src')}</cite>
-          </blockquote>
-
-          <blockquote className="qcard">
-            <p>
-              <span className="qhl">{t(locale, 'q2.hl')}</span>{' '}
-              {t(locale, 'q2.rest')}
-            </p>
-            <cite className="qs">{t(locale, 'q2.src')}</cite>
-          </blockquote>
+        <div className="pills" aria-label="Supported stacks">
+          {STACKS.map((s) => (
+            <span key={s} className="pill">{s}</span>
+          ))}
         </div>
       </div>
     </section>
@@ -180,10 +186,10 @@ function DevPanel({ locale }: { locale: Locale }) {
 
 // ── NdevPanel ────────────────────────────────────────────────────────────────
 const PLACEHOLDERS = [
-  'A simple blog where I can write and publish posts…',
-  'A SaaS dashboard with user auth and analytics…',
-  'An e-commerce store with a product catalog…',
-  'A todo app with team collaboration…',
+  'A booking app for my yoga studio…',
+  'A client portal for my consulting practice…',
+  'A marketplace where local chefs sell meal kits…',
+  'A membership community for independent photographers…',
 ]
 
 interface AppFileEntry {
@@ -212,7 +218,7 @@ interface AppSpec {
   activeStandards?: string[]
 }
 
-// ── callGenerateAPI — SSE-aware fetch helper ──────────────────────────────
+// ── callGenerateAPI — SSE-aware fetch helper ──────────────────────────
 type GenerateResult = { spec: AppSpec } | { error: string }
 
 async function callGenerateAPI(
@@ -236,18 +242,15 @@ async function callGenerateAPI(
   const reader = res.body!.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
-  let totalBytes = 0
 
   while (true) {
     const { done, value } = await reader.read()
     if (done) {
-      // Log any unprocessed data remaining in the buffer — helps diagnose truncated events
       if (buffer.trim()) {
         console.warn('[generate] SSE stream closed with unprocessed buffer (' + buffer.length + ' chars):', buffer.slice(0, 300))
       }
       break
     }
-    totalBytes += value?.length ?? 0
     buffer += decoder.decode(value, { stream: true })
 
     const lines = buffer.split('\n')
@@ -269,11 +272,10 @@ async function callGenerateAPI(
         } else if (event.type === 'done' && event.spec) {
           return { spec: event.spec }
         } else if (event.type === 'error') {
-          console.error('[generate] Received error event:', event.error)
           return { error: event.error ?? 'Generation failed.' }
         }
       } catch (parseErr) {
-        console.warn('[generate] Failed to parse SSE line (' + line.length + ' chars):', String(parseErr), line.slice(0, 200))
+        console.warn('[generate] Failed to parse SSE line:', String(parseErr), line.slice(0, 200))
       }
     }
   }
@@ -373,7 +375,6 @@ function NdevPanel({ locale }: { locale: Locale }) {
       if (!res.ok) throw new Error('extraction failed')
       const data = await res.json() as AppBrief & { skipped?: boolean; error?: string }
       if (data.skipped || data.error) {
-        // Server-side skip or parse failure — fall back to raw idea silently
         setResolvedIdea(trimmed)
         await runGeneration(trimmed)
       } else {
@@ -432,7 +433,6 @@ function NdevPanel({ locale }: { locale: Locale }) {
 
   const handleEditEmail = useCallback(() => {
     setStage('result')
-    // Focus the email input after React re-renders
     setTimeout(() => { emailInputRef.current?.focus() }, 0)
   }, [])
 
@@ -484,13 +484,9 @@ function NdevPanel({ locale }: { locale: Locale }) {
     setSpec(allSpecs[newIdx])
   }, [currentSpecIdx, allSpecs])
 
-  const CHIPS = ['chip.1', 'chip.2', 'chip.3', 'chip.4']
-
   // Called when the user clicks "Connect GitHub".
   // 1. Creates a build record in Supabase (returns buildId).
   // 2. Redirects to GitHub OAuth with buildId as `state`.
-  // The GitHub callback → Vercel callback chain completes the OAuth loop,
-  // then redirects to /building?id=buildId.
   const handleGitHubConnect = useCallback(async () => {
     if (!email || !spec || starting) return
     setStartError(null)
@@ -533,8 +529,15 @@ function NdevPanel({ locale }: { locale: Locale }) {
     }
   }, [email, spec, resolvedIdea, value, starting])
 
+  const CHIPS = [
+    'A booking app for my yoga studio',
+    'A client portal for my consulting practice',
+    'A marketplace for local chefs',
+    'A membership community for photographers',
+  ]
+
   return (
-    <section className="ndev-panel" aria-label="No-code path">
+    <section className="ndev-panel" aria-label="Idea path">
       <h2 className="ndev-h">{t(locale, 'ndev.h')}</h2>
       <p className="ndev-sub">{t(locale, 'ndev.sub')}</p>
 
@@ -542,9 +545,9 @@ function NdevPanel({ locale }: { locale: Locale }) {
         {stage === 'idle' && (
           <>
             <div className="chips">
-              {CHIPS.map((k) => (
-                <button key={k} className="chip" onClick={() => setValue(t(locale, k))}>
-                  {t(locale, k)}
+              {CHIPS.map((chip) => (
+                <button key={chip} className="chip" onClick={() => setValue(chip)}>
+                  {chip}
                 </button>
               ))}
             </div>
@@ -557,10 +560,6 @@ function NdevPanel({ locale }: { locale: Locale }) {
               rows={3}
               aria-label={t(locale, 'ndev.h')}
             />
-            <div className="ai-badge" aria-hidden="true">
-              <span className="aidot" />
-              {t(locale, 'ndev.badge')}
-            </div>
             {generateError && (
               <p className="ndev-email-err" role="alert">{generateError}</p>
             )}
@@ -574,7 +573,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
               {isExtracting ? 'Reading your idea…' : t(locale, 'ndev.btn')}
             </button>
             {isExtracting && (
-              <p style={{ fontFamily: 'DM Mono, monospace', fontSize: '12px', color: '#6b6862', margin: '8px 0 0', textAlign: 'center' }} aria-live="polite">
+              <p className="extracting-note" aria-live="polite">
                 Extracting your brief…
               </p>
             )}
@@ -711,7 +710,6 @@ function NdevPanel({ locale }: { locale: Locale }) {
             <div className="gen-preview-wrap" style={{ borderColor: spec.primaryColor + '55', position: 'relative', minHeight: '280px', padding: '24px' }}>
               <p className="gen-preview-label">Generated app</p>
 
-              {/* Color swatch + app name */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                 <div style={{ width: 32, height: 32, borderRadius: 6, background: spec.primaryColor, flexShrink: 0, border: '1px solid rgba(0,0,0,0.1)' }} aria-hidden="true" />
                 <div>
@@ -720,7 +718,6 @@ function NdevPanel({ locale }: { locale: Locale }) {
                 </div>
               </div>
 
-              {/* File list */}
               <div style={{ background: '#0e0d0b', borderRadius: 8, padding: '12px 16px', maxHeight: 160, overflowY: 'auto' }}>
                 <p style={{ fontFamily: 'DM Mono, monospace', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b6862', margin: '0 0 8px' }}>
                   {spec.files?.length ?? 0} files generated
@@ -730,7 +727,6 @@ function NdevPanel({ locale }: { locale: Locale }) {
                 ))}
               </div>
 
-              {/* Tier badge */}
               {spec.tier && (
                 <div style={{ marginTop: '12px', display: 'flex', gap: 8, alignItems: 'center' }}>
                   <span style={{ fontFamily: 'DM Mono, monospace', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: spec.primaryColor, border: `1px solid ${spec.primaryColor}55`, padding: '2px 8px', borderRadius: 100 }}>{spec.tier}</span>
@@ -850,7 +846,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
             {stage === 'connect' && rateLimited && (
               <div className="gen-connect" role="alert">
                 <p className="gen-connect-lbl" style={{ color: 'var(--ink)', fontWeight: 500 }}>
-                  You've used your 3 free builds. Upgrade to Pro to keep building.
+                  You've used your 3 free builds. Upgrade to Builder to keep building.
                 </p>
                 <a
                   href="/#pricing"
@@ -861,7 +857,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
                     document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })
                   }}
                 >
-                  Upgrade to Pro →
+                  Upgrade to Builder →
                 </a>
               </div>
             )}
@@ -885,8 +881,6 @@ function NdevPanel({ locale }: { locale: Locale }) {
                   <p className="ndev-email-err" role="alert">{startError}</p>
                 )}
                 <div className="gen-connect-btns">
-                  {/* Step 1 — GitHub. Clicking this creates the build record,
-                      then the OAuth chain (GitHub → Vercel) completes automatically. */}
                   <button
                     className="gen-oauth-btn"
                     style={{ borderColor: spec.primaryColor + '66' }}
@@ -904,8 +898,6 @@ function NdevPanel({ locale }: { locale: Locale }) {
                     {starting ? 'Starting…' : 'Connect GitHub'}
                   </button>
 
-                  {/* Step 2 — Vercel is triggered automatically from the GitHub callback.
-                      This button is shown for context but the flow is handled server-side. */}
                   <div
                     className="gen-oauth-btn"
                     style={{ borderColor: spec.primaryColor + '33', opacity: 0.45, cursor: 'default' }}
@@ -917,7 +909,6 @@ function NdevPanel({ locale }: { locale: Locale }) {
                     Connect Vercel
                   </div>
 
-                  {/* Step 3 — Database choice shown on the building page after GitHub + Vercel complete. */}
                   <div
                     className="gen-oauth-btn"
                     style={{ borderColor: spec.primaryColor + '22', opacity: 0.3, cursor: 'default' }}
@@ -943,16 +934,76 @@ function NdevPanel({ locale }: { locale: Locale }) {
   )
 }
 
-// ── Stats ─────────────────────────────────────────────────────────────────────
-const STATS = [
-  { val: '$100+', label: 'stat.1', type: 'bad' },
-  { val: '$1k',   label: 'stat.2', type: 'bad' },
-  { val: '$0',    label: 'stat.3', type: 'good' },
-  { val: '90s',   label: 'stat.4', type: 'good' },
-]
+// ── HowItWorks ────────────────────────────────────────────────────────────────
+function HowItWorks({ locale, path }: { locale: Locale; path: 'dev' | 'idea' }) {
+  const { ref, inView } = useInView()
+  const door = path === 'idea' ? 'idea' : 'dev'
 
+  const steps = [
+    { icon: t(locale, `how.${door}.s1.icon`), h: t(locale, `how.${door}.s1.h`), b: t(locale, `how.${door}.s1.b`) },
+    { icon: t(locale, `how.${door}.s2.icon`), h: t(locale, `how.${door}.s2.h`), b: t(locale, `how.${door}.s2.b`) },
+    { icon: t(locale, `how.${door}.s3.icon`), h: t(locale, `how.${door}.s3.h`), b: t(locale, `how.${door}.s3.b`) },
+  ]
+
+  return (
+    <section
+      id="how-it-works"
+      ref={ref as RefObject<HTMLElement>}
+      className={`how reveal${inView ? ' in' : ''}`}
+      aria-labelledby="how-heading"
+    >
+      <h2 className="how-h" id="how-heading">{t(locale, 'how.h')}</h2>
+      <div className="how-steps">
+        {steps.map((step, i) => (
+          <article key={i} className="how-step">
+            <span className="how-icon" aria-hidden="true">{step.icon}</span>
+            <h3 className="how-step-h">{step.h}</h3>
+            <p className="how-step-b">{step.b}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// ── BYOK ──────────────────────────────────────────────────────────────────────
+function BYOK({ locale, path }: { locale: Locale; path: 'dev' | 'idea' }) {
+  const { ref, inView } = useInView()
+  const door = path === 'idea' ? 'idea' : 'dev'
+
+  return (
+    <section
+      ref={ref as RefObject<HTMLElement>}
+      className={`byok reveal${inView ? ' in' : ''}`}
+      aria-labelledby="byok-heading"
+    >
+      <p className="byok-eye">{t(locale, `byok.${door}.eye`)}</p>
+      <h2 className="byok-h" id="byok-heading">{t(locale, `byok.${door}.h`)}</h2>
+      <p className="byok-b">{t(locale, `byok.${door}.b`)}</p>
+
+      {door === 'idea' ? (
+        <p className="byok-detail">{t(locale, 'byok.idea.detail')}</p>
+      ) : (
+        <div className="byok-cmd-wrap">
+          <code className="byok-code">{t(locale, 'byok.dev.code')}</code>
+        </div>
+      )}
+
+      <a href="#" className="byok-link">{t(locale, `byok.${door}.link`)}</a>
+    </section>
+  )
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
 function Stats({ locale }: { locale: Locale }) {
   const { ref, inView } = useInView()
+
+  const stats = [
+    { valKey: 'stat.1.val', lblKey: 'stat.1.lbl' },
+    { valKey: 'stat.2.val', lblKey: 'stat.2.lbl' },
+    { valKey: 'stat.3.val', lblKey: 'stat.3.lbl' },
+    { valKey: 'stat.4.val', lblKey: 'stat.4.lbl' },
+  ]
 
   return (
     <section
@@ -960,10 +1011,10 @@ function Stats({ locale }: { locale: Locale }) {
       className={`stats${inView ? ' in' : ''}`}
       aria-label="Key statistics"
     >
-      {STATS.map(({ val, label, type }) => (
-        <article key={label} className="stat">
-          <span className={`sn ${type}`}>{val}</span>
-          <span className="sl">{t(locale, label)}</span>
+      {stats.map(({ valKey, lblKey }) => (
+        <article key={valKey} className="stat">
+          <span className="sn">{t(locale, valKey)}</span>
+          <span className="sl">{t(locale, lblKey)}</span>
         </article>
       ))}
     </section>
@@ -977,7 +1028,6 @@ function Pricing({ locale }: { locale: Locale }) {
   const scrollToWaitlist = useCallback(() => {
     const section = document.querySelector('#waitlist')
     section?.scrollIntoView({ behavior: 'smooth' })
-    // Focus the email input after scroll completes
     setTimeout(() => {
       const input = document.querySelector<HTMLInputElement>('#wl-email')
       input?.focus()
@@ -995,18 +1045,14 @@ function Pricing({ locale }: { locale: Locale }) {
       className={`pricing reveal${inView ? ' in' : ''}`}
       aria-labelledby="pricing-heading"
     >
-      <h2 className="pricing-h" id="pricing-heading">
-        {t(locale, 'pricing.h').split('\n').map((line, i) => (
-          <span key={i}>{line}{i === 0 && <br />}</span>
-        ))}
-      </h2>
-      <p className="pricing-promise">{t(locale, 'pricing.promise')}</p>
+      <h2 className="pricing-h" id="pricing-heading">{t(locale, 'pricing.h')}</h2>
+      <p className="pricing-sub">{t(locale, 'pricing.sub')}</p>
 
       <div className="plans">
         {/* Free */}
         <article className="plan" aria-label="Free plan">
           <p className="pname">{t(locale, 'plan.free.name')}</p>
-          <p className="pprice">$0</p>
+          <p className="pprice">{t(locale, 'plan.free.price')}</p>
           <p className="pperiod">{t(locale, 'plan.free.period')}</p>
           <ul className="pfeats">
             <li>{t(locale, 'plan.free.f1')}</li>
@@ -1018,33 +1064,37 @@ function Pricing({ locale }: { locale: Locale }) {
           <p className="pnote">{t(locale, 'plan.free.note')}</p>
         </article>
 
-        {/* Pro */}
-        <article className="plan featured" aria-label="Pro plan">
-          <span className="pbadge">{t(locale, 'plan.pro.badge')}</span>
-          <p className="pname">{t(locale, 'plan.pro.name')}</p>
-          <p className="pprice">$19</p>
-          <p className="pperiod">{t(locale, 'plan.pro.period')}</p>
+        {/* Builder (featured) */}
+        <article className="plan featured" aria-label="Builder plan">
+          <span className="pbadge">{t(locale, 'plan.builder.badge')}</span>
+          <p className="pname">{t(locale, 'plan.builder.name')}</p>
+          <p className="pprice">{t(locale, 'plan.builder.price')}</p>
+          <p className="pperiod">{t(locale, 'plan.builder.period')}</p>
           <ul className="pfeats">
-            <li>{t(locale, 'plan.pro.f1')}</li>
-            <li>{t(locale, 'plan.pro.f2')}</li>
-            <li>{t(locale, 'plan.pro.f3')}</li>
-            <li>{t(locale, 'plan.pro.f4')}</li>
+            <li>{t(locale, 'plan.builder.f1')}</li>
+            <li>{t(locale, 'plan.builder.f2')}</li>
+            <li>{t(locale, 'plan.builder.f3')}</li>
+            <li>{t(locale, 'plan.builder.f4')}</li>
+            <li>{t(locale, 'plan.builder.f5')}</li>
           </ul>
-          <button className="pbtn" onClick={scrollToWaitlist}>{t(locale, 'plan.pro.btn')}</button>
-          <p className="pnote">{t(locale, 'plan.pro.note')}</p>
+          <p className="plan-byok-note">✦ {t(locale, 'plan.builder.byok')}</p>
+          <button className="pbtn" onClick={scrollToWaitlist}>{t(locale, 'plan.builder.btn')}</button>
+          <p className="pnote">{t(locale, 'plan.builder.note')}</p>
         </article>
 
         {/* Team */}
         <article className="plan" aria-label="Team plan">
           <p className="pname">{t(locale, 'plan.team.name')}</p>
-          <p className="pprice">$49</p>
+          <p className="pprice">{t(locale, 'plan.team.price')}</p>
           <p className="pperiod">{t(locale, 'plan.team.period')}</p>
           <ul className="pfeats">
             <li>{t(locale, 'plan.team.f1')}</li>
             <li>{t(locale, 'plan.team.f2')}</li>
             <li>{t(locale, 'plan.team.f3')}</li>
             <li>{t(locale, 'plan.team.f4')}</li>
+            <li>{t(locale, 'plan.team.f5')}</li>
           </ul>
+          <p className="plan-byok-note">✦ {t(locale, 'plan.team.byok')}</p>
           <button className="pbtn" onClick={scrollToWaitlist}>{t(locale, 'plan.team.btn')}</button>
           <p className="pnote">{t(locale, 'plan.team.note')}</p>
         </article>
@@ -1055,7 +1105,7 @@ function Pricing({ locale }: { locale: Locale }) {
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
           <path d="M7 11V7a5 5 0 0 1 10 0v4" />
         </svg>
-        <p><strong>{t(locale, 'promise.strong')}</strong> {t(locale, 'promise.body')}</p>
+        <p>🔒 {t(locale, 'pricing.promise')}</p>
       </div>
     </section>
   )
@@ -1117,7 +1167,7 @@ function Waitlist({ locale }: { locale: Locale }) {
         {t(locale, 'wl.h1')} <em>{t(locale, 'wl.h2')}</em>
       </h2>
       <p className="wlsub">
-        {t(locale, 'wl.sub1')}<strong>Pro for $19/mo.</strong><br />
+        {t(locale, 'wl.sub1')}<strong>Builder for $19/mo.</strong><br />
         {t(locale, 'wl.sub2')}
       </p>
 
@@ -1154,16 +1204,60 @@ function Waitlist({ locale }: { locale: Locale }) {
 }
 
 // ── Footer ────────────────────────────────────────────────────────────────────
-function Footer({ locale }: { locale: Locale }) {
+function Footer({ locale, setLocale }: { locale: Locale; setLocale: (l: Locale) => void }) {
   return (
     <footer className="footer">
-      <p className="fcopy">{t(locale, 'footer.copy')}</p>
-      <nav aria-label="Footer navigation">
-        <a href="#docs" className="flink">{t(locale, 'nav.docs')}</a>
-        <a href="https://github.com" className="flink" target="_blank" rel="noreferrer">{t(locale, 'nav.github')}</a>
-        <a href="#" className="flink">{t(locale, 'nav.discord')}</a>
-        <a href="#" className="flink">{t(locale, 'nav.twitter')}</a>
-      </nav>
+      <div className="footer-inner">
+        {/* Logo */}
+        <a href="/" className="footer-logo" aria-label="Sovereign App home">sovereign</a>
+
+        {/* Nav links */}
+        <nav className="footer-nav" aria-label="Footer navigation">
+          <a href="#how-it-works" className="flink">{t(locale, 'nav.howItWorks')}</a>
+          <a href="#pricing" className="flink">{t(locale, 'nav.pricing')}</a>
+          <a href="/dashboard" className="flink">{t(locale, 'nav.dashboard')}</a>
+          <a href="#" className="flink">{t(locale, 'footer.docs')}</a>
+          <a href="https://github.com" className="flink" target="_blank" rel="noreferrer">{t(locale, 'nav.github')}</a>
+        </nav>
+
+        {/* Promise */}
+        <p className="footer-promise">
+          {t(locale, 'footer.promise').split('\n').map((line, i) => (
+            <span key={i}>{line}{i === 0 && <br />}</span>
+          ))}
+        </p>
+
+        {/* Language selector */}
+        <div className="footer-langs" role="navigation" aria-label="Language selector">
+          {LANGS.map((l) => (
+            <button
+              key={l}
+              className={`lang-btn${locale === l ? ' active' : ''}`}
+              aria-pressed={locale === l}
+              onClick={() => setLocale(l)}
+            >
+              {l.toUpperCase()}
+            </button>
+          ))}
+        </div>
+
+        {/* Built with Sovereign badge */}
+        <a href="#" className="sovereign-badge" aria-label="This page was built with Sovereign">
+          <span className="badge-icon" aria-hidden="true">✦</span>
+          {t(locale, 'badge.label')}
+        </a>
+
+        {/* Legal */}
+        <p className="footer-legal">
+          {t(locale, 'footer.legal')}
+          {' · '}
+          <a href="/privacy" className="flink">{t(locale, 'footer.privacy')}</a>
+          {' · '}
+          <a href="/terms" className="flink">{t(locale, 'footer.terms')}</a>
+          {' · '}
+          <a href="/security" className="flink">{t(locale, 'footer.security')}</a>
+        </p>
+      </div>
     </footer>
   )
 }
@@ -1171,7 +1265,33 @@ function Footer({ locale }: { locale: Locale }) {
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const [locale, setLocale] = useState<Locale>('en')
-  const [path, setPath] = useState<'dev' | 'ndev'>('dev')
+  const [path, setPath] = useState<'dev' | 'idea'>('idea')
+
+  // Sync locale with localStorage (preference, not auth)
+  useEffect(() => {
+    const saved = localStorage.getItem('sovereign_locale') as Locale | null
+    if (saved && ['en', 'es', 'fr', 'de'].includes(saved)) setLocale(saved)
+  }, [])
+
+  const handleSetLocale = useCallback((l: Locale) => {
+    setLocale(l)
+    localStorage.setItem('sovereign_locale', l)
+  }, [])
+
+  // Sync path with URL param — ?for=idea or ?for=dev
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const forParam = params.get('for')
+    if (forParam === 'dev') setPath('dev')
+    else setPath('idea')
+  }, [])
+
+  const handleSetPath = useCallback((p: 'dev' | 'idea') => {
+    setPath(p)
+    const url = new URL(window.location.href)
+    url.searchParams.set('for', p)
+    window.history.replaceState({}, '', url.toString())
+  }, [])
 
   useEffect(() => {
     document.documentElement.lang = locale
@@ -1180,16 +1300,18 @@ export default function App() {
   return (
     <>
       <a href="#main-content" className="skip-link">{t(locale, 'skip')}</a>
-      <LangBar locale={locale} setLocale={setLocale} />
+      <LangBar locale={locale} setLocale={handleSetLocale} />
       <Nav locale={locale} />
       <main id="main-content">
-        <Hero locale={locale} path={path} setPath={setPath} />
+        <Hero locale={locale} path={path} setPath={handleSetPath} />
         {path === 'dev' ? <DevPanel locale={locale} /> : <NdevPanel locale={locale} />}
+        <HowItWorks locale={locale} path={path} />
+        <BYOK locale={locale} path={path} />
         <Stats locale={locale} />
         <Pricing locale={locale} />
         <Waitlist locale={locale} />
       </main>
-      <Footer locale={locale} />
+      <Footer locale={locale} setLocale={handleSetLocale} />
     </>
   )
 }

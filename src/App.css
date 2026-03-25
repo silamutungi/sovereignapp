@@ -2,6 +2,23 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body { overflow-x: hidden; max-width: 100vw; position: relative; }
 
+/* ── Skip link ────────────────────────────────────────────────────────────── */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 16px;
+  z-index: 9999;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transition: top var(--duration-fast);
+}
+.skip-link:focus { top: 8px; }
+
 /* ── Lang Bar ─────────────────────────────────────────────────────────────── */
 .lang-bar {
   background: var(--paper2);
@@ -60,11 +77,7 @@ html, body { overflow-x: hidden; max-width: 100vw; position: relative; }
   letter-spacing: -0.01em;
 }
 
-.logo em {
-  font-style: italic;
-  font-weight: 400;
-  color: var(--text-mid);
-}
+/* Logo has no em child in the new design */
 
 .nav-r {
   display: flex;
@@ -92,6 +105,13 @@ html, body { overflow-x: hidden; max-width: 100vw; position: relative; }
   min-height: 34px;
   display: inline-flex;
   align-items: center;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-decoration: none;
 }
 
 .nav-cta:hover { opacity: 0.85; }
@@ -169,9 +189,9 @@ html, body { overflow-x: hidden; max-width: 100vw; position: relative; }
 .hero-sub {
   font-family: var(--font-mono);
   font-size: 14px;
-  color: #c8c4bc;
+  color: var(--text-mid);
   line-height: 1.65;
-  max-width: 460px;
+  max-width: 520px;
   margin: 0 auto 36px;
   position: relative;
   z-index: 1;
@@ -201,10 +221,10 @@ html, body { overflow-x: hidden; max-width: 100vw; position: relative; }
 
 .t-opt {
   font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--text-mid);
+  font-size: 13px;
+  color: var(--ink);
   background: transparent;
-  border: 0.5px solid transparent;
+  border: 1px solid #e5e7eb;
   border-radius: 100px;
   padding: 8px 18px;
   cursor: pointer;
@@ -213,19 +233,26 @@ html, body { overflow-x: hidden; max-width: 100vw; position: relative; }
 }
 
 .t-opt.on {
-  background: var(--paper);
-  color: var(--ink);
-  border-color: var(--rule);
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
 }
 
 /* ── Dev Panel ───────────────────────────────────────────────────────────── */
 .dev-panel {
   padding: 60px 28px;
-  max-width: 1100px;
+  max-width: 680px;
   margin: 0 auto;
   overflow-x: hidden;
 }
 
+.dev-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* Legacy dev-grid kept for backwards compat */
 .dev-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -773,8 +800,10 @@ html, body { overflow-x: hidden; max-width: 100vw; position: relative; }
   font-size: 40px;
   font-weight: 900;
   line-height: 1;
+  color: var(--ink);
 }
 
+/* Legacy type classes kept for safety */
 .sn.bad  { color: var(--red-text); }
 .sn.good { color: var(--green-dark); }
 
@@ -804,6 +833,15 @@ html, body { overflow-x: hidden; max-width: 100vw; position: relative; }
   white-space: pre-line;
 }
 
+.pricing-sub {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-mid);
+  margin-bottom: 48px;
+  line-height: 1.6;
+}
+
+/* Legacy key kept for compat */
 .pricing-promise {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -1122,24 +1160,35 @@ html, body { overflow-x: hidden; max-width: 100vw; position: relative; }
 
 /* ── Footer ──────────────────────────────────────────────────────────────── */
 .footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 28px;
   border-top: 1px solid var(--rule);
-  flex-wrap: wrap;
-  gap: 12px;
+  padding: 56px 28px 36px;
+  background: var(--paper);
 }
 
-.fcopy {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-dim);
-}
-
-.footer nav {
+.footer-inner {
+  max-width: 800px;
+  margin: 0 auto;
   display: flex;
-  gap: 16px;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  text-align: center;
+}
+
+.footer-logo {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--ink);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+}
+
+.footer-nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
 }
 
 .flink {
@@ -1153,6 +1202,216 @@ html, body { overflow-x: hidden; max-width: 100vw; position: relative; }
 }
 
 .flink:hover { color: var(--ink); }
+
+.footer-promise {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.7;
+  max-width: 480px;
+}
+
+.footer-langs {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.sovereign-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  text-decoration: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  padding: 6px 14px;
+  background: white;
+  transition: border-color var(--duration-fast), color var(--duration-fast);
+}
+
+.sovereign-badge:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.badge-icon {
+  color: #8ab800;
+  font-size: 10px;
+}
+
+.footer-legal {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* Legacy .fcopy kept for safety */
+.fcopy {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* ── Extracting note ─────────────────────────────────────────────────────── */
+.extracting-note {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 8px 0 0;
+  text-align: center;
+}
+
+/* ── Plan BYOK note ──────────────────────────────────────────────────────── */
+.plan-byok-note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  margin: 0 0 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.plan:not(.featured) .plan-byok-note {
+  border-top-color: var(--rule);
+  color: var(--text-dim);
+}
+
+.plan.featured .plan-byok-note {
+  color: var(--text-on-dark-dim);
+}
+
+/* ── How It Works ────────────────────────────────────────────────────────── */
+.how {
+  padding: 80px 28px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.how-h {
+  font-family: var(--font-serif);
+  font-size: 36px;
+  font-weight: 900;
+  color: var(--ink);
+  margin-bottom: 48px;
+  line-height: 1.05;
+}
+
+.how-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+}
+
+.how-step {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.how-icon {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.how-step-h {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.how-step-b {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-mid);
+  line-height: 1.75;
+  margin: 0;
+}
+
+/* ── BYOK ────────────────────────────────────────────────────────────────── */
+.byok {
+  background: var(--ink);
+  padding: 96px 28px;
+  position: relative;
+  overflow: hidden;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+.byok-eye {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #8ab800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 16px;
+}
+
+.byok-h {
+  font-family: var(--font-serif);
+  font-size: 36px;
+  font-weight: 900;
+  color: var(--paper);
+  line-height: 1.1;
+  margin-bottom: 20px;
+  max-width: 680px;
+}
+
+.byok-b {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: rgba(242, 239, 232, 0.65);
+  line-height: 1.75;
+  max-width: 600px;
+  margin-bottom: 20px;
+}
+
+.byok-detail {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: rgba(242, 239, 232, 0.45);
+  line-height: 1.6;
+  max-width: 560px;
+  margin-bottom: 24px;
+}
+
+.byok-cmd-wrap {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius-md);
+  padding: 12px 18px;
+  margin-bottom: 24px;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.byok-code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--green);
+  overflow-x: auto;
+  white-space: nowrap;
+  display: block;
+}
+
+.byok-link {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: rgba(242, 239, 232, 0.55);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color var(--duration-fast);
+}
+
+.byok-link:hover { color: var(--paper); }
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 
@@ -1168,10 +1427,13 @@ html, body { overflow-x: hidden; max-width: 100vw; position: relative; }
   .hero-h { font-size: 38px; }
   .toggle-lbl { display: none; }
   .dev-grid { grid-template-columns: 1fr; }
+  .how-steps { grid-template-columns: 1fr; gap: 32px; }
+  .how { padding: 56px 28px; }
+  .byok { padding: 72px 28px; }
+  .byok-h { font-size: 28px; }
   .stats { grid-template-columns: repeat(2, 1fr); }
   .stat:nth-child(2) { border-right: none; }
   .plans { grid-template-columns: 1fr; }
-  .footer { flex-direction: column; text-align: center; }
   /* Headings */
   .wlh { font-size: 34px; }
   .pricing-h { font-size: 32px; }
@@ -1186,9 +1448,12 @@ html, body { overflow-x: hidden; max-width: 100vw; position: relative; }
   .hero-h { font-size: 30px; }
   .dev-panel { padding: 40px 16px; }
   .ndev-panel { padding: 40px 16px; }
+  .how { padding: 40px 16px; }
+  .byok { padding: 56px 16px; }
+  .byok-h { font-size: 24px; }
   .pricing { padding: 48px 16px; }
   .wl { padding: 60px 16px; }
-  .footer { padding: 20px 16px; }
+  .footer { padding: 40px 16px 28px; }
   /* Stats: single column */
   .stats { grid-template-columns: 1fr; }
   .stat { border-right: none; border-bottom: 1px solid var(--rule); padding: 28px 16px; }
