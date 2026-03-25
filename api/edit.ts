@@ -212,9 +212,9 @@ Apply the change. Keep everything else identical. Return the complete updated in
       )
 
       if (deployListRes.ok) {
-        const deployList = await deployListRes.json() as { deployments?: Array<{ uid: string; state?: string }> }
+        const deployList = await deployListRes.json() as { deployments?: Array<{ uid: string; name?: string; state?: string }> }
         const latest = deployList.deployments?.[0]
-        console.log('[edit] latest deployment uid:', latest?.uid ?? 'none', 'state:', latest?.state ?? 'none')
+        console.log('[edit] latestDeployment shape:', JSON.stringify(latest ?? {}).slice(0, 500))
 
         if (latest?.uid) {
           const redeployRes = await fetch(
@@ -225,7 +225,11 @@ Apply the change. Keep everything else identical. Return the complete updated in
                 Authorization: `Bearer ${vcToken}`,
                 'Content-Type': 'application/json',
               },
-              body: JSON.stringify({ deploymentId: latest.uid }),
+              body: JSON.stringify({
+                name:         latest.name,
+                deploymentId: latest.uid,
+                target:       'production',
+              }),
             },
           )
           const redeployBody = await redeployRes.text().catch(() => '')
