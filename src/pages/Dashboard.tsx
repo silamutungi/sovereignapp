@@ -524,8 +524,8 @@ function EditPanel({
           editRequest: text,
         }),
       })
-      const data = await res.json() as { success?: boolean; error?: string }
-      if (!res.ok || !data.success) {
+      const data = await res.json() as { ok?: boolean; success?: boolean; error?: string }
+      if (!res.ok || (!data.ok && !data.success)) {
         push({ role: 'sovereign', text: data.error ?? 'Something went wrong. Please try again.' })
       } else {
         push({ role: 'sovereign', text: 'Done — your change is deploying now.', previewLink: true })
