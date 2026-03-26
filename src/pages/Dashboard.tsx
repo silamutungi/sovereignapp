@@ -479,8 +479,10 @@ function EditPanel({
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
+  const [iframeBlocked, setIframeBlocked] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const iframeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const counter = useRef(0)
 
   // Scroll chat to bottom when new messages arrive
@@ -825,11 +827,49 @@ function EditPanel({
                   </div>
                   <div className="ep-url-pill">{previewDomain}</div>
                 </div>
-                <iframe
-                  src={previewUrl}
-                  className="ep-iframe"
-                  title={`Preview of ${build.app_name}`}
-                />
+                {iframeBlocked ? (
+                  <div style={{
+                    flex: 1, display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24,
+                  }}>
+                    <span style={{ fontSize: 32 }}>🔒</span>
+                    <p style={{ font: '13px/1.6 DM Mono, Courier New, monospace', color: '#c8c4bc', textAlign: 'center', margin: 0 }}>
+                      Preview requires opening in a new tab.<br />
+                      <span style={{ color: '#6b6862', fontSize: 11 }}>Vercel deployment protection is active.</span>
+                    </p>
+                    <a href={previewUrl} target="_blank" rel="noreferrer" className="ep-open-btn" style={{ fontSize: 14, padding: '10px 20px' }}>
+                      Open in new tab ↗
+                    </a>
+                  </div>
+                ) : (
+                  <iframe
+                    key={previewUrl}
+                    src={previewUrl}
+                    className="ep-iframe"
+                    title={`Preview of ${build.app_name}`}
+                    onLoad={() => {
+                      if (iframeTimerRef.current) clearTimeout(iframeTimerRef.current)
+                    }}
+                    onError={() => {
+                      if (iframeTimerRef.current) clearTimeout(iframeTimerRef.current)
+                      setIframeBlocked(true)
+                    }}
+                    ref={(el) => {
+                      if (el) {
+                        if (iframeTimerRef.current) clearTimeout(iframeTimerRef.current)
+                        iframeTimerRef.current = setTimeout(() => {
+                          try {
+                            // Cross-origin iframe: if we can't read contentDocument it's blocked
+                            const doc = el.contentDocument
+                            if (!doc || doc.body?.innerHTML === '') setIframeBlocked(true)
+                          } catch {
+                            setIframeBlocked(true)
+                          }
+                        }, 4000)
+                      }
+                    }}
+                  />
+                )}
                 <div className="ep-preview-footer">
                   <button className="ep-back-btn" onClick={() => setTab('chat')}>← Back to chat</button>
                   <a href={previewUrl} target="_blank" rel="noreferrer" className="ep-open-btn">Open ↗</a>
