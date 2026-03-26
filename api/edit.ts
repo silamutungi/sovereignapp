@@ -116,84 +116,116 @@ export default async function handler(req: any, res: any): Promise<void> {
     const repoPath = String(repoUrl).replace('https://github.com/', '')
     console.log('[edit] repo target:', repoPath, 'buildId:', buildId)
 
-    // ── Fetch current index.html from GitHub ─────────────────────────────────
-    console.log('[edit] fetching file...', new Date().toISOString())
-    const githubRes = await fetch(
-      `https://api.github.com/repos/${repoPath}/contents/index.html`,
-      {
-        headers: {
-          Authorization: `Bearer ${githubToken}`,
-          Accept: 'application/vnd.github.v3+json',
-        },
-      },
-    )
+    // ── Detect app type and pick the right file to edit ─────────────────────
+    // React apps: try src/pages/Home.tsx → src/App.tsx → index.html
+    // Plain HTML apps: index.html only
+    console.log('[edit] detecting app type...', new Date().toISOString())
 
-    if (!githubRes.ok) {
-      const body = await githubRes.text().catch(() => '')
-      console.error('[edit] GitHub read failed:', githubRes.status, body)
+    const ghHeaders = {
+      Authorization: `Bearer ${githubToken}`,
+      Accept: 'application/vnd.github.v3+json',
+    }
+
+    async function fetchGitHubFile(filePath: string): Promise<{ content: string; sha: string; path: string } | null> {
+      const r = await fetch(`https://api.github.com/repos/${repoPath}/contents/${filePath}`, { headers: ghHeaders })
+      if (!r.ok) return null
+      const d = await r.json() as { content: string; sha: string }
+      return { content: Buffer.from(d.content, 'base64').toString('utf-8'), sha: d.sha, path: filePath }
+    }
+
+    const CANDIDATE_FILES = ['src/pages/Home.tsx', 'src/App.tsx', 'index.html']
+    let targetFile: { content: string; sha: string; path: string } | null = null
+    for (const candidate of CANDIDATE_FILES) {
+      targetFile = await fetchGitHubFile(candidate)
+      if (targetFile) { console.log('[edit] editing file:', candidate); break }
+    }
+
+    if (!targetFile) {
+      console.error('[edit] no editable file found in repo')
       await setBuildStatus('error', null, 'Could not read app code from GitHub')
       res.status(500).json({ error: 'Could not read your app code' })
       return
     }
 
-    const fileData = await githubRes.json() as { content: string; sha: string }
-    const currentHtml = Buffer.from(fileData.content, 'base64').toString('utf-8')
-    console.log('[edit] got file, sha:', fileData.sha, 'length:', currentHtml.length, new Date().toISOString())
+    const isReact = targetFile.path.endsWith('.tsx') || targetFile.path.endsWith('.ts')
+    console.log('[edit] file:', targetFile.path, 'isReact:', isReact, 'length:', targetFile.content.length, new Date().toISOString())
 
-    // ── Generate updated HTML via Claude ─────────────────────────────────────
+    // ── Generate updated file via Claude ─────────────────────────────────────
     console.log('[edit] generating edit...', new Date().toISOString())
     await setBuildStatus('building', 'Generating your edit…')
+
+    const imageGuidance = `
+IMAGES: For any image requests, always use real URLs from https://images.unsplash.com/photo-{id}?w=1200&q=80 — pick a relevant photo ID. Never use placeholder.com or broken src values.`
+
+    const prompt = isReact
+      ? `You are editing a React TypeScript component. Return ONLY the complete updated file. No explanation, no markdown, no code fences. Just the raw TypeScript/JSX.
+
+Rules:
+- Never use React.* namespace (use named imports: import { useState } from 'react')
+- Never use @/ path aliases
+- Keep all existing imports unless replacing them
+- For images: use real Unsplash URLs (https://images.unsplash.com/photo-{id}?w=1200&q=80)
+${imageGuidance}
+
+Here is the current ${targetFile.path}:
+
+${targetFile.content}
+
+The user wants this change: ${editRequest}
+
+Apply the change. Keep everything else identical. Return the complete updated file.`
+      : `You are editing a web app. Return ONLY the complete updated index.html file. No explanation, no markdown, no code fences. Just the raw HTML.
+${imageGuidance}
+
+Here is the current index.html:
+
+${targetFile.content}
+
+The user wants this change: ${editRequest}
+
+Apply the change. Keep everything else identical. Return the complete updated index.html.`
 
     const message = await anthropic.messages.create({
       model: MODEL_GENERATION,
       max_tokens: 8000,
-      messages: [
-        {
-          role: 'user',
-          content: `You are editing a web app. Return ONLY the complete updated index.html file. No explanation, no markdown, no code fences. Just the raw HTML.
-
-Here is the current index.html:
-
-${currentHtml}
-
-The user wants this change: ${editRequest}
-
-Apply the change. Keep everything else identical. Return the complete updated index.html.`,
-        },
-      ],
+      messages: [{ role: 'user', content: prompt }],
     })
 
-    const updatedHtml = message.content
+    const updatedContent = message.content
       .filter((b) => b.type === 'text')
       .map((b) => (b as { type: 'text'; text: string }).text)
       .join('')
       .trim()
 
-    if (!updatedHtml.includes('<!DOCTYPE') && !updatedHtml.includes('<html')) {
-      console.error('[edit] Claude returned non-HTML output, length:', updatedHtml.length)
+    // Validate output matches expected file type
+    const isValidOutput = isReact
+      ? updatedContent.length > 50  // TSX: just needs content
+      : updatedContent.includes('<!DOCTYPE') || updatedContent.includes('<html')
+
+    if (!isValidOutput) {
+      console.error('[edit] Claude returned unexpected output, length:', updatedContent.length)
       await setBuildStatus('error', null, 'Could not generate the edit')
       res.status(500).json({ error: 'Could not generate the edit' })
       return
     }
-    console.log('[edit] edit generated, length:', updatedHtml.length, new Date().toISOString())
+    console.log('[edit] edit generated, length:', updatedContent.length, new Date().toISOString())
 
     // ── Push updated file to GitHub ──────────────────────────────────────────
     console.log('[edit] pushing to github...', new Date().toISOString())
     await setBuildStatus('building', 'Pushing your change…')
 
     const pushRes = await fetch(
-      `https://api.github.com/repos/${repoPath}/contents/index.html`,
+      `https://api.github.com/repos/${repoPath}/contents/${targetFile.path}`,
       {
         method: 'PUT',
         headers: {
-          Authorization: `Bearer ${githubToken}`,
-          Accept: 'application/vnd.github.v3+json',
+          ...ghHeaders,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           message: `Edit: ${String(editRequest).slice(0, 50)}`,
-          content: Buffer.from(updatedHtml).toString('base64'),
-          sha: fileData.sha,
+          content: Buffer.from(updatedContent).toString('base64'),
+          sha: targetFile.sha,
         }),
       },
     )
