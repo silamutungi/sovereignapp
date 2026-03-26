@@ -566,6 +566,20 @@ async function waitForVercelDeployment(
     console.log('[run-build] Vercel: deployment state:', d.state, 'url:', lastUrl)
 
     if (d.state === 'READY') {
+      // Prefer the project's stable production alias over the immutable deployment URL.
+      // The deployment URL changes with every deploy; the project alias is permanent.
+      try {
+        const { ok: projOk, data: projData } = await vercelFetch(
+          `/v9/projects/${encodeURIComponent(projectId)}${teamParam ? `?${teamParam.slice(1)}` : ''}`,
+          token,
+        )
+        const targets = projOk ? (projData as { targets?: { production?: { alias?: string[] } } })?.targets : undefined
+        const stableAlias = targets?.production?.alias?.[0]
+        if (stableAlias) {
+          lastUrl = stableAlias.startsWith('http') ? stableAlias : `https://${stableAlias}`
+          console.log('[run-build] Vercel: using stable project alias:', lastUrl)
+        }
+      } catch { /* non-fatal — fall back to deployment URL */ }
       return { ok: true, deployUrl: lastUrl }
     }
     if (d.state === 'ERROR' || d.state === 'CANCELED') {

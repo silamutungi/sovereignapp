@@ -118,10 +118,25 @@ export default async function handler(req: any, res: any): Promise<void> {
             if (state === 'READY' || state === 'ERROR' || state === 'CANCELED') {
               const newStatus   = state === 'READY' ? 'complete' : 'error'
               const newError    = state === 'READY' ? null : 'Deployment failed'
-              // Update deploy_url to the latest deployment's URL so the preview iframe refreshes
-              const newDeployUrl = state === 'READY' && latest?.url
-                ? `https://${latest.url}`
-                : null
+              // Fetch the project's stable alias rather than the immutable deployment URL
+              let newDeployUrl: string | null = null
+              if (state === 'READY') {
+                try {
+                  const projRes = await fetch(
+                    `https://api.vercel.com/v9/projects/${encodeURIComponent(row.vercel_project_id)}?teamId=${encodeURIComponent(vcTeamId)}`,
+                    { headers: { Authorization: `Bearer ${vcToken}` } },
+                  )
+                  if (projRes.ok) {
+                    const projData = await projRes.json() as {
+                      targets?: { production?: { alias?: string[] } }
+                    }
+                    const alias = projData.targets?.production?.alias?.[0]
+                    if (alias) newDeployUrl = alias.startsWith('http') ? alias : `https://${alias}`
+                  }
+                } catch { /* non-fatal */ }
+                // Fall back to raw deployment URL if project fetch failed
+                if (!newDeployUrl && latest?.url) newDeployUrl = `https://${latest.url}`
+              }
 
               const patch: Record<string, unknown> = { status: newStatus, step: null }
               if (newError) patch.error = newError
