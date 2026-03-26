@@ -941,7 +941,20 @@ function AuthDashboard({ email }: { email: string }) {
         return
       }
       const data = (await res.json()) as { builds: Build[] }
-      setBuilds(data.builds ?? [])
+      const freshBuilds = data.builds ?? []
+      setBuilds(freshBuilds)
+
+      // Self-heal: fire build-status for any stuck 'building' builds so the
+      // self-heal logic in build-status.ts can resolve them. Non-blocking.
+      const buildingBuilds = freshBuilds.filter((b) => b.status === 'building')
+      for (const b of buildingBuilds) {
+        void fetch(`/api/build-status?id=${encodeURIComponent(b.id)}`).then(async (r) => {
+          if (r.ok) {
+            const s = await r.json() as { status?: string }
+            if (s.status === 'complete' || s.status === 'error') void fetchBuilds()
+          }
+        }).catch(() => { /* non-fatal */ })
+      }
     } catch (err) {
       // Fail softly — don't blank the page
       console.warn('[dashboard] Failed to fetch builds', err)
@@ -952,6 +965,9 @@ function AuthDashboard({ email }: { email: string }) {
 
   useEffect(() => {
     void fetchBuilds()
+    // Poll every 15s while any build might be in progress
+    const interval = setInterval(() => void fetchBuilds(), 15000)
+    return () => clearInterval(interval)
   }, [fetchBuilds])
 
   // Toast auto-clear
