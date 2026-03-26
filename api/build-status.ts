@@ -108,7 +108,7 @@ export default async function handler(req: any, res: any): Promise<void> {
 
           if (deployRes.ok) {
             const deployData = await deployRes.json() as {
-              deployments?: Array<{ uid: string; readyState?: string; state?: string }>
+              deployments?: Array<{ uid: string; url?: string; readyState?: string; state?: string }>
             }
             const latest = deployData.deployments?.[0]
             const state  = latest?.readyState ?? latest?.state
@@ -116,8 +116,16 @@ export default async function handler(req: any, res: any): Promise<void> {
             console.log('[build-status] vercel check — project:', row.vercel_project_id, 'state:', state ?? 'none')
 
             if (state === 'READY' || state === 'ERROR' || state === 'CANCELED') {
-              const newStatus = state === 'READY' ? 'complete' : 'error'
-              const newError  = state === 'READY' ? null : 'Deployment failed'
+              const newStatus   = state === 'READY' ? 'complete' : 'error'
+              const newError    = state === 'READY' ? null : 'Deployment failed'
+              // Update deploy_url to the latest deployment's URL so the preview iframe refreshes
+              const newDeployUrl = state === 'READY' && latest?.url
+                ? `https://${latest.url}`
+                : null
+
+              const patch: Record<string, unknown> = { status: newStatus, step: null }
+              if (newError) patch.error = newError
+              if (newDeployUrl) patch.deploy_url = newDeployUrl
 
               // Update Supabase — best-effort, non-blocking for the response
               await fetch(
@@ -130,12 +138,12 @@ export default async function handler(req: any, res: any): Promise<void> {
                     'Content-Type': 'application/json',
                     Prefer: 'return=minimal',
                   },
-                  body: JSON.stringify({ status: newStatus, step: null, ...(newError ? { error: newError } : {}) }),
+                  body: JSON.stringify(patch),
                 },
               ).catch((e) => console.warn('[build-status] status patch failed (non-fatal):', e))
 
-              console.log('[build-status] auto-resolved build to', newStatus)
-              row = { ...row, status: newStatus, step: null, error: newError }
+              console.log('[build-status] auto-resolved build to', newStatus, 'deploy_url:', newDeployUrl ?? 'unchanged')
+              row = { ...row, status: newStatus, step: null, error: newError, deploy_url: newDeployUrl ?? row.deploy_url }
             }
           }
         } catch (vcErr) {

@@ -482,6 +482,7 @@ function EditPanel({
   const [iframeBlocked, setIframeBlocked] = useState(false)
   const [deployReady, setDeployReady] = useState(false)
   const [previewKey, setPreviewKey] = useState(0)
+  const [liveUrl, setLiveUrl] = useState<string | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const iframeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -543,11 +544,12 @@ function EditPanel({
           try {
             const statusRes = await fetch(`/api/build-status?id=${encodeURIComponent(build.id)}`)
             if (statusRes.ok) {
-              const statusData = await statusRes.json() as { status?: string }
+              const statusData = await statusRes.json() as { status?: string; deployUrl?: string }
               if (statusData.status === 'complete') {
                 clearInterval(deployPollRef.current!)
                 deployPollRef.current = null
                 setDeployReady(true)
+                if (statusData.deployUrl) setLiveUrl(statusData.deployUrl)
                 setPreviewKey((k) => k + 1)
                 setIframeBlocked(false)
                 onEditSuccess('Live — see your changes')
@@ -570,7 +572,7 @@ function EditPanel({
     }
   }
 
-  const previewUrl = build.deploy_url ?? ''
+  const previewUrl = liveUrl ?? build.deploy_url ?? ''
   const previewDomain = previewUrl.replace('https://', '').split('/')[0] ?? previewUrl
 
   return (
@@ -943,6 +945,8 @@ function AuthDashboard({ email }: { email: string }) {
       const data = (await res.json()) as { builds: Build[] }
       const freshBuilds = data.builds ?? []
       setBuilds(freshBuilds)
+      // Keep the open panel's build in sync (deploy_url changes after each edit)
+      setPanelBuild((prev) => prev ? (freshBuilds.find((b) => b.id === prev.id) ?? prev) : null)
 
       // Self-heal: fire build-status for any stuck 'building' builds so the
       // self-heal logic in build-status.ts can resolve them. Non-blocking.
