@@ -91,7 +91,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     // When a build has been 'building' for more than 10 minutes with a known
     // vercel_project_id, check Vercel's latest deployment. If it's READY/ERROR,
     // update Supabase and return the resolved status automatically.
-    const stuckThresholdMs = 10 * 60 * 1000
+    const stuckThresholdMs = 30 * 1000  // 30s — enough for a redeploy to be queued
     const updatedAt = row.updated_at ? new Date(row.updated_at).getTime() : 0
     const isStuck = Date.now() - updatedAt > stuckThresholdMs
 

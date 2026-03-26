@@ -480,9 +480,12 @@ function EditPanel({
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [iframeBlocked, setIframeBlocked] = useState(false)
+  const [deployReady, setDeployReady] = useState(false)
+  const [previewKey, setPreviewKey] = useState(0)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const iframeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const deployPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const counter = useRef(0)
 
   // Scroll chat to bottom when new messages arrive
@@ -528,8 +531,37 @@ function EditPanel({
       if (!res.ok || (!data.ok && !data.success)) {
         push({ role: 'sovereign', text: data.error ?? 'Something went wrong. Please try again.' })
       } else {
+        setDeployReady(false)
         push({ role: 'sovereign', text: 'Done — your change is deploying now.', previewLink: true })
         onEditSuccess('Change applied — deploying now')
+
+        // Poll build-status until 'complete', then refresh the preview iframe
+        if (deployPollRef.current) clearInterval(deployPollRef.current)
+        let attempts = 0
+        deployPollRef.current = setInterval(async () => {
+          attempts++
+          try {
+            const statusRes = await fetch(`/api/build-status?id=${encodeURIComponent(build.id)}`)
+            if (statusRes.ok) {
+              const statusData = await statusRes.json() as { status?: string }
+              if (statusData.status === 'complete') {
+                clearInterval(deployPollRef.current!)
+                deployPollRef.current = null
+                setDeployReady(true)
+                setPreviewKey((k) => k + 1)
+                setIframeBlocked(false)
+                onEditSuccess('Live — see your changes')
+              } else if (statusData.status === 'error') {
+                clearInterval(deployPollRef.current!)
+                deployPollRef.current = null
+              }
+            }
+          } catch { /* non-fatal */ }
+          if (attempts >= 30) {  // stop after 2.5 min
+            clearInterval(deployPollRef.current!)
+            deployPollRef.current = null
+          }
+        }, 5000)
       }
     } catch {
       push({ role: 'sovereign', text: 'Network error. Please try again.' })
@@ -751,7 +783,7 @@ function EditPanel({
                             <>
                               {' '}
                               <button className="ep-preview-link" onClick={() => setTab('preview')}>
-                                See preview →
+                                {deployReady ? 'See live changes →' : 'See preview →'}
                               </button>
                             </>
                           )}
@@ -843,7 +875,7 @@ function EditPanel({
                   </div>
                 ) : (
                   <iframe
-                    key={previewUrl}
+                    key={`${previewUrl}-${previewKey}`}
                     src={previewUrl}
                     className="ep-iframe"
                     title={`Preview of ${build.app_name}`}
