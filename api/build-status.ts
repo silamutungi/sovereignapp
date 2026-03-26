@@ -46,7 +46,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     let dbRes: any
     try {
       dbRes = await fetch(
-        `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&deleted_at=is.null&select=status,step,app_name,repo_url,deploy_url,error,vercel_project_id`,
+        `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&deleted_at=is.null&select=status,step,app_name,repo_url,deploy_url,error,vercel_project_id,updated_at`,
         {
           headers: {
             apikey: serviceKey,
@@ -77,6 +77,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       deploy_url: string | null
       error: string | null
       vercel_project_id: string | null
+      updated_at: string | null
     }>
 
     if (!rows.length) {
@@ -87,10 +88,14 @@ export default async function handler(req: any, res: any): Promise<void> {
     let row = rows[0]
 
     // ── Auto-resolve building builds via Vercel deployment state ─────────────
-    // When a build is 'building' with a known vercel_project_id, check Vercel's
-    // latest deployment. If it's READY/ERROR, update Supabase and return the
-    // resolved status — the dashboard polling loop picks it up on the next tick.
-    if (row.status === 'building' && row.vercel_project_id) {
+    // When a build has been 'building' for more than 10 minutes with a known
+    // vercel_project_id, check Vercel's latest deployment. If it's READY/ERROR,
+    // update Supabase and return the resolved status automatically.
+    const stuckThresholdMs = 10 * 60 * 1000
+    const updatedAt = row.updated_at ? new Date(row.updated_at).getTime() : 0
+    const isStuck = Date.now() - updatedAt > stuckThresholdMs
+
+    if (row.status === 'building' && row.vercel_project_id && isStuck) {
       const vcToken  = process.env.SOVEREIGN_VERCEL_TOKEN
       const vcTeamId = process.env.SOVEREIGN_VERCEL_TEAM_ID
 
