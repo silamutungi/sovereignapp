@@ -83,6 +83,12 @@ CREATE INDEX IF NOT EXISTS lessons_category_idx    ON lessons(category);
 CREATE INDEX IF NOT EXISTS lessons_source_idx      ON lessons(source);
 CREATE INDEX IF NOT EXISTS lessons_build_count_idx ON lessons(build_count DESC);
 
+-- Sovereign Standards confidence score (0–100) calculated from generated files
+ALTER TABLE builds ADD COLUMN IF NOT EXISTS confidence_score INTEGER DEFAULT NULL;
+
+-- Whether the app passed the launch gate (security OK + score >= 60)
+ALTER TABLE builds ADD COLUMN IF NOT EXISTS launch_gate_passed BOOLEAN DEFAULT NULL;
+
 -- ── RLS policies — ensures all tables are locked down ───────────────────────
 
 ALTER TABLE builds ENABLE ROW LEVEL SECURITY;

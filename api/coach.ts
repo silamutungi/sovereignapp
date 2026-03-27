@@ -68,7 +68,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     // Fetch build and top lessons in parallel
     const [buildRes, lessonsRes] = await Promise.all([
       fetch(
-        `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&deleted_at=is.null&select=id,app_name,created_at,updated_at,status,next_steps,idea`,
+        `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&deleted_at=is.null&select=id,app_name,created_at,updated_at,status,next_steps,idea,confidence_score,launch_gate_passed`,
         { headers },
       ),
       fetch(
@@ -90,6 +90,8 @@ export default async function handler(req: any, res: any): Promise<void> {
       status: string
       next_steps: Array<{ title: string; description: string; action: string; priority: string }> | null
       idea: string
+      confidence_score: number | null
+      launch_gate_passed: boolean | null
     }>
 
     if (!builds.length) {
@@ -101,7 +103,7 @@ export default async function handler(req: any, res: any): Promise<void> {
 
     // Only coach on completed builds
     if (build.status !== 'complete') {
-      res.status(200).json({ interventions: [], recommendations: [], nextSteps: [] })
+      res.status(200).json({ interventions: [], recommendations: [], nextSteps: [], confidenceScore: null })
       return
     }
 
@@ -114,7 +116,15 @@ export default async function handler(req: any, res: any): Promise<void> {
 
     const interventions: Intervention[] = []
 
-    if (hoursSinceDeploy < 2) {
+    // ── LOW_SCORE intervention (highest priority — overrides time-based) ──
+    if (build.confidence_score !== null && build.confidence_score < 70) {
+      interventions.push({
+        type: 'LAUNCH',
+        priority: 'high',
+        message: `${build.app_name} scored ${build.confidence_score}/100 on the Sovereign Standards. There are quality issues to fix before sharing widely — open the chat and ask "what should I improve first?"`,
+        cta: 'View issues',
+      })
+    } else if (hoursSinceDeploy < 2) {
       interventions.push({
         type: 'LAUNCH',
         priority: 'high',
@@ -166,7 +176,13 @@ export default async function handler(req: any, res: any): Promise<void> {
     const nextSteps = Array.isArray(build.next_steps) ? build.next_steps : []
 
     res.setHeader('Cache-Control', 'private, max-age=300')
-    res.status(200).json({ interventions, recommendations, nextSteps })
+    res.status(200).json({
+      interventions,
+      recommendations,
+      nextSteps,
+      confidenceScore: build.confidence_score,
+      launchGatePassed: build.launch_gate_passed,
+    })
   } catch (err) {
     console.error('[coach] unhandled error:', err)
     res.status(500).json({ error: err instanceof Error ? err.message : String(err) })

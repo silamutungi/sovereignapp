@@ -73,3 +73,9 @@ SELECT
     SELECT 1 FROM information_schema.tables
     WHERE table_schema = 'public' AND table_name = 'lessons'
   ) THEN 'EXISTS' ELSE 'MISSING' END AS lessons_table_status;
+
+SELECT
+  CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='builds' AND column_name='confidence_score')
+  THEN 'EXISTS' ELSE 'MISSING' END AS confidence_score_col,
+  CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='builds' AND column_name='launch_gate_passed')
+  THEN 'EXISTS' ELSE 'MISSING' END AS launch_gate_passed_col;

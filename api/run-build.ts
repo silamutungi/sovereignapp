@@ -28,6 +28,7 @@
 // → Vercel auto-deploys via GitHub integration → poll for READY status.
 //
 import { checkRateLimit } from './_rateLimit.js'
+import { scoreApp } from './_scoreApp.js'
 
 export const maxDuration = 60
 
@@ -76,6 +77,8 @@ interface BuildRecord {
   error: string | null
   completed_steps: string[] | null
   vercel_project_id: string | null
+  confidence_score: number | null
+  launch_gate_passed: boolean | null
 }
 
 async function getBuild(
@@ -1152,7 +1155,19 @@ export default async function handler(req: any, res: any): Promise<void> {
             )
           }
 
-          await updateBuild(supabaseUrl, serviceKey, buildId, { status: 'complete', step: 'done' })
+          // ── Score the app against 10 Sovereign Standards dimensions ──────
+          // Runs in-memory against the generated files — no filesystem needed.
+          // Score is stored in builds.confidence_score and used by the coach.
+          const scoreResult = scoreApp(build.files ?? [])
+          console.log('[run-build] confidence score:', scoreResult.overall, scoreResult.band,
+            'launch gate:', scoreResult.launchGatePassed)
+
+          await updateBuild(supabaseUrl, serviceKey, buildId, {
+            status: 'complete',
+            step: 'done',
+            confidence_score: scoreResult.overall,
+            launch_gate_passed: scoreResult.launchGatePassed,
+          })
           console.log('[run-build] done')
         })(),
 

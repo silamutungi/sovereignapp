@@ -27,6 +27,8 @@ interface Build {
   supabase_mode: string | null
   claimed_at: string | null
   created_at: string
+  confidence_score: number | null
+  launch_gate_passed: boolean | null
 }
 
 interface NextStep {
@@ -1009,6 +1011,8 @@ function AuthDashboard({ email }: { email: string }) {
   interface CoachData {
     interventions: CoachIntervention[]
     recommendations: Array<{ category: string; title: string; solution: string; build_count: number }>
+    confidenceScore: number | null
+    launchGatePassed: boolean | null
   }
   const [coachData, setCoachData] = useState<CoachData | null>(null)
   const [coachDismissed, setCoachDismissed] = useState(false)
@@ -1622,6 +1626,23 @@ function AppCard({
             ? 'Error'
             : 'Pending'}
         </span>
+
+        {/* Confidence score badge */}
+        {build.status === 'complete' && build.confidence_score !== null && (
+          <span
+            title={`Sovereign Standards score: ${build.confidence_score}/100`}
+            style={{
+              marginLeft: 'auto',
+              font: '11px/1 DM Mono, Courier New, monospace',
+              color: build.confidence_score >= 80 ? '#8ab800'
+                   : build.confidence_score >= 60 ? '#f97316'
+                   : '#c0392b',
+              letterSpacing: '0.04em',
+            }}
+          >
+            {build.confidence_score}/100
+          </span>
+        )}
       </div>
 
       {/* App name */}
