@@ -894,3 +894,17 @@ Full multi-agent system built and evaluated:
 Scores: security 95, code_quality 75, performance 100, accessibility 50, ux 100, architecture 100, test_coverage 85, seo 75, documentation 90, i18n 85.
 Note: accessibility at 50 is a known gap — the accessibility evaluator returns default 50/passed=true because a dedicated UI audit tool is not yet integrated. This is a future improvement.
 Decided: 2026-03-24.
+
+**Brain/coaching must be present in EVERY AI interaction, not just generation**
+Wrong assumption: the brain and agents are for the initial build pipeline only.
+Correct behaviour: the brain's accumulated lessons must inform every Claude call — generation, edit, and chat. Coaching interventions must trigger at the right lifecycle moment (launch, first day, first week, inactivity) — not just at build time. The coach is always present.
+Fix: lessons injected into api/edit.ts and api/chat.ts (same best-effort 2s fetch pattern as generate.ts). api/chat.ts evolved from edit-assistant to Sovereign Coach — knows app age, coaches on strategy and momentum, not just edits. api/coach.ts (new) returns time-based interventions + brain-derived recommendations per build. Dashboard polls /api/coach every 5 minutes and shows the active intervention as a dismissable coaching banner with a CTA.
+Architecture rule: any new AI call in api/ must include lesson context injection. Any new user-facing endpoint that returns build data should also return coaching context.
+Learned: 2026-03-26.
+
+**Brain cycle crons (cycle2/cycle3) must be Supabase-native on Vercel — no local file system**
+Wrong assumption: brain/cycle2-weekly.js and brain/cycle3-monthly.js could be run as Vercel cron endpoints by calling them directly.
+Correct behaviour: those files use local file-based BrainAPI (brain/.brain-data/*.json). Vercel serverless functions have no persistent filesystem — any data written is lost between invocations.
+Fix: api/brain-cycle2.ts and api/brain-cycle3.ts are standalone Supabase-native implementations. They query the lessons table directly, do not import from brain/, and write results back to Supabase. The local brain/ files remain useful for local analysis and the 30-agent pipeline — they are not replaceable, just separate from the Vercel runtime.
+Rule: anything running on Vercel must be Supabase-native. brain/ files = local/pipeline only. api/ files = Vercel/serverless only.
+Learned: 2026-03-26.
