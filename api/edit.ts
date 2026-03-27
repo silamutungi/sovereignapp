@@ -154,6 +154,34 @@ export default async function handler(req: any, res: any): Promise<void> {
     console.log('[edit] generating edit...', new Date().toISOString())
     await setBuildStatus('building', 'Generating your edit…')
 
+    // ── Fetch top recurring lessons from Brain (best-effort) ─────────────────
+    // Same pattern as generate.ts — inject proven fixes proactively so the
+    // edit agent doesn't repeat mistakes that production has already solved.
+    let editLessonContext = ''
+    try {
+      const supabaseUrl = process.env.SUPABASE_URL
+      const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY
+      if (supabaseUrl && serviceKey) {
+        const ctrl = new AbortController()
+        const t = setTimeout(() => ctrl.abort(), 2000)
+        const lr = await fetch(
+          `${supabaseUrl}/rest/v1/lessons?solution=neq.&build_count=gte.3&order=build_count.desc&select=solution,category&limit=6`,
+          { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }, signal: ctrl.signal },
+        )
+        clearTimeout(t)
+        if (lr.ok) {
+          const rows = await lr.json() as Array<{ solution: string; category: string }>
+          if (rows.length > 0) {
+            editLessonContext = '\n\nRECURRING LESSONS FROM PRODUCTION (apply these proactively):\n' +
+              rows.map((r) => `- [${r.category}] ${r.solution}`).join('\n')
+            console.log('[edit] injected', rows.length, 'brain lessons into edit context')
+          }
+        }
+      }
+    } catch {
+      // Non-fatal — proceed without lesson context
+    }
+
     // If the edit involves an image, pre-fetch a real URL server-side so Claude
     // doesn't need to guess. Extract keywords from the editRequest and resolve
     // the redirect to get a guaranteed-working CDN URL.
@@ -216,7 +244,7 @@ Here is the current ${targetFile.path}:
 ${targetFile.content}
 
 The user wants this change: ${editRequest}
-
+${editLessonContext}
 Apply the change with full design judgment. Return the complete updated file.`
       : `You are editing a web app. Return ONLY the complete updated index.html file. No explanation, no markdown, no code fences. Just the raw HTML.
 ${imageGuidance}
@@ -226,7 +254,7 @@ Here is the current index.html:
 ${targetFile.content}
 
 The user wants this change: ${editRequest}
-
+${editLessonContext}
 Apply the change. Keep everything else identical. Return the complete updated index.html.`
 
     const message = await anthropic.messages.create({

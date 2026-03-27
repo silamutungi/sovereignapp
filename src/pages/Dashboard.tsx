@@ -999,6 +999,35 @@ function AuthDashboard({ email }: { email: string }) {
   const latestComplete = builds.find((b) => b.status === 'complete')
   const nextSteps: NextStep[] = Array.isArray(latestComplete?.next_steps) ? latestComplete.next_steps : []
 
+  // ── Coach state ──────────────────────────────────────────────────────────
+  interface CoachIntervention {
+    type: string
+    priority: 'high' | 'medium' | 'low'
+    message: string
+    cta: string
+  }
+  interface CoachData {
+    interventions: CoachIntervention[]
+    recommendations: Array<{ category: string; title: string; solution: string; build_count: number }>
+  }
+  const [coachData, setCoachData] = useState<CoachData | null>(null)
+  const [coachDismissed, setCoachDismissed] = useState(false)
+
+  useEffect(() => {
+    if (!latestComplete) return
+    const fetchCoach = () => {
+      fetch(`/api/coach?buildId=${encodeURIComponent(latestComplete.id)}`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((d) => { if (d) setCoachData(d as CoachData) })
+        .catch(() => { /* non-fatal */ })
+    }
+    fetchCoach()
+    const t = setInterval(fetchCoach, 5 * 60 * 1000) // refresh every 5 min
+    return () => clearInterval(t)
+  }, [latestComplete?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const activeIntervention = !coachDismissed ? coachData?.interventions?.[0] ?? null : null
+
   return (
     <>
       <style>{`
@@ -1210,6 +1239,98 @@ function AuthDashboard({ email }: { email: string }) {
           )}
         </div>
       </div>
+
+      {/* ── Sovereign Coach ──────────────────────────────────────────────── */}
+      {activeIntervention && (
+        <div
+          style={{
+            background: '#0e0d0b',
+            padding: '24px 32px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: '16px',
+          }}
+        >
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', flex: 1 }}>
+            <span
+              style={{
+                font: '10px/1 DM Mono, Courier New, monospace',
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                color: '#8ab800',
+                paddingTop: '2px',
+                flexShrink: 0,
+              }}
+            >
+              Coach
+            </span>
+            <p
+              style={{
+                font: '13px/1.6 DM Mono, Courier New, monospace',
+                color: '#f2efe8',
+                margin: 0,
+                flex: 1,
+              }}
+            >
+              {activeIntervention.message}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexShrink: 0 }}>
+            {latestComplete?.deploy_url && activeIntervention.type === 'LAUNCH' && (
+              <button
+                onClick={() => {
+                  if (latestComplete.deploy_url) {
+                    navigator.clipboard.writeText(latestComplete.deploy_url).catch(() => {})
+                    setToastMessage('Link copied!')
+                  }
+                }}
+                style={{
+                  background: '#8ab800',
+                  color: '#0e0d0b',
+                  border: 'none',
+                  padding: '8px 14px',
+                  font: '11px/1 DM Mono, Courier New, monospace',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {activeIntervention.cta}
+              </button>
+            )}
+            {(activeIntervention.type === 'FIRST_DAY' || activeIntervention.type === 'FIRST_WEEK' || activeIntervention.type === 'NO_ACTIVITY') && latestComplete && (
+              <button
+                onClick={() => openPanel(latestComplete)}
+                style={{
+                  background: '#8ab800',
+                  color: '#0e0d0b',
+                  border: 'none',
+                  padding: '8px 14px',
+                  font: '11px/1 DM Mono, Courier New, monospace',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {activeIntervention.cta}
+              </button>
+            )}
+            <button
+              onClick={() => setCoachDismissed(true)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'rgba(255,255,255,0.35)',
+                font: '16px/1 DM Mono, Courier New, monospace',
+                cursor: 'pointer',
+                padding: '4px',
+              }}
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Next steps chips ─────────────────────────────────────────────── */}
       {nextSteps.length > 0 && (

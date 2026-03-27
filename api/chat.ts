@@ -86,35 +86,70 @@ export default async function handler(req: any, res: any): Promise<void> {
   const activeApp = context?.activeApp
   const builds = context?.builds ?? []
 
+  // ── Fetch recurring lessons from Brain (best-effort, 2s timeout) ─────────
+  let lessonContext = ''
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL
+    const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (supabaseUrl && serviceKey) {
+      const ctrl = new AbortController()
+      const t = setTimeout(() => ctrl.abort(), 2000)
+      const lr = await fetch(
+        `${supabaseUrl}/rest/v1/lessons?solution=neq.&build_count=gte.3&order=build_count.desc&select=solution,category&limit=6`,
+        { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }, signal: ctrl.signal },
+      )
+      clearTimeout(t)
+      if (lr.ok) {
+        const rows = await lr.json() as Array<{ solution: string; category: string }>
+        if (rows.length > 0) {
+          lessonContext = '\n\nPROVEN PATTERNS FROM PRODUCTION (apply these when relevant):\n' +
+            rows.map((r) => `- [${r.category}] ${r.solution}`).join('\n')
+        }
+      }
+    }
+  } catch {
+    // Non-fatal — proceed without lesson context
+  }
+
   // ── System prompt ────────────────────────────────────────────────────────
-  let system = `You are Sovereign, the AI assistant built into Sovereign App — a platform that generates and deploys full web apps from plain English descriptions.
-Tone: direct, confident, zero filler. 2–3 sentences unless explaining something technical.
+  let system = `You are Sovereign Coach — the always-present AI brain inside Sovereign App.
+You help founders build, ship, iterate, and grow. You are not a chatbot — you are a senior advisor who happens to also write code.
+Tone: direct, confident, specific. 2–3 sentences unless explaining something technical.
 No bullet points unless listing multiple distinct items. No "Great question!" or similar.
+${lessonContext}
 `
 
   if (activeApp) {
     // Scoped mode — user is in the Edit Panel for a specific app
     system += `
-The user is editing their app: "${activeApp.app_name}"
+The user is working on: "${activeApp.app_name}"
 Idea: ${activeApp.idea}${activeApp.deploy_url ? `\nLive URL: ${activeApp.deploy_url}` : ''}${activeApp.repo_url ? `\nRepo: ${activeApp.repo_url}` : ''}
 
 When the user describes a change to make, respond with this exact JSON structure:
 {"reply":"<your response confirming what you'll do>","action":{"type":"edit","editRequest":"<precise instruction for the code change>","appName":"${activeApp.app_name}","buildId":"${activeApp.id}"}}
 
-For any other response (questions, clarifications, etc.):
+For coaching, strategy, or any non-edit response:
 {"reply":"<your response>","action":null}
 
 ALWAYS return valid JSON only. No markdown fences, no extra text outside the JSON.`
   } else {
-    // Global mode — general Sovereign assistant
+    // Global / coaching mode — no specific app selected
     if (builds.length > 0) {
-      system += `\nThe user has ${builds.length} deployed app${builds.length > 1 ? 's' : ''}:\n`
+      system += `\nThe founder has ${builds.length} deployed app${builds.length > 1 ? 's' : ''}:\n`
       builds.slice(0, 5).forEach((b) => {
-        system += `- ${b.app_name}: ${b.idea.slice(0, 80)}${b.deploy_url ? ` (${b.deploy_url})` : ''}\n`
+        const age = b.created_at
+          ? Math.floor((Date.now() - new Date(b.created_at).getTime()) / (1000 * 60 * 60 * 24))
+          : null
+        system += `- ${b.app_name}: ${b.idea.slice(0, 80)}${age !== null ? ` (${age}d old)` : ''}${b.deploy_url ? ` — ${b.deploy_url}` : ''}\n`
       })
     }
 
     system += `
+Your job: help them ship faster, improve what they have, and grow.
+If they ask a strategic question — give a concrete, actionable answer.
+If they ask a technical question — answer it precisely.
+If they seem stuck or unsure — proactively identify the highest-leverage thing to focus on.
+
 Respond with this exact JSON structure:
 {"reply":"<your response>","action":null}
 
