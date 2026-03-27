@@ -222,15 +222,17 @@ Return ONLY the complete updated file. No explanation, no markdown, no code fenc
 
 DESIGN PRINCIPLES to apply when making any change:
 - Visual hierarchy: one primary action per screen, supporting elements recede
-- Images: ALWAYS use background-image inline style on the section — NEVER an <img> tag for hero backgrounds. <img> with h-full breaks on iOS Safari when parent has min-height only. Use this exact pattern:
+- THE IMAGE RULE: There is exactly ONE image per app — the hero background. ZERO images in feature cards, ZERO img tags in content sections. If a section needs visual interest, use a large emoji (text-4xl), bold typography, or color contrast. Random stock photos in cards = template design. This is not a template.
+- Hero image: ALWAYS use backgroundImage inline style on the section — NEVER an img tag. img with h-full breaks on iOS Safari when parent has min-height only. Required pattern:
     <section style={{ backgroundImage: 'url(IMAGE_URL)', backgroundSize: 'cover', backgroundPosition: 'center' }} className="relative min-h-screen flex items-center overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80" />
       <div className="relative z-10 ...">content</div>
     </section>
+- If the user asks to "add image" without a specific location, add it ONLY to the hero section as a full-bleed background. Do not add images anywhere else.
+- If the user asks to "add images to the features section" — use emoji icons instead and explain this is intentional design.
 - Spacing: generous. Sections breathe. py-20 md:py-32. Content max-width max-w-5xl mx-auto px-6.
 - Motion: entrance animations (opacity-0 translate-y-4 → opacity-100 translate-y-0, transition-all duration-500). Hover: scale-[0.97] on buttons.
 - Typography: headings font-serif, body font-mono. Emotional, specific copy — never generic.
-- If the user says "add image" without specifying placement, put it in the hero section as a full-bleed background.
 ${imageGuidance}
 
 CODE RULES:
