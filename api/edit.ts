@@ -155,7 +155,11 @@ export default async function handler(req: any, res: any): Promise<void> {
     await setBuildStatus('building', 'Generating your edit…')
 
     const imageGuidance = `
-IMAGES: For any image requests, always use real URLs from https://images.unsplash.com/photo-{id}?w=1200&q=80 — pick a relevant photo ID. Never use placeholder.com or broken src values.`
+IMAGES: For any image request, use the Unsplash source URL format which accepts keywords and always returns a relevant photo:
+  https://source.unsplash.com/1600x900/?{keyword1},{keyword2},{keyword3}
+Extract 3–5 specific keywords from the user's image description (e.g. "party,women,friends,new-york,celebration").
+NEVER use https://images.unsplash.com/photo-{id} — those IDs are random and return wrong images.
+NEVER use placeholder.com, via.placeholder, picsum, or any other placeholder service.`
 
     const prompt = isReact
       ? `You are editing a React TypeScript component. Return ONLY the complete updated file. No explanation, no markdown, no code fences. Just the raw TypeScript/JSX.
@@ -164,7 +168,6 @@ Rules:
 - Never use React.* namespace (use named imports: import { useState } from 'react')
 - Never use @/ path aliases
 - Keep all existing imports unless replacing them
-- For images: use real Unsplash URLs (https://images.unsplash.com/photo-{id}?w=1200&q=80)
 ${imageGuidance}
 
 Here is the current ${targetFile.path}:
