@@ -112,6 +112,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     const completedBuilds = countMatch ? parseInt(countMatch[1], 10) : 0
 
     if (completedBuilds >= 3 && !WHITELISTED_EMAILS.includes(email)) {
+      res.setHeader('Retry-After', '86400')
       res.status(429).json({
         error: 'rate_limited',
         message: 'You have used all 3 free builds. Upgrade to Pro for unlimited builds.',

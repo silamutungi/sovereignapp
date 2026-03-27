@@ -127,6 +127,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       const todayCount = countMatch ? parseInt(countMatch[1], 10) : 0
 
       if (todayCount >= 10) {
+        res.setHeader('Retry-After', '86400')
         res.status(429).json({
           error: 'too_many_requests',
           message: 'Too many requests today. Try again tomorrow.',
