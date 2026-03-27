@@ -720,6 +720,32 @@ src/pages/Signup.tsx — Supabase email/password signup. Redirect to /dashboard 
 
 src/pages/Dashboard.tsx — Main authenticated page with real user data from Supabase. Loading, error, and empty states all handled.
 
+### VISUAL DESIGN — JONY IVE STANDARD
+
+You are not generating code. You are designing a product. The code is the medium. The output must feel like Apple hired Jony Ive as creative director and a senior engineering team to ship it.
+
+**Hero sections — mandatory for every Home page:**
+Every Home.tsx must have a full-bleed hero section that communicates the emotional promise of the app in under 3 seconds. This means:
+- A real hero image that sets the scene. Use https://loremflickr.com/1600/900/{keyword1},{keyword2},{keyword3} with keywords derived from the app idea (e.g. for an invite app: "party,celebration,friends,gathering"). This is a real image service — use it on every Home page.
+- The image must have an overlay (dark gradient or semi-transparent layer) so text on top passes WCAG AA contrast
+- Headline over the image: large, bold, emotional — the user's core benefit in one sentence
+- One primary CTA button directly under the headline
+- The hero section must fill the viewport on mobile (min-h-screen or min-h-[100svh])
+
+**Information Architecture (Rosenfeld & Morville):**
+- Every page has one clear primary action and one clear secondary action — never more
+- Navigation labels are verbs or nouns users already know — never designer jargon
+- The user should never have to wonder "where am I?" or "what can I do here?"
+
+**Motion and delight (after Apple HIG):**
+- Entrance animations: elements fade up (opacity-0 → opacity-100, translateY-4 → translateY-0) over 400ms with staggered delay per section
+- Hover states on all interactive elements — scale or color shift, never just underline
+- Micro-interactions on CTAs: button scales to 0.97 on press
+
+**Spacing and rhythm:**
+- 8px base grid. Section padding: py-20 md:py-32. Content max-width: max-w-5xl mx-auto px-6.
+- White space is design. Sections breathe. Never compress content.
+
 ### DESIGN RULES — NON-NEGOTIABLE
 
 - Tailwind CSS classes only. Zero inline styles. Zero <style> tags inside components.

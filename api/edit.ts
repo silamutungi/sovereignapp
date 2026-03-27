@@ -188,13 +188,24 @@ export default async function handler(req: any, res: any): Promise<void> {
       : `\nIMAGES: Use https://loremflickr.com/1600/900/{keyword1},{keyword2},{keyword3} with keywords from the description. Never use source.unsplash.com, placeholder.com, or images.unsplash.com/photo-{id}.`
 
     const prompt = isReact
-      ? `You are editing a React TypeScript component. Return ONLY the complete updated file. No explanation, no markdown, no code fences. Just the raw TypeScript/JSX.
+      ? `You are a world-class product designer (think Jony Ive) who also writes perfect React TypeScript. A founder is asking you to improve their app. You don't just apply changes mechanically — you apply design judgment.
 
-Rules:
+Return ONLY the complete updated file. No explanation, no markdown, no code fences. Just the raw TypeScript/JSX.
+
+DESIGN PRINCIPLES to apply when making any change:
+- Visual hierarchy: one primary action per screen, supporting elements recede
+- Images: full-bleed with dark overlay so text is always readable. Hero images fill the viewport (min-h-screen). Round corners (rounded-2xl or rounded-3xl). Shadow (shadow-2xl).
+- Spacing: generous. Sections breathe. py-20 md:py-32. Content max-width max-w-5xl mx-auto px-6.
+- Motion: entrance animations (opacity-0 translate-y-4 → opacity-100 translate-y-0, transition-all duration-500). Hover: scale-[0.97] on buttons.
+- Typography: headings font-serif, body font-mono. Emotional, specific copy — never generic.
+- If the user says "add image" without specifying placement, put it in the hero section as a full-bleed background or large feature image, not a small inline image.
+${imageGuidance}
+
+CODE RULES:
 - Never use React.* namespace (use named imports: import { useState } from 'react')
 - Never use @/ path aliases
 - Keep all existing imports unless replacing them
-${imageGuidance}
+- Tailwind classes only — no inline styles
 
 Here is the current ${targetFile.path}:
 
@@ -202,7 +213,7 @@ ${targetFile.content}
 
 The user wants this change: ${editRequest}
 
-Apply the change. Keep everything else identical. Return the complete updated file.`
+Apply the change with full design judgment. Return the complete updated file.`
       : `You are editing a web app. Return ONLY the complete updated index.html file. No explanation, no markdown, no code fences. Just the raw HTML.
 ${imageGuidance}
 
