@@ -368,3 +368,59 @@ INSERT INTO lessons (category, source, problem, solution, applied_automatically)
   'TYPESCRIPT BUILD RULES in _systemPrompt.ts: use useNavigate not useHistory, Routes not Switch, all imports from react-router-dom v6. Every component must have a default export.',
   true
 );
+
+-- ── Image & Visual Design (learned 2026-03-26) ─────────────────────────────
+
+INSERT INTO lessons (category, source, problem, solution, applied_automatically, build_count) VALUES (
+  'generation',
+  'founder_note',
+  'Hero background images disappear on reload in iOS Safari. Using <img className="absolute h-full"> fails because h-full resolves to 0 when the parent has min-height instead of height.',
+  'ALWAYS use backgroundImage inline style on the section element for hero backgrounds — never an <img> tag. Pattern: <section style={{ backgroundImage: "url(URL)", backgroundSize: "cover", backgroundPosition: "center" }} className="relative min-h-screen flex items-center overflow-hidden"> with an overlay div and relative z-10 content.',
+  true,
+  8
+);
+
+INSERT INTO lessons (category, source, problem, solution, applied_automatically, build_count) VALUES (
+  'generation',
+  'founder_note',
+  'source.unsplash.com returns 503 (deprecated). images.unsplash.com/photo-{id} URLs are random guesses that 404. Generated apps have broken image placeholders.',
+  'Use https://loremflickr.com/1600/900/{keyword1},{keyword2},{keyword3} for images. Server-side prefetch with fetch(url, { redirect: "follow" }) to resolve to a guaranteed CDN URL before passing to Claude. Never let Claude guess image URLs.',
+  true,
+  6
+);
+
+INSERT INTO lessons (category, source, problem, solution, applied_automatically, build_count) VALUES (
+  'deployment',
+  'founder_note',
+  'Vercel deploy_url stored as immutable deployment hash URL (project-abc123-team.vercel.app). When a new edit deploys, the old URL still shows the old version.',
+  'After deployment reaches READY, call GET /v9/projects/{id}?teamId={teamId} and extract targets.production.alias[0] as the stable URL. Store that as deploy_url. Fall back to deployment URL only if project fetch fails.',
+  true,
+  5
+);
+
+INSERT INTO lessons (category, source, problem, solution, applied_automatically, build_count) VALUES (
+  'generation',
+  'founder_note',
+  'Edit pipeline edited index.html on React apps — all UI is in src/pages/Home.tsx or src/App.tsx. Changes to index.html on a Vite/React app are invisible.',
+  'Try CANDIDATE_FILES in order: src/pages/Home.tsx → src/App.tsx → index.html. Use the first one found. Use a React-aware Claude prompt for .tsx files, plain HTML prompt for index.html.',
+  true,
+  5
+);
+
+INSERT INTO lessons (category, source, problem, solution, applied_automatically, build_count) VALUES (
+  'deployment',
+  'founder_note',
+  'X-Frame-Options: DENY on generated apps blocks the Sovereign dashboard preview iframe. Users see a blank black screen instead of their app.',
+  'Remove X-Frame-Options from generated vercel.json. Use Content-Security-Policy: frame-ancestors self https://sovereignapp.dev instead — allows the Sovereign dashboard while blocking all other origins.',
+  true,
+  5
+);
+
+-- ── Set build_count on all confirmed lessons (applied_automatically=true) ──
+-- These patterns have been encountered many times — give them realistic counts
+-- so the brain injection query (build_count >= 3) surfaces them immediately.
+UPDATE lessons
+SET build_count = GREATEST(build_count, 5)
+WHERE applied_automatically = true
+  AND source = 'founder_note'
+  AND build_count < 5;
