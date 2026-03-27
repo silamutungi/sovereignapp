@@ -154,12 +154,38 @@ export default async function handler(req: any, res: any): Promise<void> {
     console.log('[edit] generating edit...', new Date().toISOString())
     await setBuildStatus('building', 'Generating your edit…')
 
-    const imageGuidance = `
-IMAGES: For any image request, use the Unsplash source URL format which accepts keywords and always returns a relevant photo:
-  https://source.unsplash.com/1600x900/?{keyword1},{keyword2},{keyword3}
-Extract 3–5 specific keywords from the user's image description (e.g. "party,women,friends,new-york,celebration").
-NEVER use https://images.unsplash.com/photo-{id} — those IDs are random and return wrong images.
-NEVER use placeholder.com, via.placeholder, picsum, or any other placeholder service.`
+    // If the edit involves an image, pre-fetch a real URL server-side so Claude
+    // doesn't need to guess. Extract keywords from the editRequest and resolve
+    // the redirect to get a guaranteed-working CDN URL.
+    let resolvedImageUrl: string | null = null
+    const imageKeywords = editRequest.toLowerCase().match(
+      /\b(image|photo|picture|hero|banner|background|portrait|scene|shot)\b/i
+    )
+    if (imageKeywords) {
+      try {
+        // Extract nouns/adjectives from the request as keywords (strip common words)
+        const stopWords = new Set(['add','a','an','the','of','in','at','on','to','with','and','or','is','are','was','were','be','it','this','that','for','hero','image','photo','picture'])
+        const keywords = editRequest.toLowerCase()
+          .replace(/[^a-z0-9 ]/g, ' ')
+          .split(/\s+/)
+          .filter((w) => w.length > 2 && !stopWords.has(w))
+          .slice(0, 5)
+          .join(',')
+        if (keywords) {
+          const imgRes = await fetch(`https://loremflickr.com/1600/900/${encodeURIComponent(keywords)}`, { redirect: 'follow' })
+          if (imgRes.ok) {
+            resolvedImageUrl = imgRes.url  // final CDN URL after redirect
+            console.log('[edit] resolved image URL:', resolvedImageUrl)
+          }
+        }
+      } catch (e) {
+        console.warn('[edit] image prefetch failed (non-fatal):', e)
+      }
+    }
+
+    const imageGuidance = resolvedImageUrl
+      ? `\nIMAGES: Use this exact pre-fetched image URL (guaranteed to work): ${resolvedImageUrl}\nDo NOT use any other image URL — this one is already verified to load correctly.`
+      : `\nIMAGES: Use https://loremflickr.com/1600/900/{keyword1},{keyword2},{keyword3} with keywords from the description. Never use source.unsplash.com, placeholder.com, or images.unsplash.com/photo-{id}.`
 
     const prompt = isReact
       ? `You are editing a React TypeScript component. Return ONLY the complete updated file. No explanation, no markdown, no code fences. Just the raw TypeScript/JSX.
