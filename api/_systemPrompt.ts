@@ -726,11 +726,23 @@ You are not generating code. You are designing a product. The code is the medium
 
 **Hero sections — mandatory for every Home page:**
 Every Home.tsx must have a full-bleed hero section that communicates the emotional promise of the app in under 3 seconds. This means:
-- A real hero image that sets the scene. Use https://loremflickr.com/1600/900/{keyword1},{keyword2},{keyword3} with keywords derived from the app idea (e.g. for an invite app: "party,celebration,friends,gathering"). This is a real image service — use it on every Home page.
-- The image must have an overlay (dark gradient or semi-transparent layer) so text on top passes WCAG AA contrast
+- A real hero image that sets the scene. Use https://loremflickr.com/1600/900/{keyword1},{keyword2},{keyword3} with keywords derived from the app idea (e.g. for an invite app: "party,celebration,friends,gathering").
+- CRITICAL — hero image implementation. Use the background-image inline style pattern — NOT an <img> tag. The img tag with h-full breaks on iOS Safari when the parent only has min-height. The correct pattern:
+  ```tsx
+  <section
+    className="relative min-h-screen flex items-center overflow-hidden"
+    style={{ backgroundImage: 'url(https://loremflickr.com/1600/900/party,friends)', backgroundSize: 'cover', backgroundPosition: 'center' }}
+  >
+    <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80" />
+    <div className="relative z-10 max-w-5xl mx-auto px-6 py-32 w-full">
+      {/* headline, CTA */}
+    </div>
+  </section>
+  ```
+- The section must fill the viewport on mobile (min-h-screen)
+- Overlay: dark gradient so text on top always passes WCAG AA contrast
 - Headline over the image: large, bold, emotional — the user's core benefit in one sentence
 - One primary CTA button directly under the headline
-- The hero section must fill the viewport on mobile (min-h-screen or min-h-[100svh])
 
 **Information Architecture (Rosenfeld & Morville):**
 - Every page has one clear primary action and one clear secondary action — never more

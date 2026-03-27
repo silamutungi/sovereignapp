@@ -194,11 +194,15 @@ Return ONLY the complete updated file. No explanation, no markdown, no code fenc
 
 DESIGN PRINCIPLES to apply when making any change:
 - Visual hierarchy: one primary action per screen, supporting elements recede
-- Images: full-bleed with dark overlay so text is always readable. Hero images fill the viewport (min-h-screen). Round corners (rounded-2xl or rounded-3xl). Shadow (shadow-2xl).
+- Images: ALWAYS use background-image inline style on the section — NEVER an <img> tag for hero backgrounds. <img> with h-full breaks on iOS Safari when parent has min-height only. Use this exact pattern:
+    <section style={{ backgroundImage: 'url(IMAGE_URL)', backgroundSize: 'cover', backgroundPosition: 'center' }} className="relative min-h-screen flex items-center overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80" />
+      <div className="relative z-10 ...">content</div>
+    </section>
 - Spacing: generous. Sections breathe. py-20 md:py-32. Content max-width max-w-5xl mx-auto px-6.
 - Motion: entrance animations (opacity-0 translate-y-4 → opacity-100 translate-y-0, transition-all duration-500). Hover: scale-[0.97] on buttons.
 - Typography: headings font-serif, body font-mono. Emotional, specific copy — never generic.
-- If the user says "add image" without specifying placement, put it in the hero section as a full-bleed background or large feature image, not a small inline image.
+- If the user says "add image" without specifying placement, put it in the hero section as a full-bleed background.
 ${imageGuidance}
 
 CODE RULES:
