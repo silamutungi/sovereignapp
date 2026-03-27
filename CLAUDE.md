@@ -836,6 +836,52 @@ Fix: `import { type KeyboardEvent, type FormEvent, type RefObject } from 'react'
 Lesson: whenever we add a rule to the generation prompt, audit Sovereign's own codebase for the same pattern.
 Learned: 2026-03-24.
 
+**source.unsplash.com is deprecated — use loremflickr.com with server-side prefetch**
+Wrong assumption: `source.unsplash.com/{keywords}` and `images.unsplash.com/photo-{id}` URLs are reliable for generated apps.
+Correct behaviour: `source.unsplash.com` returns 503. `images.unsplash.com/photo-{id}` IDs are effectively random — Claude guesses them and they 404. Neither works reliably.
+Fix: use `https://loremflickr.com/1600/900/{keyword1},{keyword2},{keyword3}` for keyword-based images. Server-side prefetch with `fetch(url, { redirect: 'follow' })` to resolve the redirect to a guaranteed-working CDN URL, then pass that exact URL to Claude. Never let Claude guess image URLs.
+Rule: all image guidance in edit.ts and _systemPrompt.ts must use loremflickr.com. Never reference source.unsplash.com or images.unsplash.com/photo-{id}.
+Learned: 2026-03-26.
+
+**iOS Safari h-full bug — use backgroundImage inline style, never `<img>` for hero backgrounds**
+Wrong assumption: `<img className="absolute inset-0 w-full h-full object-cover">` works for full-bleed hero backgrounds.
+Correct behaviour: `height: 100%` (Tailwind `h-full`) resolves to 0 on iOS Safari when the parent element uses `min-height` instead of `height`. The hero image flashes on load then disappears on scroll/reload.
+Fix: use `backgroundImage` inline style on the section element itself — never an `<img>` tag for hero backgrounds. Required pattern:
+  `<section style={{ backgroundImage: 'url(URL)', backgroundSize: 'cover', backgroundPosition: 'center' }} className="relative min-h-screen flex items-center overflow-hidden">`
+  with an overlay div `<div className="absolute inset-0 bg-gradient-to-b from-black/70 ...">` and content `<div className="relative z-10 ...">`.
+Triage: → CLAUDE.md ✓ → Generation prompt (_systemPrompt.ts) ✓ → edit.ts design principles ✓
+Learned: 2026-03-26.
+
+**Vercel deploy_url must be the stable project alias, not the immutable deployment URL**
+Wrong assumption: the URL returned from triggering a Vercel deployment is the correct URL to store and show users.
+Correct behaviour: each deployment gets a unique immutable URL like `project-abc123-team.vercel.app`. When a new edit deploys, the old URL still works but shows the old version. The stable alias (`project-team.vercel.app`) always points to the latest production deployment.
+Fix: after a deployment reaches READY state, call `GET /v9/projects/{id}?teamId={teamId}` and extract `targets.production.alias[0]`. Store that as `deploy_url`. Fall back to the deployment URL only if the project fetch fails. Applied in both `run-build.ts` (initial build) and `build-status.ts` (self-heal on edit).
+Learned: 2026-03-26.
+
+**Edit pipeline must detect React apps and edit the right file**
+Wrong assumption: `index.html` is always the right file to edit for all generated apps.
+Correct behaviour: React apps built with Vite don't have meaningful content in `index.html` — all UI is in `src/pages/Home.tsx` or `src/App.tsx`. Editing `index.html` on a React app does nothing visible.
+Fix: `CANDIDATE_FILES = ['src/pages/Home.tsx', 'src/App.tsx', 'index.html']` — try each in order, use the first one found. Use a React-aware prompt for `.tsx` files (design judgment, named imports, no `React.*` namespace). Use the plain HTML prompt for `index.html`.
+Learned: 2026-03-26.
+
+**X-Frame-Options: DENY on generated apps blocks the dashboard preview iframe**
+Wrong assumption: `X-Frame-Options: DENY` is a safe default security header for all generated apps.
+Correct behaviour: DENY prevents the app from being embedded in any iframe — including Sovereign's own dashboard preview. Users see a blank black screen instead of their app.
+Fix: remove `X-Frame-Options` from generated `vercel.json`. Use `Content-Security-Policy: frame-ancestors 'self' https://sovereignapp.dev` instead — this allows the Sovereign dashboard to embed the app while blocking all other origins. Applied in `run-build.ts` scaffold and backfilled on existing builds via `scripts/fix-vercel-json.ts`.
+Learned: 2026-03-26.
+
+**Edit API returns `{ ok: true }` — not `{ success: true }`**
+Wrong assumption: the edit API response shape matches a `success` field pattern.
+Correct behaviour: `api/edit.ts` returns `{ ok: true, message: 'Edit deployed' }` on success. Any frontend check for `data.success` will always be falsy even on a successful edit, triggering a false error state.
+Fix: check `data.ok` (or `data.ok || data.success` for safety). This caused the dashboard to show "Something went wrong" on every successful edit.
+Learned: 2026-03-26.
+
+**build-status self-heal threshold must be 30s, not 10min**
+Wrong assumption: builds should be considered stuck only after 10 minutes.
+Correct behaviour: after an edit, the redeploy is queued within seconds. A 10-minute threshold means the user waits up to 10 minutes after deploy completes before the dashboard updates. 30 seconds is enough time for the redeploy to be queued before the first self-heal check fires.
+Fix: `const stuckThresholdMs = 30 * 1000` in `build-status.ts`. Builds in 'building' state for >30s with a `vercel_project_id` trigger an automatic Vercel state check.
+Learned: 2026-03-26.
+
 **Sovereign v2.0.0 self-build final score: 86/100 STRONG — launch gate PASSED**
 Full multi-agent system built and evaluated:
 - Brain API (3 learning cycles: per-project, weekly, monthly)
