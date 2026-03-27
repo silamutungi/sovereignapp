@@ -1,12 +1,12 @@
 {
   "functions": {
-    "api/*.ts": { "maxDuration": 300 }
+    "api/*.ts":        { "maxDuration": 300 },
+    "api/**/*.ts":     { "maxDuration": 300 }
   },
   "crons": [
-    {
-      "path": "/api/expire-builds",
-      "schedule": "0 9 * * *"
-    }
+    { "path": "/api/expire-builds", "schedule": "0 9 * * *" },
+    { "path": "/api/brain-cycle2",  "schedule": "0 0 * * 1" },
+    { "path": "/api/brain-cycle3",  "schedule": "0 0 1 * *" }
   ],
   "rewrites": [
     { "source": "/auth/supabase/callback", "destination": "/api/auth/supabase/callback" },
@@ -16,10 +16,6 @@
     {
       "source": "/(.*)",
       "headers": [
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
         {
           "key": "X-Content-Type-Options",
           "value": "nosniff"

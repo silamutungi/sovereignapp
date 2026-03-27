@@ -136,13 +136,46 @@ export default async function handler(req: any, res: any): Promise<void> {
     }
   }
 
+  // ── Fetch top recurring lessons from Brain (best-effort, non-blocking) ─────
+  // Lessons with build_count >= 3 are confirmed recurring patterns. Injecting
+  // them into the user message (not system prompt) preserves prompt caching
+  // while ensuring Claude applies the most-needed fixes proactively.
+  let lessonContext = ''
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL
+    const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (supabaseUrl && serviceKey) {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 2000)
+      const lessonRes = await fetch(
+        `${supabaseUrl}/rest/v1/lessons?solution=neq.&build_count=gte.3&order=build_count.desc&select=solution,category&limit=8`,
+        {
+          headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
+          signal: controller.signal,
+        },
+      )
+      clearTimeout(timeout)
+      if (lessonRes.ok) {
+        const rows = await lessonRes.json() as Array<{ solution: string; category: string }>
+        if (rows.length > 0) {
+          lessonContext = '\n\nRECURRING LESSONS FROM PRODUCTION (apply these proactively in every generated app):\n' +
+            rows.map((r) => `- [${r.category}] ${r.solution}`).join('\n')
+          console.log('[generate] injected', rows.length, 'recurring lessons into context')
+        }
+      }
+    }
+  } catch {
+    // Non-fatal — skip lesson injection, proceed with generation
+    console.warn('[generate] lesson fetch skipped (non-fatal)')
+  }
+
   // ── Build user message with combined length cap ──────────────────────────
-  const MAX_COMBINED_LENGTH = 3000
+  const MAX_COMBINED_LENGTH = 3500
   const baseMessage = idea.slice(0, 2500)
   const hint = variationHint
     ? `\n\nVARIATION INSTRUCTION (attempt ${attempt} of 3): ${variationHint}`
     : ''
-  const userMessage = (baseMessage + hint).slice(0, MAX_COMBINED_LENGTH)
+  const userMessage = (baseMessage + hint + lessonContext).slice(0, MAX_COMBINED_LENGTH)
 
   // ── All validation passed — switch to SSE streaming ─────────────────────
   const startedAt = Date.now()
