@@ -70,10 +70,20 @@ function getEmail(): string | null {
   }
 }
 
-function brief(idea: string | null): string {
-  if (!idea) return 'This is your app workspace.'
-  const sentences = idea.split(/(?<=[.!?])\s+/)
-  return sentences.slice(0, 2).join(' ').slice(0, 200)
+function formatOpening(idea: string | null, appName: string): string {
+  if (!idea) return `${appName} is live.`
+  const clean = idea.replace(/\s+/g, ' ').trim()
+  // First sentence longer than 20 chars, or fallback to first 40 chars
+  const first = clean.split(/(?<=[.!?])\s+/).find((s) => s.length > 20) ?? clean
+  const description = first.length > 90 ? `${first.slice(0, 40)}...` : first
+  return `${appName} is live — ${description}`
+}
+
+function minsAgo(ts: number): string {
+  const m = Math.floor((Date.now() - ts) / 60000)
+  if (m < 1) return 'just now'
+  if (m === 1) return '1 min ago'
+  return `${m} min ago`
 }
 
 function getElementArea(xPct: number, yPct: number): string {
@@ -136,6 +146,10 @@ export default function EditApp() {
   const [lastHintType, setLastHintType] = useState<string | null>(null)
   const [, setDeployUnhealthy] = useState(false)
 
+  // Live status + deploy timing
+  const [lastDeployedAt, setLastDeployedAt] = useState<number | null>(null)
+  const [, setLiveTick] = useState(0)
+
   // Security scan
   const [scanResult, setScanResult] = useState<{ passed: boolean; issues: SecurityIssue[]; score: number } | null>(null)
   const [scanning, setScanning] = useState(false)
@@ -154,6 +168,7 @@ export default function EditApp() {
   const deployTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const iframeContainerRef = useRef<HTMLDivElement>(null)
   const counter = useRef(0)
+  const deployStartTimeRef = useRef<number>(0)
 
   // ── Responsive ──────────────────────────────────────────────────────────────
 
@@ -189,7 +204,7 @@ export default function EditApp() {
       setMessages([{
         id: ++counter.current,
         role: 'sovereign',
-        text: brief(found.idea),
+        text: formatOpening(found.idea, found.app_name),
       }])
     } catch {
       setLoadError('Network error loading build')
@@ -257,6 +272,15 @@ export default function EditApp() {
           // Flash green border
           setPreviewFlash(true)
           setTimeout(() => setPreviewFlash(false), 200)
+          // Update deploying message with actual elapsed time
+          const elapsed = Math.round((Date.now() - deployStartTimeRef.current) / 1000)
+          setMessages((prev) => {
+            let lastIdx = -1
+            prev.forEach((m, i) => { if (m.isDeploying) lastIdx = i })
+            if (lastIdx === -1) return prev
+            return prev.map((m, i) => i === lastIdx ? { ...m, text: `Done. Deployed in ${elapsed}s.`, isDeploying: false } : m)
+          })
+          setLastDeployedAt(Date.now())
           // Post-deploy checks
           void fetchBrainHint()
           if (build?.deploy_url) void verifyDeployment(build.deploy_url)
@@ -316,6 +340,7 @@ export default function EditApp() {
         const newCount = editCount + 1
         setEditCount(newCount)
         pushMsg({ role: 'sovereign', text: 'Done — deploying your change now.', isDeploying: true })
+        deployStartTimeRef.current = Date.now()
         setDeploying(true)
         startPolling()
       }
@@ -480,6 +505,13 @@ export default function EditApp() {
     setInput(combined)
     void submitEdit(combined)
   }
+
+  // ── Live status tick (recalculate "X min ago" every 60s) ──────────────────────
+
+  useEffect(() => {
+    const id = setInterval(() => setLiveTick((t) => t + 1), 60000)
+    return () => clearInterval(id)
+  }, [])
 
   // ── Cleanup on unmount ────────────────────────────────────────────────────────
 
@@ -669,7 +701,7 @@ export default function EditApp() {
             width: isMobile ? '100%' : 360,
             flexShrink: 0,
             background: '#0e0d0b',
-            borderRight: isMobile ? 'none' : '1px solid #1a1917',
+            borderRight: isMobile ? 'none' : '2px solid rgba(200,240,96,0.25)',
             display: isMobile && mobileTab !== 'chat' ? 'none' : 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
@@ -754,33 +786,50 @@ export default function EditApp() {
                           {msg.text}
                         </div>
                       ) : (
-                        <div>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                          {/* Sovereign avatar */}
                           <div style={{
-                            background: '#1a1917',
-                            color: '#c8c4bc',
-                            padding: '8px 12px',
-                            borderRadius: '2px 10px 10px 10px',
-                            font: '12px/1.6 DM Mono, Courier New, monospace',
-                            maxWidth: '88%',
-                            wordBreak: 'break-word',
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            background: '#141210',
+                            border: '0.5px solid #c8f060',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            marginTop: 2,
                           }}>
-                            {msg.isDeploying ? (
-                              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#c8f060', flexShrink: 0, animation: 'pulse 1.4s infinite', display: 'inline-block' }} />
-                                Deploying · ~60s
-                              </span>
-                            ) : msg.text}
+                            <span style={{ font: '9px/1 DM Mono, Courier New, monospace', color: '#c8f060', userSelect: 'none' }}>S</span>
                           </div>
-                          {/* Change pills */}
-                          {msg.pills && msg.pills.length > 0 && (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6, maxWidth: '88%' }}>
-                              {msg.pills.map((pill, i) => (
-                                <span key={i} style={{ background: '#0f1a06', color: '#9ab870', font: '10px/1 DM Mono, Courier New, monospace', padding: '3px 8px', borderRadius: 3, border: '1px solid #1a3006' }}>
-                                  {pill}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{
+                              background: '#1a1917',
+                              color: '#c8c4bc',
+                              padding: '8px 12px',
+                              borderRadius: '2px 10px 10px 10px',
+                              font: '12px/1.6 DM Mono, Courier New, monospace',
+                              maxWidth: '100%',
+                              wordBreak: 'break-word',
+                            }}>
+                              {msg.isDeploying ? (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#c8f060', flexShrink: 0, animation: 'pulse 1.4s infinite', display: 'inline-block' }} />
+                                  Deploying · ~60s
                                 </span>
-                              ))}
+                              ) : msg.text}
                             </div>
-                          )}
+                            {/* Change pills */}
+                            {msg.pills && msg.pills.length > 0 && (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                                {msg.pills.map((pill, i) => (
+                                  <span key={i} style={{ background: '#0f1a06', color: '#9ab870', font: '10px/1 DM Mono, Courier New, monospace', padding: '3px 8px', borderRadius: 3, border: '1px solid #1a3006' }}>
+                                    {pill}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1165,30 +1214,39 @@ export default function EditApp() {
               )}
             </div>
 
-            {/* Deploying pill — bottom center floating */}
-            {deploying && (
-              <div style={{
-                position: 'absolute',
-                bottom: 20,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                background: '#0e0d0b',
-                border: '1px solid #2a2925',
-                borderRadius: 100,
-                padding: '8px 16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                zIndex: 10,
-                animation: 'fadeIn .2s ease',
-                boxShadow: '0 4px 20px rgba(0,0,0,.6)',
-              }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#c8f060', flexShrink: 0, animation: 'pulse 1.4s infinite', display: 'inline-block' }} />
-                <span style={{ font: '11px/1 DM Mono, Courier New, monospace', color: '#f2efe8' }}>
-                  Deploying · {deploySeconds}s
-                </span>
-              </div>
-            )}
+            {/* Live/deploying status pill — persistent floating indicator */}
+            <div style={{
+              position: 'absolute',
+              bottom: 20,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: '#0a0908',
+              border: '0.5px solid #1e1d1a',
+              borderRadius: 20,
+              padding: '5px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              zIndex: 10,
+              pointerEvents: 'none',
+              boxShadow: '0 2px 12px rgba(0,0,0,.5)',
+            }}>
+              {deploying ? (
+                <>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#e8a020', flexShrink: 0, animation: 'pulse 1.4s infinite', display: 'inline-block' }} />
+                  <span style={{ font: '11px/1 DM Mono, Courier New, monospace', color: '#c8c4bc', whiteSpace: 'nowrap' }}>
+                    Deploying · ~{Math.max(5, 60 - deploySeconds)}s
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#6ab870', flexShrink: 0, animation: 'pulse 1.4s infinite', display: 'inline-block' }} />
+                  <span style={{ font: '11px/1 DM Mono, Courier New, monospace', color: '#c8c4bc', whiteSpace: 'nowrap' }}>
+                    {lastDeployedAt ? `Live · last deployed ${minsAgo(lastDeployedAt)}` : 'Live'}
+                  </span>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
