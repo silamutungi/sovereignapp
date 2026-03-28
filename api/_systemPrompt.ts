@@ -69,7 +69,9 @@ Every generated app must include a vercel.json file. If a vercel.json already ex
       {
         "source": "/(.*)",
         "headers": [
-          { "key": "X-Frame-Options", "value": "DENY" },
+          // X-Frame-Options is set programmatically by the
+          // Sovereign build pipeline after deployment.
+          // Do not set it here.
           { "key": "X-Content-Type-Options", "value": "nosniff" },
           { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
           { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
@@ -149,7 +151,12 @@ Import in HTML:
 Default palette (override with primaryColor for accent only):
 - Paper (main background): #f2efe8
 - Ink (text + dark sections): #0e0d0b
-- Acid Green (CTAs and accent only): #c8f060 on dark backgrounds, #8ab800 on light backgrounds
+- Acid Green — two variants, one rule:
+  - On dark backgrounds (#0e0d0b ink): use #c8f060
+  - On light backgrounds (#f2efe8 paper): use #8ab800
+  - NEVER use #c8f060 on a light background (insufficient contrast)
+  - NEVER use #8ab800 on a dark background (insufficient contrast)
+  - When in doubt: check the background, pick the variant with 4.5:1+ contrast ratio
 - Dim text on paper: #6b6862 (4.51:1 contrast on #f2efe8 only)
 - Dim text on dark: #c8c4bc (11:1 contrast on #0e0d0b)
 
@@ -542,8 +549,8 @@ Use sandbox="allow-scripts" only for preview iframes. Combining allow-scripts wi
 **SPA rewrite rule must exclude /api/ routes**
 vercel.json rewrites must use /((?!api/).*)  not /(.*)  so that /api/ serverless functions are not intercepted by the SPA catch-all. Using /(.*)  breaks all API routes in production.
 
-**Every generated repo ships 7 files, including CLAUDE.md**
-The 7th file is CLAUDE.md — scaffolded into every repo so the user's own Claude Code sessions inherit Sovereign's patterns. Template:
+**Every generated repo ships 24 total files: 19 Claude-generated + 5 programmatic**
+24 total files per generated app: 19 Claude-generated (the Phase 1 scaffold) + 5 programmatic files injected by run-build.ts (vercel.json, .gitignore, .env.example, README.md, CLAUDE.md). The system prompt governs the 19 Claude-generated files. CLAUDE.md is scaffolded into every repo so the user's own Claude Code sessions inherit Sovereign's patterns. Template:
 
 \`\`\`markdown
 # [App Name]

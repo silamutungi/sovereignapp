@@ -47,7 +47,12 @@ The generation model draws from:
 - Fonts: Playfair Display (headings) + DM Mono (body/UI)
 - Background: `#f2efe8` (paper)
 - Text: `#0e0d0b` (ink)
-- Accent: `#8ab800` (acid green) — used for filled buttons only, never as text on light backgrounds
+- Acid Green — two variants, one rule:
+  - On dark backgrounds (`#0e0d0b` ink): use `#c8f060`
+  - On light backgrounds (`#f2efe8` paper): use `#8ab800`
+  - Never use `#c8f060` on a light background (insufficient contrast)
+  - Never use `#8ab800` on a dark background (insufficient contrast)
+  - When in doubt: check the background, pick the variant with 4.5:1+ contrast ratio
 - WCAG contrast: primaryColor darkened 30% for any text or border use on light backgrounds
 - Button text: white or black — whichever passes 4.5:1 against the button color
 
@@ -293,7 +298,8 @@ Generated apps default to the simplest possible implementation — complexity is
 - Input validation and sanitization on every form field
 - Rate limiting on every API endpoint
 - Soft deletes on every table (`deleted_at`, `deleted_by`) — never hard delete
-- Security headers in every `vercel.json`: `X-Frame-Options`, `X-Content-Type-Options`, `X-XSS-Protection`, `Referrer-Policy`, `Permissions-Policy`, `Content-Security-Policy`
+- Security headers in every `vercel.json`: `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `Content-Security-Policy`
+- `X-Frame-Options`: Set programmatically by the Sovereign build pipeline. Generated apps must not specify this header — the pipeline sets it correctly for staging (ALLOWALL) to enable iframe preview. Post-claim, users control their own policy.
 - No `localStorage` for sensitive data
 - `.env.example` committed with all keys documented, no real values
 

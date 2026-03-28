@@ -376,7 +376,7 @@ Learned: 2026-03-20.
 **Generated repos did not include CLAUDE.md — users had no AI context for their app**
 Wrong assumption: users would add Claude Code context themselves.
 Correct behaviour: every generated repo must ship a CLAUDE.md so that the user's own Claude Code sessions immediately understand the app's stack, how to add tables, and security rules.
-Fix: CLAUDE.md is now the 7th scaffold file in buildStaticFiles. Template added to the generation system prompt.
+Fix: CLAUDE.md is now a programmatic file injected by buildStaticFiles (one of 5 programmatic files; 24 total per build as of 2026-03-28). Template added to the generation system prompt.
 Learned: 2026-03-20.
 
 **Template HTML was not being sanitized before pushing to GitHub**
@@ -504,11 +504,12 @@ Correct behaviour: audit checks verify named references (Don Norman, Steve Krug,
 Fix: added all expert names and their frameworks explicitly to _systemPrompt.ts with specific rules from each. Also added Playfair Display/DM Mono font names and brand color tokens to the prompt so generated apps inherit Sovereign's typographic identity.
 Learned: 2026-03-21.
 
-**run-build.ts scaffold was missing .env.example — every generated repo ships 8 files, not 7**
+**run-build.ts scaffold was missing .env.example — added as programmatic file**
 Wrong assumption: .env.example was only needed by Tier 3 (CI/CD standard).
 Correct behaviour: .env.example is a security baseline for every app — without it, users have no reference for what env vars the app needs and will either hardcode secrets or leave the app broken.
-Fix: added .env.example as the 8th scaffold file in buildStaticFiles() with VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY, VITE_APP_URL.
-Learned: 2026-03-21.
+Fix: added .env.example as a programmatic file in buildStaticFiles() with VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY, VITE_APP_URL.
+Current canonical count: 24 total files per build (19 Claude-generated + 5 programmatic). See foundation conflict resolution lesson (2026-03-28).
+Learned: 2026-03-21. Updated: 2026-03-28.
 
 **Welcome email had no Supabase setup call-to-action**
 The app-launch welcome email told users their app was live but gave no guidance on the one critical manual step: connecting Supabase. Users with apps that need auth or data had no prompt to do this.
@@ -980,4 +981,13 @@ This applies to the "Generate my app →" button and all other uses of `.gobtn`.
 - `wl.btn` (EN) changed to "Lock in $19/mo — start building now →".
 - Waitlist section (`src/App.tsx` Waitlist component): form removed entirely, replaced with a single `<button>` that scrolls to top (`window.scrollTo({ top: 0 })`). `joinWaitlist` import removed. Dead state (`email`, `error`, `loading`, `success`, `handleSubmit`) removed.
 - Pricing plan buttons (Builder, Team) wired to `scrollToBuildFlow` instead of `scrollToWaitlist`.
+Decided: 2026-03-28.
+
+**Foundation conflict resolution — 2026-03-28**
+Four contradictions existed between the system prompt, SOVEREIGN_STANDARDS.md, and run-build.ts:
+1. X-Frame-Options: DENY in the system prompt vercel.json template vs ALLOWALL in the pipeline — resolved by removing X-Frame-Options from the system prompt template entirely and adding a comment explaining the pipeline handles it.
+2. Same conflict in SOVEREIGN_STANDARDS.md Part 13 — resolved to match pipeline behaviour: X-Frame-Options is set by the pipeline, not by generated apps.
+3. Acid green CTA color: three sources said three different things — resolved to the two-variant rule: #c8f060 on dark (#0e0d0b), #8ab800 on light (#f2efe8). Updated in both SOVEREIGN_STANDARDS.md Part 1 and api/_systemPrompt.ts.
+4. File count: "7 scaffold files" and "8 scaffold files" were stale since the multi-file era — updated to 24 total files per build (19 Claude-generated + 5 programmatic).
+Rule: SOVEREIGN_STANDARDS.md is the single source of truth. When any other file contradicts it, SOVEREIGN_STANDARDS.md wins and the other file updates.
 Decided: 2026-03-28.
