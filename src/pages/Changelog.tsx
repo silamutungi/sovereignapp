@@ -263,7 +263,7 @@ function Entry({ entry }: { entry: ChangelogEntry }) {
         <h3
           style={{
             fontFamily: "'Playfair Display', Georgia, serif",
-            fontSize: '18px',
+            fontSize: '22px',
             fontWeight: 700,
             color: '#0e0d0b',
             margin: '0 0 8px',
@@ -275,7 +275,7 @@ function Entry({ entry }: { entry: ChangelogEntry }) {
         <p
           style={{
             fontFamily: "'DM Mono', monospace",
-            fontSize: '13px',
+            fontSize: '16px',
             color: '#6b6862',
             margin: 0,
             lineHeight: 1.7,

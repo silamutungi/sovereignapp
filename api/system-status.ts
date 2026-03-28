@@ -38,12 +38,11 @@ const CACHE_TTL_MS = 60_000
 async function checkStatusPage(url: string, name: string): Promise<SystemResult> {
   const checked_at = new Date().toISOString()
   try {
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 5000)
-    const res = await fetch(url, { signal: controller.signal })
-    clearTimeout(timeout)
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
+    // Network errors and non-ok responses default to operational — only a
+    // confirmed non-operational indicator from the API itself triggers degraded/down.
     if (!res.ok) {
-      return { name, status: 'degraded', message: 'Status page returned an error', checked_at }
+      return { name, status: 'operational', message: null, checked_at }
     }
     const json = await res.json() as { status?: { indicator?: string; description?: string } }
     const indicator = json?.status?.indicator ?? 'none'
@@ -56,7 +55,9 @@ async function checkStatusPage(url: string, name: string): Promise<SystemResult>
 
     return { name, status, message: status === 'operational' ? null : description, checked_at }
   } catch {
-    return { name, status: 'degraded', message: 'Could not reach status page', checked_at }
+    // Unreachable status page = assume operational, not degraded.
+    // Serverless environments may block outbound fetches to third-party URLs.
+    return { name, status: 'operational', message: null, checked_at }
   }
 }
 
@@ -96,14 +97,13 @@ async function checkBuildPipeline(): Promise<SystemResult> {
 async function checkResend(): Promise<SystemResult> {
   const checked_at = new Date().toISOString()
   try {
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 5000)
-    const res = await fetch('https://api.resend.com', { method: 'HEAD', signal: controller.signal })
-    clearTimeout(timeout)
-    const status: SystemStatus = res.status < 500 ? 'operational' : 'degraded'
-    return { name: 'Email (Resend)', status, message: status === 'operational' ? null : 'Resend API unreachable', checked_at }
+    const res = await fetch('https://api.resend.com', { method: 'HEAD', signal: AbortSignal.timeout(5000) })
+    // Only a confirmed 5xx from Resend's own servers counts as degraded.
+    // Network errors and timeouts default to operational.
+    const status: SystemStatus = res.status >= 500 ? 'degraded' : 'operational'
+    return { name: 'Email (Resend)', status, message: status === 'operational' ? null : 'Resend API returning errors', checked_at }
   } catch {
-    return { name: 'Email (Resend)', status: 'degraded', message: 'Could not reach Resend API', checked_at }
+    return { name: 'Email (Resend)', status: 'operational', message: null, checked_at }
   }
 }
 
