@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard.tsx'
 import BrainDashboard from './pages/brain-dashboard.tsx'
 import Status from './pages/Status'
 import Changelog from './pages/Changelog'
+import EditApp from './pages/EditApp'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { ChatProvider } from './store/chatStore.tsx'
 import { SovereignChat } from './components/SovereignChat.tsx'
@@ -47,6 +48,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/brain" element={<BrainDashboard />} />
               <Route path="/status" element={<Status />} />
               <Route path="/changelog" element={<Changelog />} />
+              <Route path="/app/:buildId/edit" element={<EditApp />} />
               <Route path="/*" element={<App />} />
             </Routes>
           </AppErrorBoundary>

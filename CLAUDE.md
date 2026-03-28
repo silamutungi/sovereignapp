@@ -1064,3 +1064,43 @@ Wrong assumption: checkRateLimit accepted a request object as first arg and used
 Correct behaviour: checkRateLimit(key: string, limit: number, windowMs: number) — exactly 3 args. It is synchronous (returns RateLimitResult directly, not a Promise). Call it with a string key built from the identifier (e.g., `audit-generated-app:${ip}`).
 Fix: extract IP with getClientIp(req), then call checkRateLimit(`endpoint:${ip}`, limit, windowMs) — no await.
 Learned: 2026-03-28.
+
+## Sovereign Edit Experience — 2026-03-28
+
+**Sovereign edit experience shipped — route /app/:buildId/edit**
+Context: The old edit experience was an overlay modal (EditPanel) inside Dashboard.tsx. It had two tabs (Chat/Preview) but no brain intelligence, no click-to-describe, no prompt queue, and no security scan.
+Decision: Full dedicated page at /app/:buildId/edit replacing the modal. Two-column layout (360px brain panel + live preview). Mobile: single column with Chat/Preview tab toggle.
+Key files: src/pages/EditApp.tsx (main page), api/brain-hint.ts, api/verify-deployment.ts, api/security-scan.ts.
+Decided: 2026-03-28.
+
+**EditPanel removed from Dashboard.tsx — navigate to /app/:buildId/edit instead**
+Wrong assumption: the edit experience belonged inside Dashboard.tsx as a modal overlay.
+Correct behaviour: the edit experience is a full page at /app/:buildId/edit. "Edit app" button in AppCard navigates there via React Router. The Dashboard removes ~460 lines of EditPanel code.
+Fix: AppCard.onEdit now calls `navigate('/app/${build.id}/edit')`. Coach CTA likewise navigates. EditPanel component, isPanelOpen/panelBuild state, openPanel/closePanel callbacks all removed. Toast retained for "Link copied!" notification.
+Learned: 2026-03-28.
+
+**api/brain-hint.ts — POST /api/brain-hint — hint logic**
+Three hint types: green (milestone at edit 5/10/20), blue (Claude-detected missing feature), amber (dangerous patterns — intercepted in frontend BEFORE calling edit API, not from this endpoint).
+Rules: never show hint if edit_count < 2. Never show two hints of same type in a row. Blue uses Haiku; green is hardcoded. Rate limit: 30/hr per IP.
+Non-fatal: always returns 200 with show_hint:false on error — never blocks the edit flow.
+Learned: 2026-03-28.
+
+**api/verify-deployment.ts — POST /api/verify-deployment — health check**
+Fetches a deployment URL, checks HTTP 200, verifies HTML content, scans for JavaScript runtime error signatures in the body. Only https URLs allowed (SSRF prevention). 10s timeout. Rate limit: 30/hr per IP. Always returns 200 — unhealthy result triggers amber hint in frontend, not an API error.
+Learned: 2026-03-28.
+
+**api/security-scan.ts — POST /api/security-scan — pre-claim security audit**
+Called when user clicks "Claim →". Fetches 6 key files from GitHub (src/lib/supabase.ts, vercel.json, src/App.tsx, Login.tsx, Signup.tsx, .env.example), sends to Haiku for security analysis. Returns { passed, issues[], score }. passed = score >= 70 AND no high severity issues. Rate limit: 5/hr per IP (heavy). Token always read from builds table server-side — never from request body.
+Learned: 2026-03-28.
+
+**Prompt queue persists in localStorage with key sovereign_queue_{buildId}**
+Queue items are stored in localStorage so they survive page refreshes. Key pattern: `sovereign_queue_${buildId}`. Queue runs items in sequence, waiting for each deployment to complete before starting the next. Max 10 items (UI enforced). Queue is displayed as numbered pills in the collapsible panel above the input area.
+Decided: 2026-03-28.
+
+**Amber hints intercept dangerous edit patterns in the frontend before calling the API**
+Dangerous patterns checked client-side in EditApp.tsx before calling /api/edit: "remove auth", "disable security", "make everything visible", "delete all", "drop table", "service role key". These show an amber BrainHintCard and pause execution — the user must choose "Safe alternative →" or dismiss. The brain-hint.ts endpoint does NOT fire amber — it only fires after successful deploys.
+Learned: 2026-03-28.
+
+**Build-status.ts now returns staging and claimed_at**
+Added staging and claimed_at to the Supabase select query and the response JSON. Required for the EditApp top bar to show the "Claim →" button correctly (only when staging=true AND claimed_at is null).
+Learned: 2026-03-28.
