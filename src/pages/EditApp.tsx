@@ -150,6 +150,11 @@ export default function EditApp() {
   const [lastDeployedAt, setLastDeployedAt] = useState<number | null>(null)
   const [, setLiveTick] = useState(0)
 
+  // Panel theme (persisted)
+  const [panelTheme, setPanelTheme] = useState<'dark' | 'light'>(() => {
+    try { return (localStorage.getItem('sovereign_edit_theme') as 'dark' | 'light') ?? 'dark' } catch { return 'dark' }
+  })
+
   // Security scan
   const [scanResult, setScanResult] = useState<{ passed: boolean; issues: SecurityIssue[]; score: number } | null>(null)
   const [scanning, setScanning] = useState(false)
@@ -506,6 +511,12 @@ export default function EditApp() {
     void submitEdit(combined)
   }
 
+  // ── Persist panel theme preference ───────────────────────────────────────────
+
+  useEffect(() => {
+    try { localStorage.setItem('sovereign_edit_theme', panelTheme) } catch { /* non-fatal */ }
+  }, [panelTheme])
+
   // ── Live status tick (recalculate "X min ago" every 60s) ──────────────────────
 
   useEffect(() => {
@@ -558,6 +569,44 @@ export default function EditApp() {
   const previewUrl = build!.deploy_url ?? ''
   const isStaging = build!.staging === true && !build!.claimed_at
 
+  // ── Panel theme tokens ────────────────────────────────────────────────────────
+
+  const t = panelTheme === 'light' ? {
+    panelBg:             '#f2efe8',
+    surface:             '#ffffff',
+    border:              '#e8e4da',
+    textPrimary:         '#0e0d0b',
+    textSecondary:       '#6b6862',
+    textDim:             '#9a9890',
+    sovereignBubbleBg:   '#ffffff',
+    sovereignBubbleText: '#0e0d0b',
+    userBubbleBg:        '#8ab800',
+    userBubbleText:      '#0e0d0b',
+    accent:              '#8ab800',
+    avatarBg:            '#141210',
+    avatarBorder:        '#8ab800',
+    avatarText:          '#8ab800',
+    typingDot:           '#c8c4bc',
+    panelClass:          'ea-panel-light' as const,
+  } : {
+    panelBg:             '#0e0d0b',
+    surface:             '#1a1917',
+    border:              '#1a1917',
+    textPrimary:         '#f2efe8',
+    textSecondary:       '#5a5850',
+    textDim:             '#3a3830',
+    sovereignBubbleBg:   '#1a1917',
+    sovereignBubbleText: '#c8c4bc',
+    userBubbleBg:        '#c8f060',
+    userBubbleText:      '#0e0d0b',
+    accent:              '#c8f060',
+    avatarBg:            '#141210',
+    avatarBorder:        '#c8f060',
+    avatarText:          '#c8f060',
+    typingDot:           '#3a3830',
+    panelClass:          '' as const,
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
@@ -571,12 +620,14 @@ export default function EditApp() {
         @media (prefers-reduced-motion: reduce) { *{animation-duration:0.001ms!important;transition-duration:0.001ms!important} }
         .ea-scroll::-webkit-scrollbar{width:3px}
         .ea-scroll::-webkit-scrollbar-thumb{background:#2a2925;border-radius:2px}
-        .ea-textarea{resize:none;font:12px/1.6 DM Mono,Courier New,monospace;color:#f2efe8;background:#1a1917;border:none;outline:none;width:100%;box-sizing:border-box;padding:10px 12px;min-height:40px;max-height:120px;overflow-y:auto}
+        .ea-textarea{resize:none;font:12px/1.6 DM Mono,Courier New,monospace;color:#f2efe8;background:#1a1917;border:0.5px solid #2a2925;border-radius:4px;outline:none;width:100%;box-sizing:border-box;padding:10px 12px;min-height:40px;max-height:120px;overflow-y:auto;transition:border-color .15s,background .15s,color .15s}
         .ea-textarea::placeholder{color:#3a3830}
-        .ea-textarea:focus-visible{outline:1px solid #c8f060;outline-offset:1px}
-        .ea-btn-ghost{background:none;border:1px solid #2a2925;color:#5a5850;font:10px/1 DM Mono,Courier New,monospace;padding:6px 10px;cursor:pointer;border-radius:3px;transition:border-color .15s,color .15s}
+        .ea-textarea:disabled{opacity:0.75;cursor:default}
+        .ea-textarea:focus-visible{outline:1px solid #c8f060;outline-offset:1px;border-color:#c8f060}
+        .ea-btn-ghost{background:none;border:1px solid #2a2925;color:#7a7870;font:10px/1 DM Mono,Courier New,monospace;padding:6px 10px;cursor:pointer;border-radius:3px;transition:border-color .15s,color .15s,background .15s}
         .ea-btn-ghost:hover{border-color:#5a5850;color:#f2efe8}
         .ea-btn-ghost:focus-visible{outline:2px solid #c8f060;outline-offset:2px}
+        .ea-btn-ghost:disabled{opacity:0.4;cursor:default}
         .ea-btn-green{background:#c8f060;border:none;color:#0e0d0b;font:10px/1 DM Mono,Courier New,monospace;padding:6px 12px;cursor:pointer;border-radius:3px;transition:opacity .15s}
         .ea-btn-green:hover{opacity:.85}
         .ea-btn-green:disabled{opacity:.4;cursor:default}
@@ -586,9 +637,23 @@ export default function EditApp() {
         .ea-tab.inactive{color:#3a3830}
         .ea-tab:focus-visible{outline:2px solid #c8f060;outline-offset:2px}
         .hint-fade{animation:fadeIn .2s ease}
-        .queue-pill{display:flex;align-items:center;gap:6px;background:#111009;border:1px solid #2a2925;border-radius:4px;padding:6px 10px;font:11px/1.4 DM Mono,Courier New,monospace;color:#c8c4bc}
+        .queue-pill{display:flex;align-items:center;gap:6px;background:#111009;border:1px solid #2a2925;border-radius:4px;padding:6px 10px;font:11px/1.4 DM Mono,Courier New,monospace;color:#c8c4bc;transition:background .15s,border-color .15s,color .15s}
         .queue-pill button{background:none;border:none;color:#3a3830;cursor:pointer;padding:0;font-size:12px;line-height:1;transition:color .12s}
         .queue-pill button:hover{color:#f2efe8}
+        /* ── Light mode overrides ─────────────────────────────────────────── */
+        .ea-panel-light .ea-textarea{color:#0e0d0b;background:#ffffff;border-color:#e8e4da}
+        .ea-panel-light .ea-textarea::placeholder{color:#b8b4ac}
+        .ea-panel-light .ea-textarea:focus-visible{border-color:#8ab800;outline-color:#8ab800}
+        .ea-panel-light .ea-btn-ghost{color:#0e0d0b;border-color:#c8c4bc}
+        .ea-panel-light .ea-btn-ghost:hover{color:#0e0d0b;border-color:#8ab800}
+        .ea-panel-light .ea-btn-green{background:#8ab800;color:#ffffff}
+        .ea-panel-light .ea-btn-green:focus-visible{outline-color:#0e0d0b}
+        .ea-panel-light .ea-tab.active{background:#ffffff;color:#0e0d0b}
+        .ea-panel-light .ea-tab.inactive{color:#6b6862}
+        .ea-panel-light .ea-scroll::-webkit-scrollbar-thumb{background:#e8e4da}
+        .ea-panel-light .queue-pill{background:#ffffff;border-color:#e8e4da;color:#0e0d0b}
+        .ea-panel-light .queue-pill button{color:#b8b4ac}
+        .ea-panel-light .queue-pill button:hover{color:#0e0d0b}
       `}</style>
 
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: '#0e0d0b' }}>
@@ -697,18 +762,21 @@ export default function EditApp() {
           {/* ─────────────────────────────────────────────────────────────────── */}
           {/* LEFT COLUMN — Brain Panel */}
           {/* ─────────────────────────────────────────────────────────────────── */}
-          <div style={{
-            width: isMobile ? '100%' : 360,
-            flexShrink: 0,
-            background: '#0e0d0b',
-            borderRight: isMobile ? 'none' : '2px solid rgba(200,240,96,0.25)',
-            display: isMobile && mobileTab !== 'chat' ? 'none' : 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}>
+          <div
+            className={t.panelClass}
+            style={{
+              width: isMobile ? '100%' : 360,
+              flexShrink: 0,
+              background: t.panelBg,
+              borderRight: isMobile ? 'none' : '2px solid rgba(200,240,96,0.25)',
+              display: isMobile && mobileTab !== 'chat' ? 'none' : 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              transition: 'background .15s',
+            }}>
 
             {/* ── Workspace knowledge bar ──────────────────────────────────── */}
-            <div style={{ borderBottom: '1px solid #1a1917', flexShrink: 0 }}>
+            <div style={{ borderBottom: `1px solid ${t.border}`, flexShrink: 0 }}>
               <button
                 onClick={() => setKnowledgeOpen((o) => !o)}
                 style={{
@@ -721,8 +789,9 @@ export default function EditApp() {
                   border: 'none',
                   cursor: 'pointer',
                   font: '10px/1 DM Mono, Courier New, monospace',
-                  color: '#3a3830',
+                  color: t.textDim,
                   textAlign: 'left',
+                  transition: 'color .15s',
                 }}
                 aria-expanded={knowledgeOpen}
               >
@@ -731,12 +800,12 @@ export default function EditApp() {
               </button>
               {knowledgeOpen && (
                 <div style={{ padding: '0 16px 12px', animation: 'fadeIn .15s ease' }}>
-                  <p style={{ font: '10px/1.6 DM Mono, Courier New, monospace', color: '#5a5850', margin: '0 0 8px' }}>
+                  <p style={{ font: '10px/1.6 DM Mono, Courier New, monospace', color: t.textSecondary, margin: '0 0 8px' }}>
                     Your brand · <span style={{ color: brandColor }}>■</span> {brandColor} · {headingFont} headings · {tone} tone
                   </p>
                   <button
                     onClick={() => { setLeftTab('brand'); setKnowledgeOpen(false) }}
-                    style={{ background: 'none', border: 'none', color: '#5a5850', font: '10px/1 DM Mono, Courier New, monospace', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                    style={{ background: 'none', border: 'none', color: t.textSecondary, font: '10px/1 DM Mono, Courier New, monospace', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
                   >
                     Edit preferences
                   </button>
@@ -744,8 +813,8 @@ export default function EditApp() {
               )}
             </div>
 
-            {/* ── Left column tabs: Chat | Brand ───────────────────────────── */}
-            <div style={{ display: 'flex', padding: '8px 12px 0', gap: 4, flexShrink: 0 }}>
+            {/* ── Left column tabs: Chat | Brand + theme toggle ────────────── */}
+            <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px 0', gap: 4, flexShrink: 0 }}>
               <button
                 className={`ea-tab ${leftTab === 'chat' ? 'active' : 'inactive'}`}
                 onClick={() => setLeftTab('chat')}
@@ -757,6 +826,48 @@ export default function EditApp() {
                 onClick={() => setLeftTab('brand')}
               >
                 Brand
+              </button>
+              {/* Theme toggle pill */}
+              <button
+                onClick={() => setPanelTheme((p) => p === 'dark' ? 'light' : 'dark')}
+                title={panelTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                aria-label={panelTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                style={{
+                  marginLeft: 'auto',
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  background: panelTheme === 'dark' ? '#2a2925' : '#e8e4da',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  transition: 'background .15s',
+                  color: panelTheme === 'dark' ? '#5a5850' : '#8ab800',
+                  padding: 0,
+                }}
+              >
+                {panelTheme === 'dark' ? (
+                  /* Moon (crescent) */
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                    <path d="M10.5 7.5a4.5 4.5 0 01-6-6A4.5 4.5 0 1010.5 7.5z" fill="currentColor"/>
+                  </svg>
+                ) : (
+                  /* Sun (circle + rays) */
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                    <circle cx="6" cy="6" r="2.2" fill="currentColor"/>
+                    <line x1="6" y1="0.5" x2="6" y2="2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                    <line x1="6" y1="10" x2="6" y2="11.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                    <line x1="0.5" y1="6" x2="2" y2="6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                    <line x1="10" y1="6" x2="11.5" y2="6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                    <line x1="2.05" y1="2.05" x2="3.1" y2="3.1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                    <line x1="8.9" y1="8.9" x2="9.95" y2="9.95" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                    <line x1="9.95" y1="2.05" x2="8.9" y2="3.1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                    <line x1="3.1" y1="8.9" x2="2.05" y2="9.95" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                  </svg>
+                )}
               </button>
             </div>
 
@@ -774,14 +885,15 @@ export default function EditApp() {
                       {msg.role === 'user' ? (
                         <div style={{
                           alignSelf: 'flex-end',
-                          background: '#c8f060',
-                          color: '#0e0d0b',
+                          background: t.userBubbleBg,
+                          color: t.userBubbleText,
                           padding: '8px 12px',
                           borderRadius: '10px 10px 2px 10px',
                           font: '12px/1.6 DM Mono, Courier New, monospace',
                           maxWidth: '88%',
                           wordBreak: 'break-word',
                           marginLeft: 'auto',
+                          transition: 'background .15s',
                         }}>
                           {msg.text}
                         </div>
@@ -792,25 +904,27 @@ export default function EditApp() {
                             width: 22,
                             height: 22,
                             borderRadius: '50%',
-                            background: '#141210',
-                            border: '0.5px solid #c8f060',
+                            background: t.avatarBg,
+                            border: `0.5px solid ${t.avatarBorder}`,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             flexShrink: 0,
                             marginTop: 2,
+                            transition: 'border-color .15s',
                           }}>
-                            <span style={{ font: '9px/1 DM Mono, Courier New, monospace', color: '#c8f060', userSelect: 'none' }}>S</span>
+                            <span style={{ font: '9px/1 DM Mono, Courier New, monospace', color: t.avatarText, userSelect: 'none' }}>S</span>
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{
-                              background: '#1a1917',
-                              color: '#c8c4bc',
+                              background: t.sovereignBubbleBg,
+                              color: t.sovereignBubbleText,
                               padding: '8px 12px',
                               borderRadius: '2px 10px 10px 10px',
                               font: '12px/1.6 DM Mono, Courier New, monospace',
                               maxWidth: '100%',
                               wordBreak: 'break-word',
+                              transition: 'background .15s, color .15s',
                             }}>
                               {msg.isDeploying ? (
                                 <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -841,9 +955,10 @@ export default function EditApp() {
                       {[0, 1, 2].map((i) => (
                         <span key={i} style={{
                           width: 5, height: 5, borderRadius: '50%',
-                          background: '#3a3830',
+                          background: t.typingDot,
                           display: 'inline-block',
                           animation: `dot1 1.2s ease-in-out ${i * 0.2}s infinite`,
+                          transition: 'background .15s',
                         }} />
                       ))}
                     </div>
@@ -864,7 +979,7 @@ export default function EditApp() {
 
                 {/* ── Prompt queue ─────────────────────────────────────────── */}
                 {queue.length > 0 && (
-                  <div style={{ borderTop: '1px solid #1a1917', flexShrink: 0 }}>
+                  <div style={{ borderTop: `1px solid ${t.border}`, flexShrink: 0 }}>
                     <button
                       onClick={() => setQueueOpen((o) => !o)}
                       style={{
@@ -877,7 +992,7 @@ export default function EditApp() {
                         border: 'none',
                         cursor: 'pointer',
                         font: '10px/1 DM Mono, Courier New, monospace',
-                        color: '#5a5850',
+                        color: t.textSecondary,
                       }}
                     >
                       <span>Queue · {queue.length} item{queue.length !== 1 ? 's' : ''}</span>
@@ -898,7 +1013,7 @@ export default function EditApp() {
                 )}
 
                 {/* ── Input area ───────────────────────────────────────────── */}
-                <div style={{ borderTop: '1px solid #1a1917', padding: '8px 12px 12px', flexShrink: 0 }}>
+                <div style={{ borderTop: `1px solid ${t.border}`, padding: '8px 12px 12px', flexShrink: 0, background: t.panelBg, transition: 'background .15s, border-color .15s' }}>
                   <textarea
                     ref={inputRef}
                     className="ea-textarea"
@@ -947,7 +1062,7 @@ export default function EditApp() {
                     </div>
                   </div>
                   {/* Row 2: timing hint */}
-                  <p style={{ font: '10px/1 DM Mono, Courier New, monospace', color: '#3a3830', margin: '6px 0 0', textAlign: 'right' }}>
+                  <p style={{ font: '10px/1 DM Mono, Courier New, monospace', color: t.textDim, margin: '6px 0 0', textAlign: 'right', transition: 'color .15s' }}>
                     deploys in ~60s
                   </p>
                 </div>
@@ -957,13 +1072,13 @@ export default function EditApp() {
             {/* ── Brand tab ────────────────────────────────────────────────── */}
             {leftTab === 'brand' && (
               <div className="ea-scroll" style={{ flex: 1, overflowY: 'auto', padding: '16px', minHeight: 0 }}>
-                <p style={{ font: '10px/1.6 DM Mono, Courier New, monospace', color: '#5a5850', margin: '0 0 16px' }}>
+                <p style={{ font: '10px/1.6 DM Mono, Courier New, monospace', color: t.textSecondary, margin: '0 0 16px' }}>
                   Set your global brand. One click applies it everywhere.
                 </p>
 
                 {/* Primary color */}
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', font: '10px/1 DM Mono, Courier New, monospace', color: '#5a5850', marginBottom: 6 }}>Primary color</label>
+                  <label style={{ display: 'block', font: '10px/1 DM Mono, Courier New, monospace', color: t.textSecondary, marginBottom: 6 }}>Primary color</label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <input
                       type="color"
@@ -975,28 +1090,29 @@ export default function EditApp() {
                       type="text"
                       value={brandColor}
                       onChange={(e) => setBrandColor(e.target.value)}
-                      style={{ background: '#1a1917', border: '1px solid #2a2925', color: '#f2efe8', font: '11px/1 DM Mono, Courier New, monospace', padding: '6px 10px', borderRadius: 3, width: 80 }}
+                      style={{ background: t.surface, border: `1px solid ${t.border}`, color: t.textPrimary, font: '11px/1 DM Mono, Courier New, monospace', padding: '6px 10px', borderRadius: 3, width: 80 }}
                     />
                   </div>
                 </div>
 
                 {/* Heading font */}
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', font: '10px/1 DM Mono, Courier New, monospace', color: '#5a5850', marginBottom: 6 }}>Heading font</label>
+                  <label style={{ display: 'block', font: '10px/1 DM Mono, Courier New, monospace', color: t.textSecondary, marginBottom: 6 }}>Heading font</label>
                   <div style={{ display: 'flex', gap: 4 }}>
                     {(['serif', 'sans', 'mono'] as const).map((f) => (
                       <button
                         key={f}
                         onClick={() => setHeadingFont(f)}
                         style={{
-                          background: headingFont === f ? '#c8f060' : '#1a1917',
-                          color: headingFont === f ? '#0e0d0b' : '#5a5850',
-                          border: '1px solid #2a2925',
+                          background: headingFont === f ? t.accent : t.surface,
+                          color: headingFont === f ? '#0e0d0b' : t.textSecondary,
+                          border: `1px solid ${t.border}`,
                           font: '10px/1 DM Mono, Courier New, monospace',
                           padding: '6px 10px',
                           cursor: 'pointer',
                           borderRadius: 3,
                           textTransform: 'capitalize',
+                          transition: 'background .15s, color .15s',
                         }}
                       >
                         {f}
@@ -1007,24 +1123,25 @@ export default function EditApp() {
 
                 {/* Tone */}
                 <div style={{ marginBottom: 20 }}>
-                  <label style={{ display: 'block', font: '10px/1 DM Mono, Courier New, monospace', color: '#5a5850', marginBottom: 6 }}>Tone</label>
+                  <label style={{ display: 'block', font: '10px/1 DM Mono, Courier New, monospace', color: t.textSecondary, marginBottom: 6 }}>Tone</label>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                    {(['professional', 'friendly', 'bold', 'minimal'] as const).map((t) => (
+                    {(['professional', 'friendly', 'bold', 'minimal'] as const).map((tone_opt) => (
                       <button
-                        key={t}
-                        onClick={() => setTone(t)}
+                        key={tone_opt}
+                        onClick={() => setTone(tone_opt)}
                         style={{
-                          background: tone === t ? '#c8f060' : '#1a1917',
-                          color: tone === t ? '#0e0d0b' : '#5a5850',
-                          border: '1px solid #2a2925',
+                          background: tone === tone_opt ? t.accent : t.surface,
+                          color: tone === tone_opt ? '#0e0d0b' : t.textSecondary,
+                          border: `1px solid ${t.border}`,
                           font: '10px/1 DM Mono, Courier New, monospace',
                           padding: '7px 0',
                           cursor: 'pointer',
                           borderRadius: 3,
                           textTransform: 'capitalize',
+                          transition: 'background .15s, color .15s',
                         }}
                       >
-                        {t}
+                        {tone_opt}
                       </button>
                     ))}
                   </div>
