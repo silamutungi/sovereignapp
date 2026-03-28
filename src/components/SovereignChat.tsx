@@ -169,8 +169,10 @@ function ChatPanel() {
         if (!alreadyShown && b.length > 0) {
           const proactive = checkProactive(b, navigate)
           if (proactive.length > 0) {
-            setProactiveMsgs(proactive)
+            // Set flag BEFORE adding messages — prevents double-fire in StrictMode
+            // where two concurrent fetches can both read null before either sets the flag
             sessionStorage.setItem('sovereign_chat_proactive_shown', '1')
+            setProactiveMsgs(proactive)
           }
         }
       })

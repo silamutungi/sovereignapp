@@ -138,13 +138,15 @@ ${lessonContext}
 The user is working on: "${activeApp.app_name}"
 Idea: ${activeApp.idea}${activeApp.deploy_url ? `\nLive URL: ${activeApp.deploy_url}` : ''}${activeApp.repo_url ? `\nRepo: ${activeApp.repo_url}` : ''}${expiryNote}${statusNote}
 
-When the user describes a change to make, respond with this exact JSON structure:
-{"reply":"<your response confirming what you'll do>","action":{"type":"edit","editRequest":"<precise instruction for the code change>","appName":"${activeApp.app_name}","buildId":"${activeApp.id}"}}
+Edit intent: if the user's message contains any of these verbs applied to the app — add, change, remove, make, update, fix, create, build, put, move, replace, delete, redesign, show — treat it as an edit request.
+
+When the user wants a change made, respond with this exact JSON (no markdown fences, no extra text):
+{"reply":"<1-2 sentence confirmation of what you'll do>","action":{"type":"edit","editRequest":"<precise instruction for the code change>","appName":"${activeApp.app_name}","buildId":"${activeApp.id}","label":"<verb> to ${activeApp.app_name} →"}}
 
 For coaching, strategy, or any non-edit response:
-{"reply":"<your response>","action":null}
+{"reply":"<1-2 sentence response>","action":null}
 
-ALWAYS return valid JSON only. No markdown fences, no extra text outside the JSON.`
+CRITICAL: return ONLY the raw JSON object. No \`\`\`json fences, no preamble, no trailing text. The first character of your response must be { and the last must be }.`
   } else {
     // Global / coaching mode — no specific app selected
     if (builds.length > 0) {
@@ -168,16 +170,18 @@ If they ask a strategic question — give a concrete, actionable answer.
 If they ask a technical question — answer it precisely.
 If they seem stuck or unsure — proactively identify the highest-leverage thing to focus on.
 
-If the user wants to make a change to a specific app AND there is exactly one app listed above, return:
-{"reply":"<response>","action":{"type":"edit","editRequest":"<precise instruction>","appName":"<app name>","buildId":"<id from the list above>"}}
+Edit intent: if the user's message contains any of these verbs applied to an app — add, change, remove, make, update, fix, create, build, put, move, replace, delete, redesign, show — treat it as an edit request.
+
+If the user wants to make a change to a specific app AND there is exactly one app listed above, return (no markdown fences, raw JSON only):
+{"reply":"<1-2 sentence response>","action":{"type":"edit","editRequest":"<precise instruction>","appName":"<app name>","buildId":"<id from the list above>","label":"<verb> to <app name> →"}}
 
 If the user wants to make a change but there are multiple apps and it's unclear which one, return:
-{"reply":"<ask which app>","action":{"type":"select_app","editRequest":"<the change they want>","label":"Which app should I update?"}}
+{"reply":"<ask which app, 1-2 sentences>","action":{"type":"select_app","editRequest":"<the change they want>","label":"Which app should I update?"}}
 
 For all other responses:
-{"reply":"<your response>","action":null}
+{"reply":"<1-2 sentence response>","action":null}
 
-ALWAYS return valid JSON only. No markdown fences, no extra text outside the JSON.`
+CRITICAL: return ONLY the raw JSON object. No \`\`\`json fences, no preamble, no trailing text. The first character of your response must be { and the last must be }.`
   }
 
   try {
@@ -196,12 +200,16 @@ ALWAYS return valid JSON only. No markdown fences, no extra text outside the JSO
       .join('')
       .trim()
 
+    // Strip markdown fences — Claude sometimes wraps JSON in ```json ... ``` even
+    // when instructed not to. Without stripping, JSON.parse throws and action is lost.
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
+
     // Parse structured response — fall back gracefully if Claude returns plain text
     let reply = raw
     let action: EditAction | null = null
 
     try {
-      const parsed = JSON.parse(raw) as { reply?: string; action?: EditAction | null }
+      const parsed = JSON.parse(cleaned) as { reply?: string; action?: EditAction | null }
       reply = String(parsed.reply ?? raw)
       action = parsed.action ?? null
     } catch {

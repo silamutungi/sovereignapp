@@ -78,8 +78,14 @@ function reducer(state: State, action: Action): State {
       return { ...state, isOpen: false }
     case 'SET_BUILDS':
       return { ...state, builds: action.builds }
-    case 'ADD_MSG':
+    case 'ADD_MSG': {
+      // Dedup: skip if last message has identical role + content
+      const last = state.messages[state.messages.length - 1]
+      if (last && last.role === action.msg.role && last.text === action.msg.text) {
+        return state
+      }
       return { ...state, messages: [...state.messages, action.msg] }
+    }
     case 'MARK_ACTION_DONE':
       return {
         ...state,
