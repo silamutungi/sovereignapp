@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -150,6 +151,12 @@ export default function EditApp() {
   const [lastDeployedAt, setLastDeployedAt] = useState<number | null>(null)
   const [, setLiveTick] = useState(0)
 
+  // Iframe src — managed separately so cache-busting works without key increment
+  const [iframeSrc, setIframeSrc] = useState('')
+
+  // Chat history loading from Supabase
+  const [messagesLoading, setMessagesLoading] = useState(false)
+
   // Prefill auto-submit from SovereignChat "Do it →" navigation
   const [pendingAutoSubmit, setPendingAutoSubmit] = useState<string | null>(null)
 
@@ -200,6 +207,35 @@ export default function EditApp() {
     }
   }, [buildId, navigate])
 
+  // ── Supabase message helpers ─────────────────────────────────────────────────
+
+  // Fire-and-forget — never blocks the UI
+  function saveMessage(role: 'user' | 'sovereign', content: string, metadata: Record<string, unknown> = {}) {
+    if (!buildId) return
+    supabase
+      .from('edit_messages')
+      .insert([{ build_id: buildId, role, content, metadata }])
+      .then(({ error }) => {
+        if (error) console.error('[edit-messages] save error:', error.code, error.message)
+      })
+  }
+
+  async function loadMessagesFromDb(bid: string): Promise<Message[]> {
+    const { data, error } = await supabase
+      .from('edit_messages')
+      .select('role, content, metadata')
+      .eq('build_id', bid)
+      .order('created_at', { ascending: true })
+      .limit(100)
+    if (error || !data) return []
+    return (data as Array<{ role: string; content: string; metadata: { pills?: string[] } }>).map((m) => ({
+      id: ++counter.current,
+      role: m.role as 'user' | 'sovereign',
+      text: m.content,
+      pills: m.metadata?.pills,
+    }))
+  }
+
   async function loadBuild(email: string) {
     try {
       const r = await fetch(`/api/dashboard/builds?email=${encodeURIComponent(email)}`)
@@ -208,16 +244,13 @@ export default function EditApp() {
       const found = (data.builds ?? []).find((b) => b.id === buildId)
       if (!found) { setLoadError('Build not found'); return }
       setBuild(found)
-      // Seed opening Sovereign message with condensed brief
-      setMessages([{
-        id: ++counter.current,
-        role: 'sovereign',
-        text: formatOpening(found.idea, found.app_name),
-      }])
+      setIframeSrc(found.deploy_url ?? '')
+
       // Mark that the user has visited this edit page (used by SovereignChat proactive)
       if (buildId) {
         try { localStorage.setItem(`sovereign_edit_opened_${buildId}`, '1') } catch { /* storage unavailable */ }
       }
+
       // Check for prefill from SovereignChat "Do it →" navigation
       try {
         const raw = sessionStorage.getItem('sc_prefill')
@@ -229,6 +262,23 @@ export default function EditApp() {
           }
         }
       } catch { /* storage unavailable */ }
+
+      // Load persisted chat history
+      setMessagesLoading(true)
+      let loaded: Message[] = []
+      try {
+        loaded = await loadMessagesFromDb(buildId!)
+      } catch { /* non-fatal — show empty state */ }
+      setMessagesLoading(false)
+
+      if (loaded.length > 0) {
+        setMessages(loaded)
+      } else {
+        // No history yet — show opener and persist it
+        const openerText = formatOpening(found.idea, found.app_name)
+        setMessages([{ id: ++counter.current, role: 'sovereign', text: openerText }])
+        saveMessage('sovereign', openerText)
+      }
     } catch {
       setLoadError('Network error loading build')
     }
@@ -289,24 +339,34 @@ export default function EditApp() {
           clearInterval(pollRef.current!)
           pollRef.current = null
           setDeploying(false)
+          const finalUrl = data.deployUrl ?? build?.deploy_url ?? ''
           if (data.deployUrl) setBuild((b) => b ? { ...b, deploy_url: data.deployUrl! } : b)
-          setPreviewKey((k) => k + 1)
-          setIframeLoaded(false)
-          // Flash green border
+          // Cache-busting iframe reload
+          if (finalUrl) {
+            console.log('iframe reloading')
+            const bustUrl = new URL(finalUrl)
+            bustUrl.searchParams.set('_t', Date.now().toString())
+            setIframeSrc(bustUrl.toString())
+            setIframeLoaded(false)
+            setTimeout(() => setIframeSrc(finalUrl), 2000)
+          }
+          // Flash green border for 600ms
           setPreviewFlash(true)
-          setTimeout(() => setPreviewFlash(false), 200)
+          setTimeout(() => setPreviewFlash(false), 600)
           // Update deploying message with actual elapsed time
           const elapsed = Math.round((Date.now() - deployStartTimeRef.current) / 1000)
+          const doneText = `Done. Deployed in ${elapsed}s.`
           setMessages((prev) => {
             let lastIdx = -1
             prev.forEach((m, i) => { if (m.isDeploying) lastIdx = i })
             if (lastIdx === -1) return prev
-            return prev.map((m, i) => i === lastIdx ? { ...m, text: `Done. Deployed in ${elapsed}s.`, isDeploying: false } : m)
+            return prev.map((m, i) => i === lastIdx ? { ...m, text: doneText, isDeploying: false } : m)
           })
+          saveMessage('sovereign', doneText)
           setLastDeployedAt(Date.now())
           // Post-deploy checks
           void fetchBrainHint()
-          if (build?.deploy_url) void verifyDeployment(build.deploy_url)
+          if (finalUrl) void verifyDeployment(finalUrl)
         } else if (data.status === 'error') {
           clearInterval(pollRef.current!)
           pollRef.current = null
@@ -340,6 +400,7 @@ export default function EditApp() {
     }
 
     pushMsg({ role: 'user', text })
+    saveMessage('user', text)
     setInput('')
     if (inputRef.current) inputRef.current.style.height = 'auto'
     setBusy(true)
@@ -358,17 +419,22 @@ export default function EditApp() {
       })
       const data = await res.json() as { ok?: boolean; error?: string }
       if (!res.ok || !data.ok) {
-        pushMsg({ role: 'sovereign', text: data.error ?? 'Something went wrong. Please try again.' })
+        const errText = data.error ?? 'Something went wrong. Please try again.'
+        pushMsg({ role: 'sovereign', text: errText })
+        saveMessage('sovereign', errText)
       } else {
         const newCount = editCount + 1
         setEditCount(newCount)
+        // Don't save the "deploying" message — save final "Done. Deployed in Xs." in startPolling
         pushMsg({ role: 'sovereign', text: 'Done — deploying your change now.', isDeploying: true })
         deployStartTimeRef.current = Date.now()
         setDeploying(true)
         startPolling()
       }
     } catch {
-      pushMsg({ role: 'sovereign', text: 'Network error. Please check your connection.' })
+      const errText = 'Network error. Please check your connection.'
+      pushMsg({ role: 'sovereign', text: errText })
+      saveMessage('sovereign', errText)
     } finally {
       setBusy(false)
     }
@@ -908,6 +974,22 @@ export default function EditApp() {
                   className="ea-scroll"
                   style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0 }}
                 >
+                  {/* Messages loading skeleton */}
+                  {messagesLoading && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {[80, 55, 70].map((w, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: t.border, flexShrink: 0 }} />
+                          <div style={{ height: 32, width: `${w}%`, borderRadius: 6, background: t.border, animation: 'pulse 1.4s infinite' }} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {!messagesLoading && messages.length === 0 && (
+                    <div style={{ font: '12px/1.5 DM Mono, Courier New, monospace', color: t.textDim, textAlign: 'center', padding: '24px 0' }}>
+                      Start by describing what you want to change.
+                    </div>
+                  )}
                   {messages.map((msg) => (
                     <div key={msg.id} style={{ animation: 'fadeIn .15s ease' }}>
                       {msg.role === 'user' ? (
@@ -1291,7 +1373,7 @@ export default function EditApp() {
                   )}
                   <iframe
                     key={previewKey}
-                    src={previewUrl}
+                    src={iframeSrc || previewUrl}
                     title={`${build!.app_name} preview`}
                     style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
                     onLoad={() => setIframeLoaded(true)}
