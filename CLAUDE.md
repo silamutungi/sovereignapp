@@ -950,9 +950,34 @@ WHERE table_name = 'builds' AND column_name IN ('staging', 'claimed_at', 'expire
 ```
 Must return 3 rows.
 
+**Vercel SSO protection is enabled by default on all team projects — breaks all iframe previews**
+Wrong assumption: creating a Vercel project on a team with SSO configured produces a publicly accessible URL.
+Correct behaviour: Vercel enables `ssoProtection` by default on every project in a team that has SSO configured. Every preview URL requires a Vercel login — the iframe in the Sovereign dashboard shows a blank screen with no obvious error.
+Fix: immediately after `createVercelProject` succeeds, call `PATCH /v9/projects/{id}?teamId={teamId}` with body `{ "ssoProtection": null }` using `SOVEREIGN_VERCEL_TOKEN`. Non-fatal — build proceeds regardless. Also: `scripts/disable-sso-protection.ts` (single project) and `scripts/backfill-sso.ts` (all existing staging builds).
+Rule: any new Vercel project created on the sovereign-staging team must have SSO protection disabled immediately after creation. This call lives in `run-build.ts` right after `markDone('vercel')`.
+Learned: 2026-03-28.
+
 ## Claim Flow — Optional Env Vars (for sovereign-org GitHub staging)
 
 These env vars enable the GitHub transfer step. If not set, the GitHub step is skipped (safe — repo is already on user's account in current architecture).
 
 - SOVEREIGN_GITHUB_ORG — GitHub org where staged repos live (e.g., "sovereign-builds")
 - SOVEREIGN_GITHUB_TOKEN — Personal access token with admin rights on SOVEREIGN_GITHUB_ORG
+
+## Landing Page — 2026-03-28 UI Fixes (src/App.tsx, src/App.css, src/lib/i18n.ts)
+
+**FIX 1 — CTA button color: #c8f060 background, #0e0d0b text**
+Changed `.gobtn` in `src/App.css` (~line 479): `background: var(--ink)` → `background: #c8f060`, `color: var(--paper)` → `color: #0e0d0b`.
+This applies to the "Generate my app →" button and all other uses of `.gobtn`.
+
+**FIX 2 — Collapsed toggle-to-input gap to 24px**
+`src/App.css`: `.hero` bottom padding reduced from 64px → 16px. `.ndev-panel` top padding reduced from 60px → 8px. Total gap = 24px on all screen sizes. Mobile (480px) media query updated to match: hero 48px→16px bottom, ndev-panel 40px→8px top.
+
+**FIX 3 — Nav, pricing position, and CTA copy**
+- Nav (`src/App.tsx` Nav component): removed Pricing link and nav-cta button. Nav is now: logo (left) | How it works · Dashboard (right).
+- Pricing section moved below Waitlist in App component — order is now Waitlist → Pricing → Footer.
+- `src/lib/i18n.ts`: `plan.builder.btn` and `plan.team.btn` changed to "Start building →" (all 4 locales). `plan.builder.note` changed to "Live now." (was "Launching soon. Waitlist is free.") across all locales.
+- `wl.btn` (EN) changed to "Lock in $19/mo — start building now →".
+- Waitlist section (`src/App.tsx` Waitlist component): form removed entirely, replaced with a single `<button>` that scrolls to top (`window.scrollTo({ top: 0 })`). `joinWaitlist` import removed. Dead state (`email`, `error`, `loading`, `success`, `handleSubmit`) removed.
+- Pricing plan buttons (Builder, Team) wired to `scrollToBuildFlow` instead of `scrollToWaitlist`.
+Decided: 2026-03-28.

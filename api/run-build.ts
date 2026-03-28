@@ -1008,6 +1008,34 @@ export default async function handler(req: any, res: any): Promise<void> {
             vcTeamId    = vcResult.teamId
             await updateBuild(supabaseUrl, serviceKey, buildId, { vercel_project_id: vcProjectId })
             await markDone('vercel')
+
+            // Disable SSO protection so the preview iframe loads without a Vercel login.
+            // Vercel enables SSO protection by default on all projects in a team with SSO
+            // configured. Must be disabled immediately after project creation — failure
+            // blocks all iframe previews silently. Non-fatal: build proceeds regardless.
+            try {
+              const ssoTeamQ = vcTeamId ? `?teamId=${encodeURIComponent(vcTeamId)}` : ''
+              const ssoRes = await fetchWithTimeout(
+                `https://api.vercel.com/v9/projects/${encodeURIComponent(vcProjectId)}${ssoTeamQ}`,
+                {
+                  method: 'PATCH',
+                  headers: {
+                    Authorization: `Bearer ${process.env.SOVEREIGN_VERCEL_TOKEN!}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ ssoProtection: null }),
+                },
+                NET,
+              )
+              if (ssoRes.ok) {
+                console.log('[run-build] Vercel: SSO protection disabled for project', vcProjectId)
+              } else {
+                const ssoBody = await ssoRes.text().catch(() => '')
+                console.error('[run-build] Vercel: SSO disable failed (non-fatal) —', ssoRes.status, ssoBody)
+              }
+            } catch (ssoErr) {
+              console.error('[run-build] Vercel: SSO disable threw (non-fatal):', ssoErr)
+            }
           }
 
           // ── Step 3: Provision database ────────────────────────────────
