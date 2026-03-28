@@ -1017,3 +1017,50 @@ Four contradictions existed between the system prompt, SOVEREIGN_STANDARDS.md, a
 4. File count: "7 scaffold files" and "8 scaffold files" were stale since the multi-file era — updated to 24 total files per build (19 Claude-generated + 5 programmatic).
 Rule: SOVEREIGN_STANDARDS.md is the single source of truth. When any other file contradicts it, SOVEREIGN_STANDARDS.md wins and the other file updates.
 Decided: 2026-03-28.
+
+**docs/SOVEREIGN_DESIGN_SYSTEM.md is the authoritative design reference**
+Context: design rules were scattered across CLAUDE.md, SOVEREIGN_STANDARDS.md, and the system prompt. No single canonical source existed.
+Decision: docs/SOVEREIGN_DESIGN_SYSTEM.md is the definitive 12-section spec: Philosophy, Spacing System, Typography Scale, Color System, Component Library, Responsive Rules, Motion, Accessibility, Default Inclusions, Audit Checklist, Dark Mode System, Translation Readiness.
+Rule: when adding new design rules, update docs/SOVEREIGN_DESIGN_SYSTEM.md first, then api/_systemPrompt.ts, then SOVEREIGN_STANDARDS.md if needed. The design doc is the source of truth for design decisions.
+Decided: 2026-03-28.
+
+**Audit pipeline wired into run-build.ts — 'auditing' status, audit_score field**
+Context: generated apps had no automated quality check before marking complete. Builds could complete with CSS/accessibility/dark mode violations undetected.
+Decision: after confidence scoring and before final status='complete', run-build.ts calls runDesignAudit(ghOwner, repoName, github_token). Status sequence: queued → building → auditing → complete | error. 'auditing' step applies 35 static checks and commits mechanical fixes (missing meta description, missing color-scheme attribute) directly to the GitHub repo — triggering a Vercel auto-redeploy.
+Key facts:
+- 35 checks across TYPOGRAPHY, COLOUR, SPACING, COMPONENTS, STRUCTURE, ACCESSIBILITY, DARK MODE categories
+- Audit is non-blocking — wrapped in try/catch; build completes even if audit errors
+- audit_score stored in builds.audit_score (integer 0–100)
+- audit_flags='high_fix_count' if >15 fixes needed — triggers a lesson record
+- audit_score shown as "✦ Design audit · N/100" badge in Building.tsx when not null
+- build-status.ts returns audit_score in response JSON
+Rule: 'auditing' status threshold in build-status.ts is 5 minutes (vs 30s for 'building') — audit fetches ~11 files + optionally commits fixes, which can take up to 2 minutes on slow GitHub API responses.
+Decided: 2026-03-28.
+
+**Migrations required for audit pipeline**
+Run in Supabase SQL Editor before the audit pipeline deploy takes effect:
+```sql
+ALTER TABLE builds ADD COLUMN IF NOT EXISTS audit_score integer;
+ALTER TABLE builds ADD COLUMN IF NOT EXISTS audit_flags text;
+```
+Confirm: `SELECT column_name FROM information_schema.columns WHERE table_name = 'builds' AND column_name IN ('audit_score', 'audit_flags');` — must return 2 rows.
+Learned: 2026-03-28.
+
+**api/audit-generated-app.ts exports runDesignAudit() — POST endpoint is for manual testing only**
+The serverless POST /api/audit-generated-app endpoint exists for manual triggering (dashboard admin use). The pipeline entry point is the exported function runDesignAudit(owner, repo, token).
+Rule: never call the HTTP endpoint from run-build.ts — import and call runDesignAudit() directly. The POST endpoint adds rate limiting and HTTP overhead that adds latency without benefit in the pipeline context.
+Learned: 2026-03-28.
+
+**New files must be explicitly git add-ed — untracked files are invisible to Vercel**
+Wrong assumption: creating a file in the working directory and pushing is sufficient for it to deploy.
+Correct behaviour: git only tracks files that have been explicitly staged with git add. New files appear in `git status` as "Untracked files" (red) but are never included in commits. Vercel builds from the committed tree — untracked files simply do not exist in production.
+Symptom: pages showed blank screen with no error; routes were registered in main.tsx but modules couldn't be found at runtime.
+Fix: always run `git status` before committing. Any red (untracked) file in src/ or api/ must be git add-ed before committing.
+Standing rule: before every push, `git status` must show zero untracked files in src/ and api/. Zero red lines = safe to push.
+Learned: 2026-03-28.
+
+**checkRateLimit call signature — 3 args, key string first, no await**
+Wrong assumption: checkRateLimit accepted a request object as first arg and used 4 parameters.
+Correct behaviour: checkRateLimit(key: string, limit: number, windowMs: number) — exactly 3 args. It is synchronous (returns RateLimitResult directly, not a Promise). Call it with a string key built from the identifier (e.g., `audit-generated-app:${ip}`).
+Fix: extract IP with getClientIp(req), then call checkRateLimit(`endpoint:${ip}`, limit, windowMs) — no await.
+Learned: 2026-03-28.

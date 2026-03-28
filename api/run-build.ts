@@ -29,6 +29,7 @@
 //
 import { checkRateLimit } from './_rateLimit.js'
 import { scoreApp } from './_scoreApp.js'
+import { runDesignAudit } from './audit-generated-app.js'
 
 export const maxDuration = 60
 
@@ -79,6 +80,8 @@ interface BuildRecord {
   vercel_project_id: string | null
   confidence_score: number | null
   launch_gate_passed: boolean | null
+  audit_score: number | null
+  audit_flags: string | null
 }
 
 async function getBuild(
@@ -1190,11 +1193,42 @@ export default async function handler(req: any, res: any): Promise<void> {
           console.log('[run-build] confidence score:', scoreResult.overall, scoreResult.band,
             'launch gate:', scoreResult.launchGatePassed)
 
+          // ── Transition to 'auditing' before running design audit ──────────
+          await updateBuild(supabaseUrl, serviceKey, buildId, {
+            status: 'auditing',
+            step: 'Auditing your app…',
+            confidence_score: scoreResult.overall,
+            launch_gate_passed: scoreResult.launchGatePassed,
+          })
+
+          // ── Run design audit against live GitHub files (non-blocking) ─────
+          // Fetches the generated repo, runs 35 checks, applies mechanical fixes.
+          // Audit failure never blocks the user — wrapped in try/catch.
+          try {
+            const auditResult = await runDesignAudit(ghOwner, repoName, build.github_token)
+            console.log(`[run-build] audit score: ${auditResult.score}/100, fixes: ${auditResult.fixes_applied}`)
+
+            await updateBuild(supabaseUrl, serviceKey, buildId, {
+              audit_score: auditResult.score,
+              audit_flags: auditResult.fixes_applied > 15 ? 'high_fix_count' : null,
+            })
+
+            if (auditResult.fixes_applied > 15) {
+              void recordFailureLesson(
+                supabaseUrl, serviceKey,
+                `High audit fix count on build ${buildId as string}: ${auditResult.fixes_applied} fixes needed. Review generation prompt.`,
+                'Audit',
+              )
+            }
+          } catch (auditErr) {
+            // Non-fatal — audit failure does not block build completion
+            console.error('[run-build] audit error (non-fatal):', auditErr)
+          }
+
+          // ── Mark build complete ──────────────────────────────────────────
           await updateBuild(supabaseUrl, serviceKey, buildId, {
             status: 'complete',
             step: 'done',
-            confidence_score: scoreResult.overall,
-            launch_gate_passed: scoreResult.launchGatePassed,
           })
           console.log('[run-build] done')
         })(),

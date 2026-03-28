@@ -4,12 +4,13 @@ import { useSearchParams } from 'react-router-dom'
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface BuildStatus {
-  status: 'pending_github' | 'pending_vercel' | 'queued' | 'building' | 'complete' | 'error'
+  status: 'pending_github' | 'pending_vercel' | 'queued' | 'building' | 'auditing' | 'complete' | 'error'
   step: string | null
   appName: string
   repoUrl: string | null
   deployUrl: string | null
   error: string | null
+  audit_score: number | null
 }
 
 // ── Step definitions (ordered) ────────────────────────────────────────────────
@@ -642,6 +643,19 @@ export default function Building() {
                 <a href={status.repoUrl} target="_blank" rel="noreferrer" style={S.secondaryBtn}>
                   View on GitHub →
                 </a>
+              )}
+              {/* Audit badge — only shown when audit_score is present */}
+              {status.audit_score != null && (
+                <p style={{
+                  marginTop: '12px',
+                  fontSize: '11px',
+                  color: status.audit_score >= 80 ? 'rgba(138,184,0,0.9)' : 'rgba(255,255,255,0.4)',
+                  textAlign: 'center',
+                  fontFamily: "'DM Mono', 'Courier New', monospace",
+                  letterSpacing: '0.04em',
+                }}>
+                  ✦ Design audit · {status.audit_score === 100 ? '35/35 passed' : `${status.audit_score}/100`}
+                </p>
               )}
               <p style={{ marginTop: '16px', fontSize: '12px', color: 'rgba(255,255,255,0.45)', textAlign: 'center' }}>
                 <a href="/dashboard" style={{ color: 'rgba(138,184,0,0.8)', textDecoration: 'none' }}>

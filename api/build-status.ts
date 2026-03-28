@@ -46,7 +46,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     let dbRes: any
     try {
       dbRes = await fetch(
-        `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&deleted_at=is.null&select=status,step,app_name,repo_url,deploy_url,error,vercel_project_id,updated_at,claim_status`,
+        `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&deleted_at=is.null&select=status,step,app_name,repo_url,deploy_url,error,vercel_project_id,updated_at,claim_status,audit_score`,
         {
           headers: {
             apikey: serviceKey,
@@ -79,6 +79,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       vercel_project_id: string | null
       updated_at: string | null
       claim_status: string | null
+      audit_score: number | null
     }>
 
     if (!rows.length) {
@@ -88,15 +89,16 @@ export default async function handler(req: any, res: any): Promise<void> {
 
     let row = rows[0]
 
-    // ── Auto-resolve building builds via Vercel deployment state ─────────────
-    // When a build has been 'building' for more than 10 minutes with a known
-    // vercel_project_id, check Vercel's latest deployment. If it's READY/ERROR,
-    // update Supabase and return the resolved status automatically.
-    const stuckThresholdMs = 30 * 1000  // 30s — enough for a redeploy to be queued
+    // ── Auto-resolve building/auditing builds via Vercel deployment state ────
+    // 'building' stuck > 30s with a vercel_project_id → check Vercel, resolve.
+    // 'auditing' stuck > 5 minutes → resolve (audit is non-blocking, longer budget).
+    const buildingThresholdMs = 30 * 1000       // 30s — enough for a redeploy to be queued
+    const auditingThresholdMs = 5 * 60 * 1000   // 5 minutes for audit step
     const updatedAt = row.updated_at ? new Date(row.updated_at).getTime() : 0
+    const stuckThresholdMs = row.status === 'auditing' ? auditingThresholdMs : buildingThresholdMs
     const isStuck = Date.now() - updatedAt > stuckThresholdMs
 
-    if (row.status === 'building' && row.vercel_project_id && isStuck) {
+    if ((row.status === 'building' || row.status === 'auditing') && row.vercel_project_id && isStuck) {
       const vcToken  = process.env.SOVEREIGN_VERCEL_TOKEN
       const vcTeamId = process.env.SOVEREIGN_VERCEL_TEAM_ID
 
@@ -170,13 +172,14 @@ export default async function handler(req: any, res: any): Promise<void> {
     }
 
     res.status(200).json({
-      status:      row.status,
-      step:        row.step,
-      appName:     row.app_name,
-      repoUrl:     row.repo_url,
-      deployUrl:   row.deploy_url,
-      error:       row.error,
+      status:       row.status,
+      step:         row.step,
+      appName:      row.app_name,
+      repoUrl:      row.repo_url,
+      deployUrl:    row.deploy_url,
+      error:        row.error,
       claim_status: row.claim_status,
+      audit_score:  row.audit_score,
     })
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : String(err) })

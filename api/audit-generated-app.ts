@@ -367,6 +367,181 @@ export function auditApp(files: AppFile[]): AuditReport {
   return { passed, failed: total - passed, total, score, shippable, categories }
 }
 
+// ── runDesignAudit — pipeline-callable export ─────────────────────────────────
+//
+// Called by run-build.ts after Vercel deployment succeeds.
+// Fetches files from the generated GitHub repo, runs the 35-check audit,
+// applies mechanical fixes to index.html where possible, and returns the result.
+// Audit failure never blocks the user — always wrapped in try/catch at call site.
+
+export interface AuditFailure {
+  id: string
+  category: string
+  description: string
+}
+
+// Target files to fetch from generated repos
+const AUDIT_TARGET_FILES = [
+  'src/App.tsx',
+  'src/index.css',
+  'index.html',
+  'src/pages/Home.tsx',
+  'src/pages/Dashboard.tsx',
+  'src/pages/Login.tsx',
+  'src/pages/Signup.tsx',
+  'src/components/Navbar.tsx',
+  'src/components/Footer.tsx',
+  'vercel.json',
+  'README.md',
+]
+
+async function fetchGitHubFile(
+  owner: string,
+  repo: string,
+  path: string,
+  token: string,
+): Promise<{ content: string; sha: string } | null> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${path}`,
+      {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github.v3+json' },
+        signal: AbortSignal.timeout(5000),
+      },
+    )
+    if (!res.ok) return null
+    const data = await res.json() as { content?: string; sha?: string; type?: string }
+    if (!data.content || !data.sha || data.type !== 'file') return null
+    // GitHub base64 includes newlines — strip them before decoding
+    const content = Buffer.from(data.content.replace(/\n/g, ''), 'base64').toString('utf-8')
+    return { content, sha: data.sha }
+  } catch {
+    return null
+  }
+}
+
+async function commitGitHubFile(
+  owner: string,
+  repo: string,
+  path: string,
+  token: string,
+  content: string,
+  sha: string,
+): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${path}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: 'fix: sovereign design audit correction',
+          content: Buffer.from(content).toString('base64'),
+          sha,
+        }),
+        signal: AbortSignal.timeout(10000),
+      },
+    )
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+export async function runDesignAudit(
+  owner: string,
+  repo: string,
+  token: string,
+): Promise<{
+  passed: boolean
+  score: number
+  fixes_applied: number
+  failures: AuditFailure[]
+}> {
+  // 1. Fetch target files in parallel (best-effort — missing files are skipped)
+  const fetched = await Promise.all(
+    AUDIT_TARGET_FILES.map(async (path) => {
+      const result = await fetchGitHubFile(owner, repo, path, token)
+      if (!result) return null
+      return { path, content: result.content, sha: result.sha }
+    }),
+  )
+
+  const files: AppFile[] = fetched
+    .filter((f): f is { path: string; content: string; sha: string } => f !== null)
+    .map(({ path, content }) => ({ path, content }))
+
+  // Build sha lookup for files we may want to patch
+  const shas: Record<string, string> = {}
+  for (const f of fetched) {
+    if (f) shas[f.path] = f.sha
+  }
+
+  // 2. Run static 35-check audit
+  const report = auditApp(files)
+
+  const failures: AuditFailure[] = Object.values(report.categories)
+    .flatMap((cat) => cat.checks)
+    .filter((c) => !c.passed)
+    .map((c) => ({ id: c.id, category: c.category, description: c.description }))
+
+  // 3. Attempt mechanical fixes on index.html where possible
+  //    Only fixes that can be applied without AI:
+  //    - darkmode-3: add color-scheme="light dark" to <html> element
+  //    - seo-1: add <meta name="description"> if missing
+  let fixes_applied = 0
+  const htmlEntry = fetched.find((f) => f?.path === 'index.html')
+
+  if (htmlEntry) {
+    let html = htmlEntry.content
+    let changed = false
+
+    // Fix darkmode-3: add color-scheme attribute to <html>
+    if (failures.find((f) => f.id === 'darkmode-3') && !html.includes('color-scheme')) {
+      html = html.replace(/<html([^>]*)>/, '<html$1 color-scheme="light dark">')
+      changed = true
+      fixes_applied++
+    }
+
+    // Fix seo-1: add meta description if missing
+    if (
+      failures.find((f) => f.id === 'seo-1') &&
+      !html.includes('name="description"') &&
+      !html.includes("name='description'")
+    ) {
+      html = html.replace(
+        '</head>',
+        '  <meta name="description" content="Built with Sovereign App.">\n  </head>',
+      )
+      changed = true
+      fixes_applied++
+    }
+
+    // Commit the patched index.html (GitHub push auto-triggers Vercel redeploy)
+    if (changed && shas['index.html']) {
+      const committed = await commitGitHubFile(owner, repo, 'index.html', token, html, shas['index.html'])
+      if (!committed) {
+        // Roll back count — fix was not persisted
+        fixes_applied = 0
+      }
+    } else if (changed) {
+      // sha not available — cannot commit
+      fixes_applied = 0
+    }
+  }
+
+  return {
+    passed: report.score >= 80,
+    score: report.score,
+    fixes_applied,
+    failures,
+  }
+}
+
 // ── Serverless handler ────────────────────────────────────────────────────────
 
 export default async function handler(req: any, res: any) {
