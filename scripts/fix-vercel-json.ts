@@ -67,21 +67,41 @@ const CANONICAL_VERCEL_JSON = {
 const CANONICAL_CONTENT = JSON.stringify(CANONICAL_VERCEL_JSON, null, 2)
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-async function getGitHubFile(repoPath: string, token: string): Promise<{ content: string; sha: string } | null> {
-  const res = await fetch(
-    `https://api.github.com/repos/${repoPath}/contents/vercel.json`,
-    { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github.v3+json' } },
-  )
+async function getGitHubFile(repoPath: string, token: string): Promise<{ content: string; sha: string; tokenUsed: string } | null> {
+  const tryFetch = async (t: string) =>
+    fetch(
+      `https://api.github.com/repos/${repoPath}/contents/vercel.json`,
+      { headers: { Authorization: `Bearer ${t}`, Accept: 'application/vnd.github.v3+json' } },
+    )
+
+  let res = await tryFetch(token)
+
+  // On 401, retry with SOVEREIGN_GITHUB_TOKEN
+  if (res.status === 401) {
+    const sovereignToken = process.env.SOVEREIGN_GITHUB_TOKEN
+    if (sovereignToken && sovereignToken !== token) {
+      console.log('  → build token expired, retrying with SOVEREIGN_GITHUB_TOKEN')
+      res = await tryFetch(sovereignToken)
+      if (!res.ok) {
+        const body = await res.text().catch(() => '')
+        console.warn(`  ⚠ fallback token also failed ${res.status}: ${body.slice(0, 200)}`)
+        return null
+      }
+      const data = await res.json() as { content: string; sha: string }
+      return { content: Buffer.from(data.content, 'base64').toString('utf-8'), sha: data.sha, tokenUsed: sovereignToken }
+    }
+    const body = await res.text().catch(() => '')
+    console.warn(`  ⚠ GitHub read failed 401 (no fallback available): ${body.slice(0, 100)}`)
+    return null
+  }
+
   if (!res.ok) {
     const body = await res.text().catch(() => '')
     console.warn(`  ⚠ GitHub read failed ${res.status}: ${body.slice(0, 200)}`)
     return null
   }
   const data = await res.json() as { content: string; sha: string }
-  return {
-    content: Buffer.from(data.content, 'base64').toString('utf-8'),
-    sha: data.sha,
-  }
+  return { content: Buffer.from(data.content, 'base64').toString('utf-8'), sha: data.sha, tokenUsed: token }
 }
 
 function needsUpdate(currentJson: string): boolean {
@@ -100,6 +120,7 @@ function needsUpdate(currentJson: string): boolean {
 }
 
 async function pushGitHubFile(repoPath: string, sha: string, token: string): Promise<boolean> {
+  // token is whichever token successfully read the file
   const res = await fetch(
     `https://api.github.com/repos/${repoPath}/contents/vercel.json`,
     {
@@ -213,7 +234,7 @@ async function main() {
 
     console.log('  → needs update (has X-Frame-Options or missing frame-ancestors)')
 
-    const pushed = await pushGitHubFile(repoPath, file.sha, build.github_token)
+    const pushed = await pushGitHubFile(repoPath, file.sha, file.tokenUsed)
     if (!pushed) {
       failed++
       continue
