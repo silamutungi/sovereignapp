@@ -260,6 +260,12 @@ STANDING RULE: Every time a bug is fixed, a wrong assumption is corrected, or an
 
 If Claude Code is about to do something and there is a relevant lesson here that contradicts it — stop, follow the lesson, do not repeat the mistake.
 
+**New files must be explicitly git add-ed — untracked files are invisible to Vercel**
+Wrong assumption: committing with `git commit -a` or pushing after creating new files is sufficient to include them in the build.
+Correct behaviour: `git commit -a` only stages modifications to already-tracked files. New files remain untracked and are never sent to GitHub — Vercel builds without them, causing silent "cannot find module" errors or blank pages with no obvious cause.
+Fix: before every push, run `git status` and confirm zero untracked files in `src/` and `api/`. Any red untracked file must be explicitly staged with `git add <file>` before committing. This applies to every new page, component, API route, and utility created in a session.
+Learned: 2026-03-28.
+
 **checkRateLimit call signature — always 3 args, key string first**
 Wrong assumption: `checkRateLimit` accepts a request object as the first argument, followed by a key string, limit, and seconds.
 Correct behaviour: signature is `checkRateLimit(key: string, limit: number, windowMs: number)`. First argument is always a string key, never the request object. Window is always milliseconds, never seconds. The function is synchronous — never `await` it.
