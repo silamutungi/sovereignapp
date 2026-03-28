@@ -270,16 +270,34 @@ function scoreDocumentation(files: AppFile[]): DimensionScore {
 
 function scoreI18n(files: AppFile[]): DimensionScore {
   const issues: string[] = []
-  let score = 80 // Start at 80 — no generated app has full i18n out of the box
+  // Start at 85 — all generated apps are translation-ready by default.
+  // Full i18n scores 95+.
+  // 85 — translation-ready (Intl API, no hardcoded locales, 30% expansion allowance)
+  // 90 — has i18n library but no locale switcher
+  // 95 — full i18n with locale switcher
+  // 100 — full i18n + RTL support
+  let score = 85
   const tsx = allContent(files, '.tsx')
+  const allFiles = allContent(files)
 
   if (hasPattern(tsx, /src\/lib\/i18n|useTranslation|i18next/)) {
-    score = 90  // Has i18n setup
-  } else {
-    issues.push('No i18n library detected — hardcoded strings only')
+    score = 90  // Has i18n library
+    if (hasPattern(tsx, /locale.*switch|setLocale|language.*select/i)) {
+      score = 95  // Has locale switcher UI
+      if (hasPattern(allFiles, /dir.*rtl|rtl.*dir|direction.*rtl/i)) {
+        score = 100  // Full i18n + RTL
+      }
+    }
+  } else if (hasPattern(tsx, /toLocaleDateString\('en-US'|toLocaleDateString\("en-US"/)) {
+    score = 70  // Hardcoded 'en-US' locale — not translation-ready
+    issues.push("Hardcoded 'en-US' locale in date formatting — use Intl.DateTimeFormat(undefined, ...) instead")
   }
 
-  return { dimension: 'i18n', score, passed: score >= 60, issues }
+  if (hasPattern(tsx, /toLocaleDateString\('en-US'|toLocaleDateString\("en-US"/)) {
+    issues.push("Replace toLocaleDateString('en-US') with new Intl.DateTimeFormat(undefined, ...).format(date)")
+  }
+
+  return { dimension: 'i18n', score, passed: score >= 70, issues }
 }
 
 function scoreTestCoverage(files: AppFile[]): DimensionScore {

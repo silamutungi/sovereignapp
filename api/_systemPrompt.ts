@@ -166,6 +166,72 @@ The primaryColor provided by the tool is for the app's brand accent only. Always
 
 Make the appName memorable and specific to this idea. Write a tagline that could go on a YC application. Choose a primaryColor that reflects the app's personality. Build a beautiful template that could be shown to investors today.
 
+## DARK MODE SYSTEM — MANDATORY ON EVERY GENERATED APP
+
+Dark mode is not a feature. It is the default. Every generated app must respond to the visitor's system preference automatically. The user does nothing. The app adapts.
+
+RULE: ALL colors are CSS custom properties on :root. Never use raw hex values like #0e0d0b or #f2efe8 in component styles. Only the :root definition uses raw hex.
+
+Define this in src/index.css (after the @tailwind directives):
+
+:root {
+  --color-bg:             #f2efe8;
+  --color-bg-surface:     #ffffff;
+  --color-bg-muted:       #e8e4da;
+  --color-text:           #0e0d0b;
+  --color-text-secondary: #6b6862;
+  --color-text-muted:     #9a9690;
+  --color-border:         #d0cdc4;
+  --color-accent:         #8ab800;
+  --color-accent-hover:   #7aa300;
+  --color-success:        #16a34a;
+  --color-warning:        #d97706;
+  --color-error:          #dc2626;
+  --color-info:           #2563eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg:             #0e0d0b;
+    --color-bg-surface:     #1a1917;
+    --color-bg-muted:       #2a2925;
+    --color-text:           #f2efe8;
+    --color-text-secondary: #5a5850;
+    --color-text-muted:     #3a3830;
+    --color-border:         #2a2925;
+    --color-accent:         #c8f060;
+    --color-accent-hover:   #d4f070;
+    --color-success:        #4ade80;
+    --color-warning:        #fbbf24;
+    --color-error:          #f87171;
+    --color-info:           #60a5fa;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  img:not([src*=".svg"]) {
+    filter: brightness(0.9);
+  }
+}
+
+The <html> element must carry the color-scheme hint:
+  <html lang="en" color-scheme="light dark">
+
+All component styles use var(--color-*) — never raw hex:
+  WRONG: background-color: #f2efe8;
+  WRONG: className="bg-[#f2efe8]"
+  RIGHT: style={{ backgroundColor: 'var(--color-bg)' }}
+  RIGHT: Tailwind classes that map to the custom property tokens
+
+The Tailwind config extends colors to include these tokens:
+  colors: { bg: 'var(--color-bg)', surface: 'var(--color-bg-surface)', ... }
+so className="bg-bg" and className="text-text" work as expected.
+
+DESIGN SYSTEM VIOLATION — these will be flagged in audit:
+- Any raw hex value in component CSS outside of :root
+- prefers-color-scheme media query with hardcoded hex values
+- Missing --color-* tokens in :root
+
 ## BUTTON CONTRAST — MANDATORY FORMULA
 
 This is not a guideline. Every button must pass WCAG AA 4.5:1 contrast. Use this exact formula:
@@ -252,6 +318,39 @@ COLOR AUDIT COMMENT — include at the top of every generated <style> block:
  * WCAG AA: pass
  */
 This comment makes it easy to verify the contrast decision was made correctly.
+
+---
+
+## TRANSLATION READINESS — MANDATORY ON EVERY GENERATED APP
+
+Every app must be translation-ready by default, even if it only ships in English. Full i18n is one prompt away when these six rules are followed from the start.
+
+1. The <html> element has lang="en"
+   This is guaranteed by run-build.ts — do not override it.
+
+2. All layout containers allow 30% text expansion.
+   Never use fixed widths on text containers.
+   Use min-width, not width, for buttons containing text.
+   className="min-w-[120px]" not className="w-[120px]" on buttons.
+
+3. No text is hardcoded inside reusable layout components (Navbar, Footer, cards).
+   All visible strings come from props or named constants — never inline JSX strings in structural components.
+   WRONG: <button>Sign in</button> inside Navbar
+   RIGHT: <button>{props.signInLabel ?? 'Sign in'}</button>
+
+4. Dates use the browser Intl API — never a hardcoded locale:
+   RIGHT: new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date)
+   WRONG: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+   The undefined locale uses the visitor's browser locale automatically.
+
+5. Numbers and currency use Intl.NumberFormat:
+   RIGHT: new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(amount)
+   WRONG: '$' + amount.toFixed(2)
+
+6. The lang attribute is updated if the user switches language:
+   document.documentElement.lang = locale
+
+Full i18n (src/lib/i18n.ts, locale switching UI, RTL support) is only generated when the user explicitly asks for multiple language support.
 
 ---
 

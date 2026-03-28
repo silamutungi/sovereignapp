@@ -958,6 +958,20 @@ Fix: immediately after `createVercelProject` succeeds, call `PATCH /v9/projects/
 Rule: any new Vercel project created on the sovereign-staging team must have SSO protection disabled immediately after creation. This call lives in `run-build.ts` right after `markDone('vercel')`.
 Learned: 2026-03-28.
 
+**Dark mode is default — CSS custom properties only, never hardcoded hex in components**
+Wrong assumption: generated apps can use hardcoded hex values (#f2efe8, #0e0d0b, etc.) in component styles as long as the overall design looks correct.
+Correct behaviour: all color values in component code must use CSS custom properties (var(--color-*)) defined on :root. Hardcoded hex is a dark mode violation — it never adapts to the user's preferred scheme. :root must define both light and dark variants via @media (prefers-color-scheme: dark). The <html> element must carry color-scheme="light dark" so the browser renders system UI (scrollbars, form controls) in the correct mode.
+Fix: DARK MODE SYSTEM section added to api/_systemPrompt.ts (full :root custom property block, both light and dark variants, image filter, html element requirement). Section 11 added to docs/SOVEREIGN_DESIGN_SYSTEM.md. scoreI18n in _scoreApp.ts drops to 70 for hardcoded 'en-US' locale. api/audit-generated-app.ts checks darkmode-1/2/3. 35-check audit total updated from 32.
+Triage: → CLAUDE.md ✓ → Generation prompt (_systemPrompt.ts) ✓ → docs/SOVEREIGN_DESIGN_SYSTEM.md ✓
+Learned: 2026-03-28.
+
+**Translation-ready is default — Intl API always, never toLocaleDateString with hardcoded locale**
+Wrong assumption: English-only apps can use toLocaleDateString('en-US', ...) and '$' + amount.toFixed(2) since translation is a future concern.
+Correct behaviour: every generated app must use Intl.DateTimeFormat(undefined, {...}).format(date) for dates and Intl.NumberFormat(undefined, {...}).format(amount) for currency. Passing undefined as the locale uses the visitor's browser locale — costs nothing, enables future i18n with zero refactoring.
+Fix: TRANSLATION READINESS section (6 rules) added to api/_systemPrompt.ts. Section 12 added to docs/SOVEREIGN_DESIGN_SYSTEM.md. scoreI18n baseline set to 85 for all generated apps (translation-ready by default). src/components/SovereignChat.tsx and src/pages/Dashboard.tsx updated to use Intl.DateTimeFormat.
+Triage: → CLAUDE.md ✓ → Generation prompt (_systemPrompt.ts) ✓ → docs/SOVEREIGN_DESIGN_SYSTEM.md ✓
+Learned: 2026-03-28.
+
 ## Claim Flow — Optional Env Vars (for sovereign-org GitHub staging)
 
 These env vars enable the GitHub transfer step. If not set, the GitHub step is skipped (safe — repo is already on user's account in current architecture).
