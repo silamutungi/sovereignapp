@@ -46,7 +46,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       last_hint_type?: string | null
     }
 
-  if (!build_id || !edit_instruction) {
+  if (!build_id || edit_instruction === undefined || edit_instruction === null) {
     res.status(400).json({ error: 'Missing required fields' })
     return
   }
