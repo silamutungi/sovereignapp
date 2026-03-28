@@ -1,19 +1,30 @@
 // src/components/SovereignChat.tsx
 //
 // Floating Sovereign Chat — available on every page.
-// Renders a fixed ↗ button (bottom-right) and a chat panel that opens above it.
-//
-// Context-aware opener:
-//   logged-in + builds   → "You have X apps. [latest] deployed [time]. What are we working on?"
-//   logged-in no builds  → "You haven't built anything yet. What's your idea?"
-//   not logged in        → "What will you build? I can help you figure out where to start."
+// Co-founder experience: proactive outreach, action buttons with navigation,
+// expiry awareness, broken build detection, and smart opener.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   useChatStore,
   type ActiveApp,
   type ChatMessage,
 } from '../store/chatStore'
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface FullBuild extends ActiveApp {
+  // ActiveApp already has: id, app_name, deploy_url, repo_url, idea,
+  //   created_at, updated_at, expires_at, status, staging, claimed_at
+}
+
+interface ProactiveMsg {
+  id: number
+  text: string
+  ctaLabel?: string
+  ctaAction?: () => void
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -35,17 +46,90 @@ function relativeDate(iso: string): string {
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(iso))
 }
 
-function deriveOpener(builds: ActiveApp[] | null, loggedIn: boolean): string {
+function daysUntil(iso: string): number {
+  return Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000)
+}
+
+function daysSince(iso: string): number {
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
+}
+
+function deriveOpener(builds: FullBuild[] | null, loggedIn: boolean): string {
   if (!loggedIn) {
     return "What will you build? I can help you figure out where to start."
   }
   if (!builds || builds.length === 0) {
     return "You haven't built anything yet. What's your idea?"
   }
+  // Condition 1: expiring build
+  const expiring = builds.find(
+    (b) => b.expires_at && daysUntil(b.expires_at) <= 3 && b.staging && !b.claimed_at
+  )
+  if (expiring) {
+    const d = daysUntil(expiring.expires_at!)
+    return `${expiring.app_name} expires in ${d} day${d === 1 ? '' : 's'} and hasn't been claimed. Claim it now to keep it.`
+  }
+  // Condition 2: broken build
+  const broken = builds.find((b) => b.status === 'error')
+  if (broken) {
+    return `${broken.app_name} has a build error. Let's look at what went wrong.`
+  }
+  // Condition 3+: normal — show count and latest
   const latest = builds[0]
   const timeAgo = latest.created_at ? ` deployed ${relativeDate(latest.created_at)}` : ''
   const count = builds.length
-  return `You have ${count} app${count > 1 ? 's' : ''}. ${latest.app_name}${timeAgo}. What are we working on?`
+  if (count === 1) {
+    return `${latest.app_name} is live${timeAgo}. What are we improving today?`
+  }
+  return `You have ${count} apps. ${latest.app_name}${timeAgo}. What are we working on?`
+}
+
+function checkProactive(builds: FullBuild[], navigate: ReturnType<typeof useNavigate>): ProactiveMsg[] {
+  const msgs: ProactiveMsg[] = []
+  let id = -1000
+
+  // Condition A: expiring within 3 days, staging, unclaimed
+  const expiring = builds.find(
+    (b) => b.expires_at && daysUntil(b.expires_at) <= 3 && b.staging && !b.claimed_at
+  )
+  if (expiring) {
+    const d = daysUntil(expiring.expires_at!)
+    msgs.push({
+      id: id--,
+      text: `${expiring.app_name} expires in ${d} day${d === 1 ? '' : 's'}. Once it's gone, the deployment and URL are gone too. Claim it to move it to your own account permanently.`,
+      ctaLabel: 'Claim now →',
+      ctaAction: () => navigate(`/app/${expiring.id}/edit`),
+    })
+  }
+
+  // Condition B: no update in 7+ days
+  const stale = builds.find(
+    (b) => b.updated_at && daysSince(b.updated_at) >= 7 && b.status !== 'error'
+  )
+  if (stale && !expiring) {
+    const d = daysSince(stale.updated_at!)
+    msgs.push({
+      id: id--,
+      text: `It's been ${d} days since ${stale.app_name} had an update. Momentum matters — even a small improvement ships faster than a big rewrite.`,
+      ctaLabel: 'Open editor →',
+      ctaAction: () => navigate(`/app/${stale.id}/edit`),
+    })
+  }
+
+  // Condition C: visited edit page for any build (first time opening chat after that)
+  const visitedBuild = builds.find(
+    (b) => {
+      try { return !!localStorage.getItem(`sovereign_edit_opened_${b.id}`) } catch { return false }
+    }
+  )
+  if (visitedBuild && msgs.length === 0) {
+    msgs.push({
+      id: id--,
+      text: `I noticed you were in the editor for ${visitedBuild.app_name} earlier. Did everything go smoothly?`,
+    })
+  }
+
+  return msgs
 }
 
 const CHIPS = ['What can I build next?', "Something's broken", 'How does Sovereign work?']
@@ -53,11 +137,16 @@ const CHIPS = ['What can I build next?', "Something's broken", 'How does Soverei
 // ── Panel ─────────────────────────────────────────────────────────────────────
 
 function ChatPanel() {
-  const { messages, isBusy, closeChat, sendMessage, executeEditAction, setBuilds } = useChatStore()
+  const { messages, isBusy, closeChat, sendMessage, setBuilds } = useChatStore()
+  const navigate = useNavigate()
 
   const [input, setInput] = useState('')
-  const [builds, setLocalBuilds] = useState<ActiveApp[] | null>(null)
-  const [executingId, setExecutingId] = useState<number | null>(null)
+  const [builds, setLocalBuilds] = useState<FullBuild[] | null>(null)
+  const [executingId] = useState<number | null>(null)
+  // Proactive messages live in local state — not in the store
+  const [proactiveMsgs, setProactiveMsgs] = useState<ProactiveMsg[]>([])
+  // Build pills shown after a select_app action
+  const [selectingForMsg, setSelectingForMsg] = useState<ChatMessage | null>(null)
 
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -70,19 +159,29 @@ function ChatPanel() {
     if (!session) { setLocalBuilds([]); return }
     fetch(`/api/dashboard/builds?email=${encodeURIComponent(session.email)}`)
       .then((r) => (r.ok ? r.json() : { builds: [] }))
-      .then((data: { builds?: ActiveApp[] }) => {
+      .then((data: { builds?: FullBuild[] }) => {
         const b = data.builds ?? []
         setLocalBuilds(b)
-        setBuilds(b)     // also push into store for sendMessage context
+        setBuilds(b)     // push into store for sendMessage context
+
+        // Fire proactive messages once per session
+        const alreadyShown = sessionStorage.getItem('sovereign_chat_proactive_shown')
+        if (!alreadyShown && b.length > 0) {
+          const proactive = checkProactive(b, navigate)
+          if (proactive.length > 0) {
+            setProactiveMsgs(proactive)
+            sessionStorage.setItem('sovereign_chat_proactive_shown', '1')
+          }
+        }
       })
       .catch(() => setLocalBuilds([]))
-  }, [setBuilds])
+  }, [setBuilds, navigate])
 
   // Scroll to bottom on new messages
   useEffect(() => {
     const el = scrollRef.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [messages, isBusy])
+  }, [messages, isBusy, proactiveMsgs])
 
   // Focus input on open
   useEffect(() => {
@@ -100,17 +199,40 @@ function ChatPanel() {
   const submit = useCallback(async () => {
     const text = input.trim()
     if (!text || isBusy) return
+    setSelectingForMsg(null)
     setInput('')
     if (inputRef.current) inputRef.current.style.height = 'auto'
     await sendMessage(text)
   }, [input, isBusy, sendMessage])
 
-  const handleEditAction = useCallback(async (msg: ChatMessage) => {
-    if (!msg.action || msg.actionDone || executingId === msg.id) return
-    setExecutingId(msg.id)
-    await executeEditAction(msg)
-    setExecutingId(null)
-  }, [executeEditAction, executingId])
+  // Handle "Do it →" — navigate to edit page with prefill
+  const handleDoIt = useCallback((msg: ChatMessage) => {
+    if (!msg.action || msg.actionDone) return
+    const { type, editRequest, buildId } = msg.action
+
+    if (type === 'edit' && buildId) {
+      // Write prefill and navigate
+      try {
+        sessionStorage.setItem('sc_prefill', JSON.stringify({ buildId, text: editRequest }))
+      } catch { /* storage unavailable */ }
+      closeChat()
+      navigate(`/app/${buildId}/edit`)
+    } else if (type === 'select_app') {
+      // Show build pills for user to pick
+      setSelectingForMsg(msg)
+    }
+  }, [closeChat, navigate])
+
+  // Handle build pill selection for select_app flow
+  const handleSelectBuild = useCallback((build: FullBuild, msg: ChatMessage) => {
+    if (!msg.action) return
+    try {
+      sessionStorage.setItem('sc_prefill', JSON.stringify({ buildId: build.id, text: msg.action.editRequest }))
+    } catch { /* storage unavailable */ }
+    setSelectingForMsg(null)
+    closeChat()
+    navigate(`/app/${build.id}/edit`)
+  }, [closeChat, navigate])
 
   return (
     <div className="sc-panel" role="dialog" aria-label="Sovereign Chat">
@@ -138,11 +260,29 @@ function ChatPanel() {
 
       {/* Messages */}
       <div ref={scrollRef} className="sc-messages">
-        {/* Opener — shown only before any user messages */}
+        {/* Opener */}
         <div className="sc-msg-sov">
           <div className="sc-avatar-sm">S</div>
           <div className="sc-bubble-sov">{opener}</div>
         </div>
+
+        {/* Proactive messages — shown after opener, before user conversation */}
+        {proactiveMsgs.map((pm) => (
+          <div key={pm.id} className="sc-msg-sov">
+            <div className="sc-avatar-sm">S</div>
+            <div className="sc-bubble-sov">
+              {pm.text}
+              {pm.ctaLabel && pm.ctaAction && (
+                <button
+                  className="sc-do-it-btn"
+                  onClick={() => { pm.ctaAction!(); closeChat() }}
+                >
+                  {pm.ctaLabel}
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
 
         {messages.map((msg) =>
           msg.role === 'user' ? (
@@ -152,17 +292,55 @@ function ChatPanel() {
               <div className="sc-avatar-sm">S</div>
               <div className="sc-bubble-sov">
                 {msg.text}
-                {msg.action && !msg.actionDone && (
+
+                {/* Action button */}
+                {msg.action && !msg.actionDone && msg.action.type === 'edit' && (
                   <button
                     className="sc-do-it-btn"
-                    onClick={() => void handleEditAction(msg)}
+                    onClick={() => handleDoIt(msg)}
                     disabled={executingId === msg.id}
                   >
-                    {executingId === msg.id ? 'Applying…' : `Do it → ${msg.action.appName}`}
+                    {executingId === msg.id
+                      ? 'Applying…'
+                      : (msg.action.label ?? `Do it → ${msg.action.appName ?? 'app'}`)}
                   </button>
                 )}
+
+                {/* select_app: show build pills */}
+                {msg.action && !msg.actionDone && msg.action.type === 'select_app' && (
+                  <div style={{ marginTop: 8 }}>
+                    {selectingForMsg?.id === msg.id && builds && builds.length > 0
+                      ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          <div style={{ font: '11px/1 DM Mono, Courier New, monospace', color: '#8a8880', marginBottom: 2 }}>
+                            {msg.action.label ?? 'Which app?'}
+                          </div>
+                          {builds.map((b) => (
+                            <button
+                              key={b.id}
+                              className="sc-do-it-btn"
+                              style={{ textAlign: 'left' }}
+                              onClick={() => handleSelectBuild(b, msg)}
+                            >
+                              {b.app_name}
+                            </button>
+                          ))}
+                        </div>
+                      )
+                      : (
+                        <button
+                          className="sc-do-it-btn"
+                          onClick={() => handleDoIt(msg)}
+                        >
+                          {msg.action.label ?? 'Pick an app →'}
+                        </button>
+                      )
+                    }
+                  </div>
+                )}
+
                 {msg.action && msg.actionDone && (
-                  <span className="sc-done-label">✓ Applied</span>
+                  <span className="sc-done-label">✓ Navigating to editor</span>
                 )}
               </div>
             </div>
@@ -185,7 +363,7 @@ function ChatPanel() {
 
       {/* Input area */}
       <div className="sc-input-area">
-        {messages.length === 0 && (
+        {messages.length === 0 && proactiveMsgs.length === 0 && (
           <div className="sc-chips">
             {CHIPS.map((chip) => (
               <button

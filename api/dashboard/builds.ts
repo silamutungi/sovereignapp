@@ -76,7 +76,9 @@ export default async function handler(req: any, res: any): Promise<void> {
         claimed_at,
         claim_status,
         claimed_url,
-        created_at
+        created_at,
+        updated_at,
+        expires_at
       `)
       .eq('email', email.toLowerCase())
       .is('deleted_at', null)

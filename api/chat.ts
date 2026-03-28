@@ -38,6 +38,11 @@ interface ActiveApp {
   repo_url: string | null
   idea: string
   created_at?: string
+  updated_at?: string
+  expires_at?: string
+  status?: string
+  staging?: boolean | null
+  claimed_at?: string | null
 }
 
 interface ChatContext {
@@ -121,9 +126,17 @@ ${lessonContext}
 
   if (activeApp) {
     // Scoped mode — user is in the Edit Panel for a specific app
+    let expiryNote = ''
+    if (activeApp.expires_at) {
+      const daysLeft = Math.ceil((new Date(activeApp.expires_at).getTime() - Date.now()) / 86400000)
+      if (daysLeft <= 3 && daysLeft > 0 && activeApp.staging && !activeApp.claimed_at) {
+        expiryNote = `\n⚠️ URGENT: This app expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'} and hasn't been claimed yet. Remind the user to claim it.`
+      }
+    }
+    const statusNote = activeApp.status === 'error' ? '\n⚠️ This app has a build error — help diagnose and fix it.' : ''
     system += `
 The user is working on: "${activeApp.app_name}"
-Idea: ${activeApp.idea}${activeApp.deploy_url ? `\nLive URL: ${activeApp.deploy_url}` : ''}${activeApp.repo_url ? `\nRepo: ${activeApp.repo_url}` : ''}
+Idea: ${activeApp.idea}${activeApp.deploy_url ? `\nLive URL: ${activeApp.deploy_url}` : ''}${activeApp.repo_url ? `\nRepo: ${activeApp.repo_url}` : ''}${expiryNote}${statusNote}
 
 When the user describes a change to make, respond with this exact JSON structure:
 {"reply":"<your response confirming what you'll do>","action":{"type":"edit","editRequest":"<precise instruction for the code change>","appName":"${activeApp.app_name}","buildId":"${activeApp.id}"}}
@@ -140,7 +153,12 @@ ALWAYS return valid JSON only. No markdown fences, no extra text outside the JSO
         const age = b.created_at
           ? Math.floor((Date.now() - new Date(b.created_at).getTime()) / (1000 * 60 * 60 * 24))
           : null
-        system += `- ${b.app_name}: ${b.idea.slice(0, 80)}${age !== null ? ` (${age}d old)` : ''}${b.deploy_url ? ` — ${b.deploy_url}` : ''}\n`
+        const daysLeft = b.expires_at
+          ? Math.ceil((new Date(b.expires_at).getTime() - Date.now()) / 86400000)
+          : null
+        const urgency = (daysLeft !== null && daysLeft <= 3 && b.staging && !b.claimed_at) ? ` ⚠️ expires in ${daysLeft}d` : ''
+        const errFlag = b.status === 'error' ? ' ❌ build error' : ''
+        system += `- ${b.app_name} (id:${b.id}): ${b.idea.slice(0, 80)}${age !== null ? ` (${age}d old)` : ''}${b.deploy_url ? ` — ${b.deploy_url}` : ''}${urgency}${errFlag}\n`
       })
     }
 
@@ -150,7 +168,13 @@ If they ask a strategic question — give a concrete, actionable answer.
 If they ask a technical question — answer it precisely.
 If they seem stuck or unsure — proactively identify the highest-leverage thing to focus on.
 
-Respond with this exact JSON structure:
+If the user wants to make a change to a specific app AND there is exactly one app listed above, return:
+{"reply":"<response>","action":{"type":"edit","editRequest":"<precise instruction>","appName":"<app name>","buildId":"<id from the list above>"}}
+
+If the user wants to make a change but there are multiple apps and it's unclear which one, return:
+{"reply":"<ask which app>","action":{"type":"select_app","editRequest":"<the change they want>","label":"Which app should I update?"}}
+
+For all other responses:
 {"reply":"<your response>","action":null}
 
 ALWAYS return valid JSON only. No markdown fences, no extra text outside the JSON.`

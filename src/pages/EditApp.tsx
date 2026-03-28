@@ -150,6 +150,9 @@ export default function EditApp() {
   const [lastDeployedAt, setLastDeployedAt] = useState<number | null>(null)
   const [, setLiveTick] = useState(0)
 
+  // Prefill auto-submit from SovereignChat "Do it →" navigation
+  const [pendingAutoSubmit, setPendingAutoSubmit] = useState<string | null>(null)
+
   // Panel theme (persisted)
   const [panelTheme, setPanelTheme] = useState<'dark' | 'light'>(() => {
     try { return (localStorage.getItem('sovereign_edit_theme') as 'dark' | 'light') ?? 'dark' } catch { return 'dark' }
@@ -211,6 +214,21 @@ export default function EditApp() {
         role: 'sovereign',
         text: formatOpening(found.idea, found.app_name),
       }])
+      // Mark that the user has visited this edit page (used by SovereignChat proactive)
+      if (buildId) {
+        try { localStorage.setItem(`sovereign_edit_opened_${buildId}`, '1') } catch { /* storage unavailable */ }
+      }
+      // Check for prefill from SovereignChat "Do it →" navigation
+      try {
+        const raw = sessionStorage.getItem('sc_prefill')
+        if (raw) {
+          const prefill = JSON.parse(raw) as { buildId: string; text: string }
+          if (prefill.buildId === buildId && prefill.text) {
+            sessionStorage.removeItem('sc_prefill')
+            setPendingAutoSubmit(prefill.text)
+          }
+        }
+      } catch { /* storage unavailable */ }
     } catch {
       setLoadError('Network error loading build')
     }
@@ -355,6 +373,16 @@ export default function EditApp() {
       setBusy(false)
     }
   }, [build, busy, deploying, editCount])
+
+  // ── Prefill auto-submit (from SovereignChat "Do it →" navigation) ────────────
+
+  useEffect(() => {
+    if (!pendingAutoSubmit || !build) return
+    const text = pendingAutoSubmit
+    setPendingAutoSubmit(null)
+    const timer = setTimeout(() => void submitEdit(text), 600)
+    return () => clearTimeout(timer)
+  }, [pendingAutoSubmit, build, submitEdit])
 
   // ── Brain hint ────────────────────────────────────────────────────────────────
 

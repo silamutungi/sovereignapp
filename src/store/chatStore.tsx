@@ -29,13 +29,19 @@ export interface ActiveApp {
   repo_url: string | null
   idea: string
   created_at?: string
+  updated_at?: string
+  expires_at?: string
+  status?: string
+  staging?: boolean | null
+  claimed_at?: string | null
 }
 
 export interface ChatEditAction {
-  type: 'edit'
+  type: 'edit' | 'select_app'
   editRequest: string
-  appName: string
-  buildId: string
+  appName?: string       // required for 'edit', undefined for 'select_app'
+  buildId?: string       // required for 'edit', undefined for 'select_app'
+  label?: string         // display label override
 }
 
 export interface ChatMessage {
