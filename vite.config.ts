@@ -124,6 +124,8 @@ export default defineConfig(({ mode }) => {
   Object.assign(process.env, env)
 
   return {
-    plugins: [react(), sovereignApiPlugin()],
+    // sovereignApiPlugin is dev-only (configureServer middleware).
+    // Exclude it from production builds to guarantee no dev code leaks through.
+    plugins: [react(), ...(mode !== 'production' ? [sovereignApiPlugin()] : [])],
   }
 })
