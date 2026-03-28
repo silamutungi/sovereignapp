@@ -341,18 +341,17 @@ export default function EditApp() {
           setDeploying(false)
           const finalUrl = data.deployUrl ?? build?.deploy_url ?? ''
           if (data.deployUrl) setBuild((b) => b ? { ...b, deploy_url: data.deployUrl! } : b)
-          // Cache-busting iframe reload
+          // Cache-busting iframe reload — stay on timestamped URL permanently
           if (finalUrl) {
             console.log('iframe reloading')
             const bustUrl = new URL(finalUrl)
             bustUrl.searchParams.set('_t', Date.now().toString())
             setIframeSrc(bustUrl.toString())
             setIframeLoaded(false)
-            setTimeout(() => setIframeSrc(finalUrl), 2000)
           }
-          // Flash green border for 600ms
+          // Flash green border for 2000ms
           setPreviewFlash(true)
-          setTimeout(() => setPreviewFlash(false), 600)
+          setTimeout(() => setPreviewFlash(false), 2000)
           // Update deploying message with actual elapsed time
           const elapsed = Math.round((Date.now() - deployStartTimeRef.current) / 1000)
           const doneText = `Done. Deployed in ${elapsed}s.`
@@ -461,10 +460,10 @@ export default function EditApp() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           build_id: buildId,
-          app_type: build.app_name,
+          app_type: build.idea ?? build.app_name,
           edit_instruction: lastInstruction,
           edit_count: editCount,
-          features_built: [],
+          features_built: messages.filter((m) => m.role === 'sovereign').map((m) => m.text).slice(0, 10),
           last_hint_type: lastHintType,
         }),
       })
