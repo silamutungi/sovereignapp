@@ -12,7 +12,7 @@
 // - Rate limited: 30/hr per IP
 // - Input truncated to 10 MB total content
 
-import { checkRateLimit } from './_rateLimit.js'
+import { checkRateLimit, getClientIp } from './_rateLimit.js'
 
 export const config = { api: { bodyParser: { sizeLimit: '10mb' } } }
 
@@ -372,7 +372,8 @@ export function auditApp(files: AppFile[]): AuditReport {
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const rl = await checkRateLimit(req, 'audit-generated-app', 30, 3600)
+  const ip = getClientIp(req)
+  const rl = checkRateLimit(`audit-generated-app:${ip}`, 30, 60 * 60 * 1000)
   if (!rl.allowed) {
     res.setHeader('Retry-After', String(rl.retryAfter ?? 60))
     return res.status(429).json({ error: 'Rate limit exceeded' })
