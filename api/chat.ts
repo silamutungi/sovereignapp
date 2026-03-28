@@ -210,10 +210,12 @@ CRITICAL: return ONLY the raw JSON object. No \`\`\`json fences, no preamble, no
 
     try {
       const parsed = JSON.parse(cleaned) as { reply?: string; action?: EditAction | null }
+      console.log('chat response parsed:', JSON.stringify(parsed, null, 2))
       reply = String(parsed.reply ?? raw)
       action = parsed.action ?? null
     } catch {
       // Claude returned plain text — use as-is, no action
+      console.log('chat response parse failed — raw:', raw.slice(0, 300))
     }
 
     res.status(200).json({ reply, action })

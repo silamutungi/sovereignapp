@@ -296,6 +296,7 @@ function ChatPanel() {
                 {msg.text}
 
                 {/* Action button */}
+                {(console.log('message action:', msg.action), null)}
                 {msg.action && !msg.actionDone && msg.action.type === 'edit' && (
                   <button
                     className="sc-do-it-btn"
