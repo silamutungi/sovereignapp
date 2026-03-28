@@ -594,7 +594,7 @@ export default function EditApp() {
     border:              '#1a1917',
     textPrimary:         '#f2efe8',
     textSecondary:       '#5a5850',
-    textDim:             '#3a3830',
+    textDim:             '#5a5850',
     sovereignBubbleBg:   '#1a1917',
     sovereignBubbleText: '#c8c4bc',
     userBubbleBg:        '#c8f060',
@@ -603,7 +603,7 @@ export default function EditApp() {
     avatarBg:            '#141210',
     avatarBorder:        '#c8f060',
     avatarText:          '#c8f060',
-    typingDot:           '#3a3830',
+    typingDot:           '#5a5850',
     panelClass:          '' as const,
   }
 
@@ -621,10 +621,10 @@ export default function EditApp() {
         .ea-scroll::-webkit-scrollbar{width:3px}
         .ea-scroll::-webkit-scrollbar-thumb{background:#2a2925;border-radius:2px}
         .ea-textarea{resize:none;font:12px/1.6 DM Mono,Courier New,monospace;color:#f2efe8;background:#1a1917;border:0.5px solid #2a2925;border-radius:4px;outline:none;width:100%;box-sizing:border-box;padding:10px 12px;min-height:40px;max-height:120px;overflow-y:auto;transition:border-color .15s,background .15s,color .15s}
-        .ea-textarea::placeholder{color:#3a3830}
+        .ea-textarea::placeholder{color:#5a5850}
         .ea-textarea:disabled{opacity:0.75;cursor:default}
         .ea-textarea:focus-visible{outline:1px solid #c8f060;outline-offset:1px;border-color:#c8f060}
-        .ea-btn-ghost{background:none;border:1px solid #2a2925;color:#7a7870;font:10px/1 DM Mono,Courier New,monospace;padding:6px 10px;cursor:pointer;border-radius:3px;transition:border-color .15s,color .15s,background .15s}
+        .ea-btn-ghost{background:none;border:1px solid #2a2925;color:#5a5850;font:10px/1 DM Mono,Courier New,monospace;padding:6px 10px;cursor:pointer;border-radius:3px;transition:border-color .15s,color .15s,background .15s}
         .ea-btn-ghost:hover{border-color:#5a5850;color:#f2efe8}
         .ea-btn-ghost:focus-visible{outline:2px solid #c8f060;outline-offset:2px}
         .ea-btn-ghost:disabled{opacity:0.4;cursor:default}
@@ -634,11 +634,11 @@ export default function EditApp() {
         .ea-btn-green:focus-visible{outline:2px solid #f2efe8;outline-offset:2px}
         .ea-tab{background:none;border:none;font:10px/1 DM Mono,Courier New,monospace;padding:6px 12px;cursor:pointer;border-radius:3px;transition:background .15s,color .15s}
         .ea-tab.active{background:#1a1917;color:#f2efe8}
-        .ea-tab.inactive{color:#3a3830}
+        .ea-tab.inactive{color:#5a5850}
         .ea-tab:focus-visible{outline:2px solid #c8f060;outline-offset:2px}
         .hint-fade{animation:fadeIn .2s ease}
         .queue-pill{display:flex;align-items:center;gap:6px;background:#111009;border:1px solid #2a2925;border-radius:4px;padding:6px 10px;font:11px/1.4 DM Mono,Courier New,monospace;color:#c8c4bc;transition:background .15s,border-color .15s,color .15s}
-        .queue-pill button{background:none;border:none;color:#3a3830;cursor:pointer;padding:0;font-size:12px;line-height:1;transition:color .12s}
+        .queue-pill button{background:none;border:none;color:#5a5850;cursor:pointer;padding:0;font-size:12px;line-height:1;transition:color .12s}
         .queue-pill button:hover{color:#f2efe8}
         /* ── Light mode overrides ─────────────────────────────────────────── */
         .ea-panel-light .ea-textarea{color:#0e0d0b;background:#ffffff;border-color:#e8e4da}
@@ -768,7 +768,7 @@ export default function EditApp() {
               width: isMobile ? '100%' : 360,
               flexShrink: 0,
               background: t.panelBg,
-              borderRight: isMobile ? 'none' : '2px solid rgba(200,240,96,0.25)',
+              borderRight: isMobile ? 'none' : '2px solid rgba(200,240,96,0.5)',
               display: isMobile && mobileTab !== 'chat' ? 'none' : 'flex',
               flexDirection: 'column',
               overflow: 'hidden',
@@ -789,7 +789,7 @@ export default function EditApp() {
                   border: 'none',
                   cursor: 'pointer',
                   font: '10px/1 DM Mono, Courier New, monospace',
-                  color: t.textDim,
+                  color: panelTheme === 'dark' ? '#8a8880' : t.textSecondary,
                   textAlign: 'left',
                   transition: 'color .15s',
                 }}
@@ -905,7 +905,7 @@ export default function EditApp() {
                             height: 22,
                             borderRadius: '50%',
                             background: t.avatarBg,
-                            border: `0.5px solid ${t.avatarBorder}`,
+                            border: `1px solid ${t.avatarBorder}`,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -1002,7 +1002,7 @@ export default function EditApp() {
                       <div style={{ padding: '0 12px 8px', display: 'flex', flexDirection: 'column', gap: 4, animation: 'fadeIn .15s ease', maxHeight: 140, overflowY: 'auto' }}>
                         {queue.map((item, i) => (
                           <div key={i} className="queue-pill">
-                            <span style={{ color: '#3a3830', flexShrink: 0 }}>{i + 1}.</span>
+                            <span style={{ color: '#5a5850', flexShrink: 0 }}>{i + 1}.</span>
                             <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item}</span>
                             <button onClick={() => removeFromQueue(i)} aria-label={`Remove queue item ${i + 1}`}>✕</button>
                           </div>
