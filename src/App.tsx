@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback, type KeyboardEvent, type FormEvent, type RefObject } from 'react'
 import { t, type Locale } from './lib/i18n'
-import { joinWaitlist } from './lib/supabase'
 import './styles/global.css'
 import './App.css'
 
@@ -50,21 +49,16 @@ function LangBar({ locale, setLocale }: { locale: Locale; setLocale: (l: Locale)
 
 // ── Nav ──────────────────────────────────────────────────────────────────────
 function Nav({ locale }: { locale: Locale }) {
-  const scrollToBuildFlow = useCallback(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [])
-
   return (
     <header>
       <nav className="nav" aria-label="Main navigation">
         <a href="/" className="logo" aria-label="Sovereign App home">
           sovereign
         </a>
+        {/* FIX 3 — nav: logo | How it works · Dashboard only */}
         <div className="nav-r">
           <a href="#how-it-works" className="nav-link">{t(locale, 'nav.howItWorks')}</a>
-          <a href="#pricing" className="nav-link">{t(locale, 'nav.pricing')}</a>
           <a href="/dashboard" className="nav-link">{t(locale, 'nav.dashboard')}</a>
-          <button className="nav-link nav-cta" onClick={scrollToBuildFlow}>{t(locale, 'nav.cta')}</button>
         </div>
       </nav>
     </header>
@@ -992,14 +986,7 @@ function Stats({ locale }: { locale: Locale }) {
 function Pricing({ locale }: { locale: Locale }) {
   const { ref, inView } = useInView()
 
-  const scrollToWaitlist = useCallback(() => {
-    const section = document.querySelector('#waitlist')
-    section?.scrollIntoView({ behavior: 'smooth' })
-    setTimeout(() => {
-      const input = document.querySelector<HTMLInputElement>('#wl-email')
-      input?.focus()
-    }, 500)
-  }, [])
+  // FIX 3 — scrollToWaitlist removed; plan buttons now scroll to build flow
 
   const scrollToBuildFlow = useCallback(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -1045,7 +1032,7 @@ function Pricing({ locale }: { locale: Locale }) {
             <li>{t(locale, 'plan.builder.f5')}</li>
           </ul>
           <p className="plan-byok-note">✦ {t(locale, 'plan.builder.byok')}</p>
-          <button className="pbtn" onClick={scrollToWaitlist}>{t(locale, 'plan.builder.btn')}</button>
+          <button className="pbtn" onClick={scrollToBuildFlow}>{t(locale, 'plan.builder.btn')}</button>
           <p className="pnote">{t(locale, 'plan.builder.note')}</p>
         </article>
 
@@ -1062,7 +1049,7 @@ function Pricing({ locale }: { locale: Locale }) {
             <li>{t(locale, 'plan.team.f5')}</li>
           </ul>
           <p className="plan-byok-note">✦ {t(locale, 'plan.team.byok')}</p>
-          <button className="pbtn" onClick={scrollToWaitlist}>{t(locale, 'plan.team.btn')}</button>
+          <button className="pbtn" onClick={scrollToBuildFlow}>{t(locale, 'plan.team.btn')}</button>
           <p className="pnote">{t(locale, 'plan.team.note')}</p>
         </article>
       </div>
@@ -1079,48 +1066,13 @@ function Pricing({ locale }: { locale: Locale }) {
 }
 
 // ── Waitlist ──────────────────────────────────────────────────────────────────
+// FIX 3 — founding price CTA wired to build flow (scroll to top)
 function Waitlist({ locale }: { locale: Locale }) {
   const { ref, inView } = useInView()
-  const [email, setEmail] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
 
-  const handleSubmit = useCallback(async (e: FormEvent) => {
-    e.preventDefault()
-    if (!email.includes('@')) {
-      setError(t(locale, 'wl.err'))
-      return
-    }
-    setError(null)
-    setLoading(true)
-    const { error: err } = await joinWaitlist(email)
-    setLoading(false)
-    if (err) {
-      setError(err)
-    } else {
-      setSuccess(true)
-      void fetch('/api/send-welcome', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          projectName: 'Sovereign',
-          liveUrl: 'https://sovereignapp.dev',
-          repoUrl: 'https://github.com/silamutungi/sovereignapp',
-          subject: "You're on the Sovereign waitlist",
-          body: [
-            "You're in. We'll email you the moment Sovereign is ready to build your first app.",
-            '',
-            "While you wait — tell one person who's frustrated with Lovable or Cursor. That's all we ask.",
-            '',
-            '— The Sovereign team',
-            'sovereignapp.dev',
-          ].join('\n'),
-        }),
-      })
-    }
-  }, [email, locale])
+  const scrollToBuildFlow = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
 
   return (
     <section
@@ -1138,32 +1090,9 @@ function Waitlist({ locale }: { locale: Locale }) {
         {t(locale, 'wl.sub2')}
       </p>
 
-      {success ? (
-        <div className="wlsuccess" role="status">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-          <p>{t(locale, 'wl.success')}</p>
-        </div>
-      ) : (
-        <form className="wlform" onSubmit={handleSubmit} noValidate>
-          <label htmlFor="wl-email" className="sr-only">{t(locale, 'wl.label')}</label>
-          <input
-            id="wl-email"
-            type="email"
-            className="wlinput"
-            placeholder={t(locale, 'wl.label')}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-            required
-          />
-          {error && <p className="wlerr" role="alert">{error}</p>}
-          <button type="submit" className="wlbtn" disabled={loading}>
-            {loading ? '…' : t(locale, 'wl.btn')}
-          </button>
-        </form>
-      )}
+      <button type="button" className="wlbtn" onClick={scrollToBuildFlow}>
+        {t(locale, 'wl.btn')}
+      </button>
 
       <p className="wlnote">{t(locale, 'wl.note')}</p>
     </section>
@@ -1273,8 +1202,9 @@ export default function App() {
         <HowItWorks locale={locale} path={path} />
         <BYOK locale={locale} path={path} />
         <Stats locale={locale} />
-        <Pricing locale={locale} />
+        {/* FIX 3 — Pricing moved to immediately above footer */}
         <Waitlist locale={locale} />
+        <Pricing locale={locale} />
       </main>
       <Footer locale={locale} setLocale={handleSetLocale} />
     </>

@@ -260,6 +260,12 @@ STANDING RULE: Every time a bug is fixed, a wrong assumption is corrected, or an
 
 If Claude Code is about to do something and there is a relevant lesson here that contradicts it — stop, follow the lesson, do not repeat the mistake.
 
+**checkRateLimit call signature — always 3 args, key string first**
+Wrong assumption: `checkRateLimit` accepts a request object as the first argument, followed by a key string, limit, and seconds.
+Correct behaviour: signature is `checkRateLimit(key: string, limit: number, windowMs: number)`. First argument is always a string key, never the request object. Window is always milliseconds, never seconds. The function is synchronous — never `await` it.
+Fix: extract IP first with `getClientIp(req)`, build the key string, then call `checkRateLimit(\`endpoint:${ip}\`, 30, 60 * 60 * 1000)`. Wrong: `checkRateLimit(req, 'key', 30, 3600)`. Always verify against existing call sites before using any utility function — Claude will hallucinate call signatures that do not exist.
+Learned: 2026-03-28.
+
 ### Accessibility & Contrast
 
 **Generated app color contrast failing on buttons**
