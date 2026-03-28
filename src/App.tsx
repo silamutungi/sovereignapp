@@ -289,7 +289,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
     return params.get('idea') ?? ''
   })
   const [phIdx, setPhIdx] = useState(0)
-  const [stage, setStage] = useState<'idle' | 'generating' | 'result' | 'confirm' | 'connect' | 'briefConfirm'>('idle')
+  const [stage, setStage] = useState<'idle' | 'generating' | 'result' | 'connect' | 'briefConfirm'>('idle')
   const [spec, setSpec] = useState<AppSpec | null>(null)
   const [generateError, setGenerateError] = useState<string | null>(null)
   const [generatingMessage, setGeneratingMessage] = useState('Generating your app…')
@@ -413,10 +413,6 @@ function NdevPanel({ locale }: { locale: Locale }) {
       return
     }
     setEmailError(null)
-    setStage('confirm')
-  }, [email])
-
-  const handleConfirmEmail = useCallback(() => {
     // Fire-and-forget — don't block the connect screen on email delivery
     void fetch('/api/send-welcome', {
       method: 'POST',
@@ -655,7 +651,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
           </div>
         )}
 
-        {(stage === 'result' || stage === 'confirm' || stage === 'connect') && spec && (
+        {(stage === 'result' || stage === 'connect') && spec && (
           <div className="gen-result">
             <div className="gen-header">
               <div
@@ -815,34 +811,6 @@ function NdevPanel({ locale }: { locale: Locale }) {
               </form>
             )}
 
-            {stage === 'confirm' && (
-              <div className="gen-email-form">
-                <p style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#6b6862', margin: '0 0 8px' }}>
-                  Building for
-                </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 18px', border: '1px solid #d8d4ca', background: 'white', margin: '0 0 16px', borderRadius: '6px' }}>
-                  <span style={{ fontFamily: 'DM Mono, monospace', fontSize: '13px', color: '#0e0d0b', flex: 1 }}>
-                    {email}
-                  </span>
-                  <button
-                    onClick={handleEditEmail}
-                    style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', color: '#8ab800', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
-                    type="button"
-                  >
-                    Edit
-                  </button>
-                </div>
-                <button
-                  className="gobtn"
-                  onClick={handleConfirmEmail}
-                  style={{ background: '#0e0d0b', color: '#f2efe8', width: '100%', fontFamily: 'DM Mono, monospace', fontSize: '13px', padding: '14px' }}
-                  type="button"
-                >
-                  Yes, that's right — continue →
-                </button>
-              </div>
-            )}
-
             {stage === 'connect' && rateLimited && (
               <div className="gen-connect" role="alert">
                 <p className="gen-connect-lbl" style={{ color: 'var(--ink)', fontWeight: 500 }}>
@@ -989,7 +957,6 @@ function BYOK({ locale, path }: { locale: Locale; path: 'dev' | 'idea' }) {
         </div>
       )}
 
-      <a href="#" className="byok-link">{t(locale, `byok.${door}.link`)}</a>
     </section>
   )
 }
@@ -1216,8 +1183,6 @@ function Footer({ locale, setLocale }: { locale: Locale; setLocale: (l: Locale) 
           <a href="#how-it-works" className="flink">{t(locale, 'nav.howItWorks')}</a>
           <a href="#pricing" className="flink">{t(locale, 'nav.pricing')}</a>
           <a href="/dashboard" className="flink">{t(locale, 'nav.dashboard')}</a>
-          <a href="#" className="flink">{t(locale, 'footer.docs')}</a>
-          <a href="https://github.com" className="flink" target="_blank" rel="noreferrer">{t(locale, 'nav.github')}</a>
         </nav>
 
         {/* Promise */}
@@ -1242,10 +1207,10 @@ function Footer({ locale, setLocale }: { locale: Locale; setLocale: (l: Locale) 
         </div>
 
         {/* Built with Sovereign badge */}
-        <a href="#" className="sovereign-badge" aria-label="This page was built with Sovereign">
+        <span className="sovereign-badge">
           <span className="badge-icon" aria-hidden="true">✦</span>
           {t(locale, 'badge.label')}
-        </a>
+        </span>
 
         {/* Legal */}
         <p className="footer-legal">

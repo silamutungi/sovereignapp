@@ -25,7 +25,10 @@ interface Build {
   next_steps: NextStep[] | null
   supabase_schema: string | null
   supabase_mode: string | null
+  staging: boolean | null
   claimed_at: string | null
+  claim_status: string | null
+  claimed_url: string | null
   created_at: string
   confidence_score: number | null
   launch_gate_passed: boolean | null
@@ -1041,6 +1044,7 @@ function AuthDashboard({ email }: { email: string }) {
         }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         @keyframes fadeIn { from{opacity:0;transform:translateX(-50%) translateY(6px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+        @keyframes spin { to { transform: rotate(360deg); } }
         * { box-sizing: border-box; }
       `}</style>
 
@@ -1122,7 +1126,6 @@ function AuthDashboard({ email }: { email: string }) {
           {[
             { value: loading ? '—' : String(totalBuilds), label: 'Apps built' },
             { value: loading ? '—' : String(liveBuilds), label: 'Live now' },
-            { value: loading ? '—' : String(liveBuilds), label: 'Repos owned' },
           ].map((stat, i, arr) => (
             <div
               key={stat.label}
@@ -1239,7 +1242,14 @@ function AuthDashboard({ email }: { email: string }) {
               </button>
             </div>
           ) : (
-            builds.map((build) => <AppCard key={build.id} build={build} onEdit={openPanel} />)
+            builds.map((build) => (
+              <AppCard
+                key={build.id}
+                build={build}
+                onEdit={openPanel}
+                onBuildClaimed={() => void fetchBuilds()}
+              />
+            ))
           )}
         </div>
       </div>
@@ -1352,7 +1362,7 @@ function AuthDashboard({ email }: { email: string }) {
           </p>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             {nextSteps.map((step) => (
-              <button
+              <div
                 key={step.action}
                 style={{
                   display: 'flex',
@@ -1363,15 +1373,7 @@ function AuthDashboard({ email }: { email: string }) {
                   border: '1px solid #d8d4ca',
                   font: '12px/1 DM Mono, Courier New, monospace',
                   color: '#0e0d0b',
-                  cursor: 'pointer',
-                  transition: 'border-color 0.15s',
                 }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.borderColor = '#0e0d0b')
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.borderColor = '#d8d4ca')
-                }
               >
                 {step.priority === 'high' && (
                   <span
@@ -1385,7 +1387,7 @@ function AuthDashboard({ email }: { email: string }) {
                   />
                 )}
                 {step.title}
-              </button>
+              </div>
             ))}
           </div>
         </div>
@@ -1533,17 +1535,243 @@ function SetupDBModal({ build, onClose }: { build: Build; onClose: () => void })
   )
 }
 
+// ── Claim Modal ────────────────────────────────────────────────────────────────
+
+function ClaimModal({ build, onClose, onClaimed }: { build: Build; onClose: () => void; onClaimed: () => void }) {
+  const [step, setStep] = useState<'confirm' | 'claiming' | 'done' | 'error'>('confirm')
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [claimedUrl, setClaimedUrl] = useState<string | null>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Poll claim_status every 10s after initiating
+  useEffect(() => {
+    if (step !== 'done') return
+    pollRef.current = setInterval(async () => {
+      try {
+        const r = await fetch(`/api/build-status?id=${encodeURIComponent(build.id)}`)
+        if (r.ok) {
+          const s = await r.json() as { claim_status?: string }
+          if (s.claim_status === 'claimed') {
+            if (pollRef.current) clearInterval(pollRef.current)
+            onClaimed()
+          }
+        }
+      } catch { /* non-fatal */ }
+    }, 10000)
+    return () => { if (pollRef.current) clearInterval(pollRef.current) }
+  }, [step, build.id, onClaimed])
+
+  const handleClaim = async () => {
+    setStep('claiming')
+    setErrorMsg(null)
+    try {
+      const r = await fetch('/api/claim-build', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ build_id: build.id }),
+      })
+      const data = await r.json() as { ok?: boolean; error?: string; claimed_url?: string }
+      if (!r.ok || !data.ok) {
+        setErrorMsg(data.error ?? 'Something went wrong. Please try again.')
+        setStep('error')
+        return
+      }
+      setClaimedUrl(data.claimed_url ?? null)
+      setStep('done')
+      onClaimed()
+    } catch {
+      setErrorMsg('Network error. Please try again.')
+      setStep('error')
+    }
+  }
+
+  const steps = [
+    { label: 'GitHub', sub: 'Your code', done: true },
+    { label: 'Vercel', sub: 'Your deployment', done: true },
+    { label: 'Done', sub: 'Check your email', done: step === 'done' },
+  ]
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        style={{
+          position: 'fixed', inset: 0, background: 'rgba(14,13,11,0.7)',
+          zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '24px',
+        }}
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div
+        style={{
+          position: 'fixed', top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: '#f2efe8', width: '100%', maxWidth: '480px',
+          zIndex: 1001, padding: '40px',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
+          <div>
+            <p style={{ font: '11px/1 DM Mono, Courier New, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#6b6862', margin: '0 0 8px' }}>
+              Claim your app
+            </p>
+            <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '24px', fontWeight: 400, color: '#0e0d0b', margin: 0 }}>
+              {build.app_name}
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b6862', font: '18px/1 DM Mono, Courier New, monospace', padding: '4px', lineHeight: 1 }}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Steps */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '32px' }}>
+          {steps.map((s, i) => (
+            <div key={s.label} style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{
+                width: '32px', height: '32px', borderRadius: '50%',
+                background: s.done ? '#8ab800' : '#d8d4ca',
+                color: s.done ? '#0e0d0b' : '#6b6862',
+                font: '12px/32px DM Mono, Courier New, monospace',
+                margin: '0 auto 8px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {s.done ? '✓' : String(i + 1)}
+              </div>
+              <p style={{ font: '11px/1 DM Mono, Courier New, monospace', fontWeight: 600, color: '#0e0d0b', margin: '0 0 4px' }}>{s.label}</p>
+              <p style={{ font: '10px/1.3 DM Mono, Courier New, monospace', color: '#6b6862', margin: 0 }}>{s.sub}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Content by step */}
+        {step === 'confirm' && (
+          <>
+            <div style={{ background: '#eceae1', padding: '16px', marginBottom: '24px', fontSize: '13px', fontFamily: 'DM Mono, Courier New, monospace', color: '#0e0d0b', lineHeight: 1.6 }}>
+              <p style={{ margin: '0 0 8px', fontWeight: 600 }}>What happens when you claim:</p>
+              <p style={{ margin: '0 0 6px' }}>1. GitHub sends you a transfer confirmation email</p>
+              <p style={{ margin: '0 0 6px' }}>2. A new Vercel project is created in your account</p>
+              <p style={{ margin: 0 }}>3. The staging version is removed</p>
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => void handleClaim()}
+                style={{
+                  flex: 1, background: '#0e0d0b', color: '#f2efe8', border: 'none',
+                  padding: '12px 24px', font: '13px/1 DM Mono, Courier New, monospace',
+                  cursor: 'pointer', borderRadius: '4px',
+                }}
+              >
+                Claim app →
+              </button>
+              <button
+                onClick={onClose}
+                style={{
+                  background: 'transparent', color: '#6b6862', border: '1px solid #d8d4ca',
+                  padding: '12px 20px', font: '13px/1 DM Mono, Courier New, monospace',
+                  cursor: 'pointer', borderRadius: '4px',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </>
+        )}
+
+        {step === 'claiming' && (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ width: '32px', height: '32px', border: '2px solid #d8d4ca', borderTopColor: '#8ab800', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
+            <p style={{ font: '13px/1.6 DM Mono, Courier New, monospace', color: '#0e0d0b', margin: 0 }}>
+              Initiating transfer…
+            </p>
+          </div>
+        )}
+
+        {step === 'done' && (
+          <>
+            <div style={{ background: '#eceae1', padding: '16px', marginBottom: '24px' }}>
+              <p style={{ font: '12px/1 DM Mono, Courier New, monospace', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8ab800', margin: '0 0 8px' }}>
+                Transfer initiated
+              </p>
+              <p style={{ font: '13px/1.6 DM Mono, Courier New, monospace', color: '#0e0d0b', margin: 0 }}>
+                Check your email to accept the GitHub transfer. One click and it&apos;s yours.
+              </p>
+              {claimedUrl && (
+                <p style={{ font: '12px/1.5 DM Mono, Courier New, monospace', color: '#6b6862', margin: '12px 0 0' }}>
+                  New URL: <a href={claimedUrl} target="_blank" rel="noreferrer" style={{ color: '#8ab800', textDecoration: 'none' }}>{claimedUrl.replace('https://', '')}</a>
+                </p>
+              )}
+            </div>
+            <button
+              onClick={onClose}
+              style={{
+                width: '100%', background: '#0e0d0b', color: '#f2efe8', border: 'none',
+                padding: '12px 24px', font: '13px/1 DM Mono, Courier New, monospace',
+                cursor: 'pointer', borderRadius: '4px',
+              }}
+            >
+              Done
+            </button>
+          </>
+        )}
+
+        {step === 'error' && (
+          <>
+            <div style={{ background: '#fee2e2', padding: '16px', marginBottom: '24px' }}>
+              <p style={{ font: '13px/1.6 DM Mono, Courier New, monospace', color: '#991b1b', margin: 0 }}>
+                {errorMsg}
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => { setStep('confirm'); setErrorMsg(null) }}
+                style={{
+                  flex: 1, background: '#0e0d0b', color: '#f2efe8', border: 'none',
+                  padding: '12px 24px', font: '13px/1 DM Mono, Courier New, monospace',
+                  cursor: 'pointer', borderRadius: '4px',
+                }}
+              >
+                Try again
+              </button>
+              <button
+                onClick={onClose}
+                style={{
+                  background: 'transparent', color: '#6b6862', border: '1px solid #d8d4ca',
+                  padding: '12px 20px', font: '13px/1 DM Mono, Courier New, monospace',
+                  cursor: 'pointer', borderRadius: '4px',
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  )
+}
+
 // ── App card ───────────────────────────────────────────────────────────────────
 
 function AppCard({
   build,
   onEdit,
+  onBuildClaimed,
 }: {
   build: Build
   onEdit: (b: Build) => void
+  onBuildClaimed: () => void
 }) {
   const [hovered, setHovered] = useState(false)
   const [setupOpen, setSetupOpen] = useState(false)
+  const [claimOpen, setClaimOpen] = useState(false)
 
   const statusColor = {
     complete: '#8ab800',
@@ -1730,6 +1958,66 @@ function AppCard({
         </button>
       )}
 
+      {/* Claim app button — shown on staged, unclaimed builds */}
+      {build.staging && !build.claimed_at && build.claim_status !== 'claimed' && (
+        <div style={{ marginBottom: '12px' }}>
+          {build.claim_status === 'transfer_partial' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
+              <span style={{ font: '10px/1.4 DM Mono, Courier New, monospace', color: '#f97316' }}>
+                Transfer partially completed — check Vercel
+              </span>
+            </div>
+          ) : build.claim_status === 'pending_github_acceptance' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f97316', flexShrink: 0, display: 'inline-block' }} />
+              <span style={{ font: '11px/1 DM Mono, Courier New, monospace', color: '#f97316' }}>
+                Check email to accept GitHub transfer
+              </span>
+            </div>
+          ) : null}
+          <button
+            onClick={() => setClaimOpen(true)}
+            disabled={build.claim_status === 'pending_github_acceptance'}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              background: build.claim_status === 'pending_github_acceptance' ? 'transparent' : '#8ab800',
+              color: build.claim_status === 'pending_github_acceptance' ? '#8ab80099' : '#0e0d0b',
+              border: build.claim_status === 'pending_github_acceptance' ? '1px solid #8ab80040' : 'none',
+              font: '11px/1 DM Mono, Courier New, monospace',
+              fontWeight: 600,
+              cursor: build.claim_status === 'pending_github_acceptance' ? 'default' : 'pointer',
+              borderRadius: '4px',
+              minHeight: '28px',
+            }}
+          >
+            {build.claim_status === 'pending_github_acceptance' ? 'Transfer pending…' : 'Claim your app →'}
+          </button>
+        </div>
+      )}
+
+      {/* Claimed badge */}
+      {build.claim_status === 'claimed' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#8ab800', flexShrink: 0, display: 'inline-block' }} />
+          <span style={{ font: '11px/1 DM Mono, Courier New, monospace', color: '#8ab800' }}>
+            Claimed
+          </span>
+          {build.claimed_url && (
+            <a
+              href={build.claimed_url}
+              target="_blank"
+              rel="noreferrer"
+              style={{ font: '11px/1 DM Mono, Courier New, monospace', color: '#6b6862', textDecoration: 'none', marginLeft: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}
+            >
+              {build.claimed_url.replace('https://', '')}
+            </a>
+          )}
+        </div>
+      )}
+
       {/* Action buttons */}
       {build.status === 'complete' && (
         <div style={{ display: 'flex', gap: '10px' }}>
@@ -1739,6 +2027,7 @@ function AppCard({
               background: '#0e0d0b',
               color: '#f2efe8',
               border: 'none',
+              borderRadius: '4px',
               font: '11px/1 DM Mono, Courier New, monospace',
               padding: '7px 14px',
               cursor: 'pointer',
@@ -1753,6 +2042,7 @@ function AppCard({
                 background: 'transparent',
                 color: '#0e0d0b',
                 border: '1px solid #0e0d0b',
+                borderRadius: '4px',
                 font: '11px/1 DM Mono, Courier New, monospace',
                 padding: '7px 14px',
                 cursor: 'pointer',
@@ -1768,6 +2058,7 @@ function AppCard({
                 background: 'transparent',
                 color: '#0e0d0b',
                 border: '1px solid #0e0d0b',
+                borderRadius: '4px',
                 font: '11px/1 DM Mono, Courier New, monospace',
                 padding: '7px 14px',
                 cursor: 'pointer',
@@ -1834,6 +2125,18 @@ function AppCard({
 
       {/* Setup DB Modal */}
       {setupOpen && <SetupDBModal build={build} onClose={() => setSetupOpen(false)} />}
+
+      {/* Claim Modal */}
+      {claimOpen && (
+        <ClaimModal
+          build={build}
+          onClose={() => setClaimOpen(false)}
+          onClaimed={() => {
+            setClaimOpen(false)
+            onBuildClaimed()
+          }}
+        />
+      )}
     </div>
   )
 }

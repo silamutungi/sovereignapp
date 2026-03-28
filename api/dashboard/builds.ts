@@ -72,7 +72,10 @@ export default async function handler(req: any, res: any): Promise<void> {
         next_steps,
         supabase_schema,
         supabase_mode,
+        staging,
         claimed_at,
+        claim_status,
+        claimed_url,
         created_at
       `)
       .eq('email', email.toLowerCase())

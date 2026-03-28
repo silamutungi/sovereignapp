@@ -34,8 +34,7 @@ const LOG_STEPS: LogStep[] = [
   { matchOn: 'Database ready ✓',              icon: '✅', label: 'Database ready ✓' },
   { matchOn: 'Deploying to Vercel…',          icon: '⚙',  label: 'Deploying to Vercel…' },
   { matchOn: ['Live at', 'Sending your live URL…', 'done'], icon: '✅', label: 'Live on Vercel', urlKey: 'deployUrl' },
-  { matchOn: 'Sending your live URL…',        icon: '📧', label: 'Sending your live URL…' },
-  { matchOn: 'done',                          icon: '🎉', label: 'You own everything. Welcome to Sovereign.', terminal: true },
+  { matchOn: 'done',                          icon: '✦', label: 'You own everything. Welcome to Sovereign.', terminal: true },
 ]
 
 // Returns index of the most advanced step reached given the current step string.
@@ -223,6 +222,18 @@ export default function Building() {
   const BASE_POLL_MS           = 4000
   const MAX_BACKOFF_MS         = 15000
 
+  // Shared helper — used inside the poll callback and in render logic below.
+  const isSupabaseProvisioningError = (s: string) => {
+    const l = s.toLowerCase()
+    return (
+      l.includes('reconnect') ||
+      l.includes('supabase oauth token') ||
+      l.includes('no supabase organisation found on this account') ||
+      l.includes('no supabase organisation found') ||
+      l.includes('supabase project')
+    )
+  }
+
   // Trigger run-build once — but only after the user has chosen their database.
   // dbChoice === null means the choice UI is still showing; we wait.
   useEffect(() => {
@@ -314,22 +325,10 @@ export default function Building() {
         if (data.status === 'complete' || data.status === 'error') {
           stopPolling()
         }
-        // run-build set an error but kept status='queued' — Supabase provisioning
-        // failed. Show reconnect UI and reset dbChoice so run-build doesn't re-fire.
-        const isSupabaseErr = (s: string) => {
-          const l = s.toLowerCase()
-          return (
-            l.includes('reconnect') ||
-            l.includes('supabase oauth token') ||
-            l.includes('no supabase organisation found on this account') ||
-            l.includes('no supabase organisation found') ||
-            l.includes('supabase project')
-          )
-        }
         // Trigger reconnect UI for queued builds with a Supabase error AND
         // for error-state builds where Supabase provisioning failed.
         if (
-          data.error && isSupabaseErr(data.error) &&
+          data.error && isSupabaseProvisioningError(data.error) &&
           (data.status === 'queued' || data.status === 'error')
         ) {
           if (!supabaseRetry && buildId) {
@@ -421,30 +420,16 @@ export default function Building() {
   const isDone   = status?.status === 'complete'
   const isFailed = status?.status === 'error'
   const stepIdx  = resolvedStepIndex(status?.step ?? null)
-  // True when the build is stalled on a Supabase provisioning error — show reconnect UI
-  const isSupabaseProvisioningError = (s: string) => {
-    const l = s.toLowerCase()
-    return (
-      l.includes('reconnect') ||
-      l.includes('supabase oauth token') ||
-      l.includes('no supabase organisation found on this account') ||
-      l.includes('no supabase organisation found') ||
-      l.includes('supabase project')
-    )
-  }
   const needsSupabaseRetry = !retrying && (
     supabaseRetry ||
     (!!status?.error && isSupabaseProvisioningError(status.error)) ||
     (!!pollError && isSupabaseProvisioningError(pollError))
   )
 
-  // Login Connection = Vercel GitHub app not installed for this repo on sovereign team.
-  // Show a manual fallback rather than a generic error.
   const isLoginConnectionError = isFailed &&
     !!status?.error &&
     status.error.toLowerCase().includes("login connection")
 
-  // General infra failure (not Supabase, not login connection) — offer retry from checkpoint.
   const canRetryFromCheckpoint = isFailed && !needsSupabaseRetry && !isLoginConnectionError && !retrying
 
   const handleRetryFromCheckpoint = async () => {
@@ -666,9 +651,11 @@ export default function Building() {
             </>
           )}
 
-          <p style={S.homeLink}>
-            <a href="/" style={S.homeLinkA}>← Back to Sovereign</a>
-          </p>
+          {(!status || isDone || isFailed) && (
+            <p style={S.homeLink}>
+              <a href="/" style={S.homeLinkA}>← Back to Sovereign</a>
+            </p>
+          )}
         </div>
       </div>
     </>

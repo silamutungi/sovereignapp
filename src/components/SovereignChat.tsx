@@ -185,17 +185,19 @@ function ChatPanel() {
 
       {/* Input area */}
       <div className="sc-input-area">
-        <div className="sc-chips">
-          {CHIPS.map((chip) => (
-            <button
-              key={chip}
-              className="sc-chip"
-              onClick={() => { setInput(chip); inputRef.current?.focus() }}
-            >
-              {chip}
-            </button>
-          ))}
-        </div>
+        {messages.length === 0 && (
+          <div className="sc-chips">
+            {CHIPS.map((chip) => (
+              <button
+                key={chip}
+                className="sc-chip"
+                onClick={() => { setInput(chip); inputRef.current?.focus() }}
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="sc-send-row">
           <textarea
             ref={inputRef}
@@ -260,7 +262,7 @@ export function SovereignChat() {
           background: #0e0d0b;
           border: 0.5px solid #2a2925;
           border-radius: 16px; overflow: hidden;
-          width: 380px; height: 560px;
+          width: 380px; height: min(560px, calc(100vh - 120px));
           display: flex; flex-direction: column;
           box-shadow: 0 16px 48px rgba(0,0,0,0.6);
         }

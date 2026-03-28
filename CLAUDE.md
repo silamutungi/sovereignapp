@@ -908,3 +908,51 @@ Correct behaviour: those files use local file-based BrainAPI (brain/.brain-data/
 Fix: api/brain-cycle2.ts and api/brain-cycle3.ts are standalone Supabase-native implementations. They query the lessons table directly, do not import from brain/, and write results back to Supabase. The local brain/ files remain useful for local analysis and the 30-agent pipeline — they are not replaceable, just separate from the Vercel runtime.
 Rule: anything running on Vercel must be Supabase-native. brain/ files = local/pipeline only. api/ files = Vercel/serverless only.
 Learned: 2026-03-26.
+
+**Claim flow: staged app transfer to user's GitHub + Vercel accounts**
+Context: staging builds deploy to Sovereign's team. Users need a way to take ownership of their app permanently.
+Decision: POST /api/claim-build takes { build_id }, reads stored github_token and vercel_token from the builds table (never from request body — tokens are server-side only), and orchestrates:
+  1. GitHub transfer (if SOVEREIGN_GITHUB_ORG env var is set and repo is on that org) — sends user a GitHub email to accept
+  2. Create Vercel project on user's personal account using stored vercel_token (no teamId = personal scope)
+  3. Delete staging Vercel project using SOVEREIGN_VERCEL_TOKEN
+  4. Update builds: claimed_at=now(), staging=false, claim_status='claimed', claimed_url=newVercelUrl
+  5. Send "on its way" email via Resend
+Error states: 'claiming' (in progress), 'transfer_partial' (Vercel failed after GitHub transfer), 'pending_github_acceptance' (GitHub transfer sent).
+Rule: never accept tokens in request body — always read from Supabase server-side. claim_status field drives UI state.
+Decided: 2026-03-28.
+
+**Claim flow tokens: always server-side from builds table, never from request body**
+Wrong assumption: claim-build API should accept user_github_token and user_vercel_token in the request body.
+Correct behaviour: tokens are already stored in builds.github_token and builds.vercel_token from the initial OAuth flows. Accepting tokens in the API request body would expose them in transit unnecessarily and allow any caller to pass arbitrary tokens.
+Fix: api/claim-build.ts accepts only { build_id } and reads tokens from Supabase using the service role key. The tokens never leave the server.
+Learned: 2026-03-28.
+
+## Supabase Schema — 2026-03-28 Claim Flow Migrations
+
+Run in Supabase SQL Editor before deploying claim-build.ts:
+
+```sql
+ALTER TABLE builds ADD COLUMN IF NOT EXISTS claim_status text DEFAULT 'unclaimed';
+ALTER TABLE builds ADD COLUMN IF NOT EXISTS claimed_url text;
+```
+
+Confirm:
+```sql
+SELECT column_name FROM information_schema.columns
+WHERE table_name = 'builds' AND column_name IN ('claim_status', 'claimed_url');
+```
+Must return 2 rows. If fewer, the columns are missing and claim-build will fail silently.
+
+Also confirm existing columns are present (should already exist per earlier migrations):
+```sql
+SELECT column_name FROM information_schema.columns
+WHERE table_name = 'builds' AND column_name IN ('staging', 'claimed_at', 'expires_at');
+```
+Must return 3 rows.
+
+## Claim Flow — Optional Env Vars (for sovereign-org GitHub staging)
+
+These env vars enable the GitHub transfer step. If not set, the GitHub step is skipped (safe — repo is already on user's account in current architecture).
+
+- SOVEREIGN_GITHUB_ORG — GitHub org where staged repos live (e.g., "sovereign-builds")
+- SOVEREIGN_GITHUB_TOKEN — Personal access token with admin rights on SOVEREIGN_GITHUB_ORG

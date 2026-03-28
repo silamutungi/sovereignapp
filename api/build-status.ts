@@ -46,7 +46,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     let dbRes: any
     try {
       dbRes = await fetch(
-        `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&deleted_at=is.null&select=status,step,app_name,repo_url,deploy_url,error,vercel_project_id,updated_at`,
+        `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&deleted_at=is.null&select=status,step,app_name,repo_url,deploy_url,error,vercel_project_id,updated_at,claim_status`,
         {
           headers: {
             apikey: serviceKey,
@@ -78,6 +78,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       error: string | null
       vercel_project_id: string | null
       updated_at: string | null
+      claim_status: string | null
     }>
 
     if (!rows.length) {
@@ -169,12 +170,13 @@ export default async function handler(req: any, res: any): Promise<void> {
     }
 
     res.status(200).json({
-      status:    row.status,
-      step:      row.step,
-      appName:   row.app_name,
-      repoUrl:   row.repo_url,
-      deployUrl: row.deploy_url,
-      error:     row.error,
+      status:      row.status,
+      step:        row.step,
+      appName:     row.app_name,
+      repoUrl:     row.repo_url,
+      deployUrl:   row.deploy_url,
+      error:       row.error,
+      claim_status: row.claim_status,
     })
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : String(err) })

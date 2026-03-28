@@ -16,15 +16,15 @@ interface BrainStats {
   trend?: string
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  generation: '#22c55e',
-  deployment: '#3b82f6',
-  database: '#8b5cf6',
-  oauth: '#f97316',
-  env_vars: '#ef4444',
-  ux: '#ec4899',
-  agent: '#06b6d4',
-  general: '#6b7280',
+const CATEGORY_COLOR: Record<string, string> = {
+  generation: '#8ab800',
+  deployment: '#8ab800',
+  database:   '#8ab800',
+  oauth:      '#8ab800',
+  env_vars:   '#c0392b',
+  ux:         '#8ab800',
+  agent:      '#8ab800',
+  general:    '#6b6862',
 }
 
 const BrainDashboard: FC = () => {
@@ -56,121 +56,154 @@ const BrainDashboard: FC = () => {
 
   if (loading) {
     return (
-      <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ height: '2rem', background: '#e5e7eb', borderRadius: '4px', width: '300px', marginBottom: '2rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
-        {[1, 2, 3].map(i => (
-          <div key={i} style={{ height: '80px', background: '#e5e7eb', borderRadius: '8px', marginBottom: '1rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
-        ))}
-        <style>{`@keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.5 } }`}</style>
-      </div>
+      <>
+        <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
+        <div style={{ minHeight: '100vh', background: '#f2efe8', padding: '48px 32px', fontFamily: 'DM Mono, Courier New, monospace' }}>
+          <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <div style={{ height: '28px', background: '#d8d4ca', width: '220px', marginBottom: '40px', animation: 'pulse 1.4s infinite' }} />
+            {[0, 1, 2].map(i => (
+              <div key={i} style={{ height: '72px', background: '#d8d4ca', marginBottom: '8px', animation: 'pulse 1.4s infinite' }} />
+            ))}
+          </div>
+        </div>
+      </>
     )
   }
 
   if (error) {
     return (
-      <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto', textAlign: 'center' }}>
-        <p style={{ color: '#ef4444', fontFamily: 'DM Mono, monospace' }}>{error}</p>
-        <button onClick={() => window.location.reload()} style={{ marginTop: '1rem', padding: '0.5rem 1rem', background: '#c8f060', border: 'none', borderRadius: '6px', cursor: 'pointer', fontFamily: 'DM Mono, monospace' }}>
-          Try again
-        </button>
+      <div style={{ minHeight: '100vh', background: '#f2efe8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'DM Mono, Courier New, monospace' }}>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ color: '#c0392b', fontSize: '13px', marginBottom: '16px' }}>{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{ padding: '10px 20px', background: '#0e0d0b', color: '#f2efe8', border: 'none', cursor: 'pointer', font: '13px/1 DM Mono, Courier New, monospace', borderRadius: '4px' }}
+          >
+            Try again
+          </button>
+        </div>
       </div>
     )
   }
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto', fontFamily: 'DM Mono, monospace' }}>
-      <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '2.5rem', marginBottom: '0.5rem', color: '#0e0d0b' }}>
-        Sovereign Brain
-      </h1>
-      <p style={{ color: '#6b6862', marginBottom: '2rem', fontSize: '0.9rem' }}>
-        The knowledge system that makes every build smarter than the last.
-      </p>
+    <div style={{ minHeight: '100vh', background: '#f2efe8', fontFamily: 'DM Mono, Courier New, monospace' }}>
 
-      {/* Stats Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-        {[
-          { label: 'Lessons Recorded', value: lessons.length, icon: '📚' },
-          { label: 'Patterns Learned', value: stats?.patterns_count || 0, icon: '🔄' },
-          { label: 'Builds Analyzed', value: stats?.builds_tracked || 0, icon: '🏗️' },
-          { label: 'Quality Trend', value: stats?.trend || 'stable', icon: stats?.trend === 'improving' ? '↑' : '→' },
-        ].map(stat => (
-          <div key={stat.label} style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '1.25rem' }}>
-            <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{stat.icon}</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#0e0d0b' }}>{stat.value}</div>
-            <div style={{ fontSize: '0.8rem', color: '#6b6862' }}>{stat.label}</div>
-          </div>
-        ))}
+      {/* Top bar */}
+      <div style={{ background: '#0e0d0b', padding: '0 32px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <a href="/dashboard" style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '20px', fontWeight: 400, color: '#f2efe8', textDecoration: 'none' }}>
+          Sovereign<span style={{ color: '#8ab800' }}>.</span>
+        </a>
+        <a href="/dashboard" style={{ font: '11px/1 DM Mono, Courier New, monospace', color: '#6b6862', textDecoration: 'none' }}>
+          ← Dashboard
+        </a>
       </div>
 
-      {/* Category Filter */}
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
-        {categories.map(cat => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            style={{
-              padding: '0.35rem 0.75rem',
-              borderRadius: '999px',
-              border: '1px solid',
-              borderColor: activeCategory === cat ? '#0e0d0b' : '#e5e7eb',
-              background: activeCategory === cat ? '#0e0d0b' : '#ffffff',
-              color: activeCategory === cat ? '#f2efe8' : '#0e0d0b',
-              cursor: 'pointer',
-              fontSize: '0.8rem',
-              fontFamily: 'DM Mono, monospace',
-            }}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
+      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '48px 32px 80px' }}>
 
-      {/* Lessons List */}
-      {filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: '#6b6862' }}>
-          <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🧠</div>
-          <p>No lessons yet. The brain learns from every build.</p>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {filtered.map(lesson => (
+        {/* Header */}
+        <p style={{ font: '11px/1 DM Mono, Courier New, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#6b6862', margin: '0 0 10px' }}>
+          Knowledge system
+        </p>
+        <h1 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '36px', fontWeight: 400, color: '#0e0d0b', margin: '0 0 32px', lineHeight: 1.15 }}>
+          Sovereign Brain
+        </h1>
+
+        {/* Stats row */}
+        <div style={{ display: 'flex', borderBottom: '1px solid #d8d4ca', marginBottom: '40px' }}>
+          {[
+            { label: 'Lessons', value: lessons.length },
+            { label: 'Patterns', value: stats?.patterns_count ?? 0 },
+            { label: 'Builds tracked', value: stats?.builds_tracked ?? 0 },
+            { label: 'Trend', value: stats?.trend ?? 'stable' },
+          ].map((stat, i, arr) => (
             <div
-              key={lesson.id}
+              key={stat.label}
               style={{
-                background: '#ffffff',
-                border: '1px solid #e5e7eb',
-                borderLeft: `3px solid ${CATEGORY_COLORS[lesson.category] || '#6b7280'}`,
-                borderRadius: '6px',
-                padding: '1rem 1.25rem',
+                paddingRight: i < arr.length - 1 ? '32px' : 0,
+                marginRight: i < arr.length - 1 ? '32px' : 0,
+                borderRight: i < arr.length - 1 ? '1px solid #d8d4ca' : 'none',
+                paddingBottom: '24px',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                <span style={{
-                  fontSize: '0.7rem',
-                  padding: '0.2rem 0.5rem',
-                  borderRadius: '999px',
-                  background: CATEGORY_COLORS[lesson.category] || '#6b7280',
-                  color: '#ffffff',
-                  fontFamily: 'DM Mono, monospace',
-                }}>
-                  {lesson.category}
-                </span>
-                <span style={{ fontSize: '0.75rem', color: '#6b6862' }}>
-                  {lesson.build_count}× builds
-                </span>
+              <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '28px', color: '#0e0d0b' }}>
+                {stat.value}
               </div>
-              <p style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', color: '#0e0d0b', fontWeight: 500 }}>
-                {lesson.problem}
-              </p>
-              {lesson.solution && (
-                <p style={{ margin: 0, fontSize: '0.8rem', color: '#6b6862' }}>
-                  → {lesson.solution}
-                </p>
-              )}
+              <div style={{ font: '11px/1 DM Mono, Courier New, monospace', textTransform: 'uppercase', color: '#6b6862', marginTop: '4px' }}>
+                {stat.label}
+              </div>
             </div>
           ))}
         </div>
-      )}
+
+        {/* Category filter */}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
+          {categories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              style={{
+                padding: '5px 12px',
+                borderRadius: '100px',
+                border: '1px solid',
+                borderColor: activeCategory === cat ? '#0e0d0b' : '#d8d4ca',
+                background: activeCategory === cat ? '#0e0d0b' : 'transparent',
+                color: activeCategory === cat ? '#f2efe8' : '#6b6862',
+                cursor: 'pointer',
+                font: '11px/1 DM Mono, Courier New, monospace',
+              }}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* Lessons list */}
+        {filtered.length === 0 ? (
+          <div style={{ padding: '48px 0', textAlign: 'center' }}>
+            <p style={{ font: '13px/1.6 DM Mono, Courier New, monospace', color: '#6b6862', margin: 0 }}>
+              No lessons yet. The brain learns from every build.
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: '#d8d4ca', border: '1px solid #d8d4ca' }}>
+            {filtered.map(lesson => (
+              <div
+                key={lesson.id}
+                style={{
+                  background: '#f2efe8',
+                  borderLeft: `3px solid ${CATEGORY_COLOR[lesson.category] ?? '#6b6862'}`,
+                  padding: '20px 24px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{
+                    font: '10px/1 DM Mono, Courier New, monospace',
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    color: CATEGORY_COLOR[lesson.category] ?? '#6b6862',
+                  }}>
+                    {lesson.category}
+                  </span>
+                  {lesson.build_count > 0 && (
+                    <span style={{ font: '11px/1 DM Mono, Courier New, monospace', color: '#6b6862' }}>
+                      {lesson.build_count}× builds
+                    </span>
+                  )}
+                </div>
+                <p style={{ margin: '0 0 6px', font: '13px/1.5 DM Mono, Courier New, monospace', color: '#0e0d0b' }}>
+                  {lesson.problem}
+                </p>
+                {lesson.solution && (
+                  <p style={{ margin: 0, font: '12px/1.5 DM Mono, Courier New, monospace', color: '#6b6862' }}>
+                    → {lesson.solution}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
