@@ -384,9 +384,15 @@ Return only the image prompt text, nothing else. Max 100 words.`
             })
           }
         )
+        console.log('[generate] gemini response status:', geminiRes.status)
+        if (!geminiRes.ok) {
+          const errText = await geminiRes.text()
+          console.log('[generate] gemini error body:', errText.slice(0, 300))
+        }
         const geminiData = await geminiRes.json() as {
           candidates?: Array<{ content: { parts: Array<{ inlineData?: { data: string; mimeType: string } }> } }>
         }
+        console.log('[generate] gemini candidates:', JSON.stringify(geminiData.candidates?.map(c => c.content?.parts?.map(p => p.inlineData ? 'has-image' : 'text'))))
         const imgPart = geminiData.candidates?.[0]?.content?.parts?.find(p => p.inlineData)
         if (imgPart?.inlineData) {
           const { data: b64, mimeType } = imgPart.inlineData
@@ -448,7 +454,7 @@ Return only the image prompt text, nothing else. Max 100 words.`
       }
 
     } catch (e) {
-      console.log('[generate] image generation failed, continuing without hero:', e)
+      console.log('[generate] image generation error:', e instanceof Error ? e.message : String(e))
       heroImageUrl = null
     }
 
