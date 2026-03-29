@@ -12,9 +12,9 @@
 import { checkRateLimit, getClientIp } from '../../_rateLimit.js'
 
 function siteBase(): string {
-  if (process.env.VERCEL_ENV === 'production') return 'https://sovereignapp.dev'
+  if (process.env.VERCEL_ENV === 'production') return 'https://visila.com'
   if (process.env.VERCEL_ENV === 'preview') {
-    return `https://${process.env.VERCEL_URL ?? 'sovereignapp.vercel.app'}`
+    return `https://${process.env.VERCEL_URL ?? 'visila.vercel.app'}`
   }
   return `http://localhost:${process.env.PORT ?? 5173}`
 }

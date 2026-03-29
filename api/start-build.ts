@@ -83,6 +83,9 @@ export default async function handler(req: any, res: any): Promise<void> {
       files,
       supabaseSchema,
       setupInstructions,
+      appCategory,
+      competitors,
+      parityFeatures,
     } = body as Record<string, any> ?? {}
     if (!rawEmail || !appName) {
       res.status(400).json({ error: '`email` and `appName` are required' })
@@ -116,7 +119,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       res.status(429).json({
         error: 'rate_limited',
         message: 'You have used all 3 free builds. Upgrade to Pro for unlimited builds.',
-        upgradeUrl: 'https://sovereignapp.dev/#pricing',
+        upgradeUrl: 'https://visila.com/#pricing',
       })
       return
     }
@@ -136,6 +139,9 @@ export default async function handler(req: any, res: any): Promise<void> {
         files: files ?? null,
         supabase_schema: supabaseSchema ?? null,
         setup_instructions: setupInstructions ?? null,
+        app_category: appCategory ?? null,
+        competitors: competitors ?? null,
+        parity_features: parityFeatures ?? null,
         status: 'pending_github',
         step: 'Waiting for GitHub connection…',
       }),

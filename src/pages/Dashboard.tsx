@@ -765,6 +765,13 @@ function AuthDashboard({ email }: { email: string }) {
                 build={build}
                 onEdit={(b: Build) => navigate(`/app/${b.id}/edit`)}
                 onBuildClaimed={() => void fetchBuilds()}
+                onDelete={(id) => {
+                  setBuilds((prev) => prev.filter((b) => b.id !== id))
+                  void fetch(
+                    `/api/dashboard/builds?id=${encodeURIComponent(id)}&email=${encodeURIComponent(email)}`,
+                    { method: 'DELETE' },
+                  ).catch(() => { /* non-fatal — optimistic removal already applied */ })
+                }}
               />
             ))
           )}
@@ -1253,14 +1260,17 @@ function AppCard({
   build,
   onEdit,
   onBuildClaimed,
+  onDelete,
 }: {
   build: Build
   onEdit: (b: Build) => void
   onBuildClaimed: () => void
+  onDelete: (id: string) => void
 }) {
   const [hovered, setHovered] = useState(false)
   const [setupOpen, setSetupOpen] = useState(false)
   const [claimOpen, setClaimOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const statusColor = {
     complete: '#8ab800',
@@ -1611,6 +1621,61 @@ function AppCard({
       >
         {relativeDate(build.created_at)}
       </span>
+
+      {/* Delete */}
+      <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+        {confirmDelete ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ font: '11px/1 DM Mono, Courier New, monospace', color: '#6b6862' }}>
+              Delete this app?
+            </span>
+            <button
+              onClick={() => onDelete(build.id)}
+              style={{
+                background: '#c0392b',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                font: '11px/1 DM Mono, Courier New, monospace',
+                padding: '6px 12px',
+                cursor: 'pointer',
+              }}
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => setConfirmDelete(false)}
+              style={{
+                background: 'transparent',
+                color: '#6b6862',
+                border: '1px solid #d8d4ca',
+                borderRadius: '4px',
+                font: '11px/1 DM Mono, Courier New, monospace',
+                padding: '6px 12px',
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            style={{
+              background: 'transparent',
+              color: '#6b6862',
+              border: 'none',
+              font: '11px/1 DM Mono, Courier New, monospace',
+              padding: '4px 0',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+              textUnderlineOffset: '3px',
+            }}
+          >
+            Delete
+          </button>
+        )}
+      </div>
 
       {/* Setup DB Modal */}
       {setupOpen && <SetupDBModal build={build} onClose={() => setSetupOpen(false)} />}

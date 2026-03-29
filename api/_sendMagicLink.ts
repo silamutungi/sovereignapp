@@ -19,11 +19,11 @@ function getSupabase() {
 
 function getDashboardUrl(token: string): string {
   if (process.env.VERCEL_ENV === 'production') {
-    return `https://sovereignapp.dev/dashboard?token=${token}`
+    return `https://visila.com/dashboard?token=${token}`
   }
   const base =
     process.env.VERCEL_ENV === 'preview'
-      ? `https://${process.env.VERCEL_URL ?? 'sovereignapp.vercel.app'}`
+      ? `https://${process.env.VERCEL_URL ?? 'visila.vercel.app'}`
       : `http://localhost:${process.env.PORT ?? 5173}`
   return `${base}/dashboard?token=${token}`
 }
@@ -67,7 +67,7 @@ export async function sendMagicLink(email: string): Promise<void> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'Sovereign <noreply@sovereignapp.dev>',
+      from: 'Visila <noreply@visila.com>',
       to: [email],
       subject: 'Your Sovereign dashboard link',
       html: `<!DOCTYPE html>

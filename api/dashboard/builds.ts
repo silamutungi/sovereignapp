@@ -26,8 +26,55 @@ function getSupabase() {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function handler(req: any, res: any): Promise<void> {
-  if (req.method !== 'GET') {
+  if (req.method !== 'GET' && req.method !== 'DELETE') {
     res.status(405).json({ error: 'Method not allowed' })
+    return
+  }
+
+  if (req.method === 'DELETE') {
+    const ip =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
+      'unknown'
+
+    const rateLimitResult = checkRateLimit(`dashboard-delete:${ip}`, 20, 60 * 1000)
+    if (!rateLimitResult.allowed) {
+      res.setHeader('Retry-After', String(rateLimitResult.retryAfter ?? 60))
+      res.status(429).json({ error: `Too many requests. Retry after ${rateLimitResult.retryAfter ?? 60}s.` })
+      return
+    }
+
+    const { id, email } = req.query
+    if (!id || typeof id !== 'string' || !email || typeof email !== 'string') {
+      res.status(400).json({ error: 'id and email are required' })
+      return
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      res.status(400).json({ error: 'Invalid email' })
+      return
+    }
+
+    try {
+      const supabase = getSupabase()
+      const { error } = await supabase
+        .from('builds')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('email', email.toLowerCase())
+        .is('deleted_at', null)
+
+      if (error) {
+        console.error('[dashboard/builds] DELETE error:', error.code, error.message)
+        res.status(500).json({ error: 'Failed to delete build' })
+        return
+      }
+
+      res.status(200).json({ ok: true })
+    } catch (err) {
+      console.error('[dashboard/builds] DELETE error:', err)
+      res.status(500).json({ error: 'Something went wrong.' })
+    }
     return
   }
 

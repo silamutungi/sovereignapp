@@ -1,4 +1,4 @@
-# Sovereign — Architecture Decisions
+# Visila — Architecture Decisions
 
 Product and engineering decisions with full context. Referenced in CLAUDE.md.
 Update this file whenever a significant decision is made or revisited.
@@ -7,11 +7,11 @@ Update this file whenever a significant decision is made or revisited.
 
 ## [Working apps, not landing pages]
 
-**Context:** Early Sovereign scaffolds generated functional but visually minimal apps — essentially wireframes with Tailwind classes. Founders receiving these felt the output was too basic to share.
+**Context:** Early Visila scaffolds generated functional but visually minimal apps — essentially wireframes with Tailwind classes. Founders receiving these felt the output was too basic to share.
 
-**Decision:** Every app Sovereign generates is indistinguishable from a product that went through 6 months of design sprints and a senior engineering team. The standard is: "Would this feel at home in an Apple keynote?" (the Jony Ive bar). Not a starter kit. Not a wireframe. A working, beautiful app.
+**Decision:** Every app Visila generates is indistinguishable from a product that went through 6 months of design sprints and a senior engineering team. The standard is: "Would this feel at home in an Apple keynote?" (the Jony Ive bar). Not a starter kit. Not a wireframe. A working, beautiful app.
 
-**Rationale:** Sovereign's core promise is "Build without permission" — founders shipping something they're proud of in minutes. If the output needs weeks of design work before it can be shown to users, Sovereign has not delivered on that promise. The alternative (fast but ugly) is the Lovable/bolt.new gap Sovereign is designed to close.
+**Rationale:** Visila's core promise is "Build without permission" — founders shipping something they're proud of in minutes. If the output needs weeks of design work before it can be shown to users, Visila has not delivered on that promise. The alternative (fast but ugly) is the Lovable/bolt.new gap Visila is designed to close.
 
 **What this means for generation:**
 - Every page has loading states, error states, and empty states
@@ -25,11 +25,11 @@ Update this file whenever a significant decision is made or revisited.
 
 ---
 
-## [Staging builds deploy to Sovereign's Vercel team]
+## [Staging builds deploy to Visila's Vercel team]
 
 **Context:** Originally run-build.ts used the user's Vercel OAuth token for all Vercel API calls, which caused confusion about where apps were deployed and who owned them.
 
-**Decision:** All staging builds (apps generated before the user claims ownership) deploy to Sovereign's own Vercel team using SOVEREIGN_VERCEL_TOKEN and SOVEREIGN_VERCEL_TEAM_ID. The user's vercel_token is captured and stored but never used during the build pipeline. It is reserved for the future claim flow (ownership transfer).
+**Decision:** All staging builds (apps generated before the user claims ownership) deploy to Visila's own Vercel team using VISILA_VERCEL_TOKEN and VISILA_VERCEL_TEAM_ID. The user's vercel_token is captured and stored but never used during the build pipeline. It is reserved for the future claim flow (ownership transfer).
 
 **Rationale:** Users should be able to see their app immediately without needing to set up their own Vercel account first. The staging period (default 7 days) gives them time to decide whether to claim the app and move it to their own account.
 
@@ -39,11 +39,11 @@ Update this file whenever a significant decision is made or revisited.
 
 ## [brief extraction runs before OAuth]
 
-**Context:** Users pasting long PRDs into the idea input wanted confirmation that Sovereign understood their idea before committing to the OAuth flow.
+**Context:** Users pasting long PRDs into the idea input wanted confirmation that Visila understood their idea before committing to the OAuth flow.
 
 **Decision:** POST /api/extract-brief runs after idea submit, before GitHub/Vercel OAuth begins. For ideas 200+ chars or multiline, it extracts a structured AppBrief and shows a confirmation screen. Short ideas skip extraction and proceed immediately. Extraction failure always falls back to raw idea — never blocks the user.
 
-**Rationale:** Reduces wasted OAuth flows and gives founders confidence that Sovereign read their PRD correctly. The confirmation screen ("Looks good, build it →" / "Edit brief →") is the moment of commitment before irreversible work begins.
+**Rationale:** Reduces wasted OAuth flows and gives founders confidence that Visila read their PRD correctly. The confirmation screen ("Looks good, build it →" / "Edit brief →") is the moment of commitment before irreversible work begins.
 
 **Decided:** 2026-03-23.
 
@@ -87,7 +87,7 @@ Update this file whenever a significant decision is made or revisited.
 
 ## [Lessons knowledge base — auto-capture build failures]
 
-**Context:** Sovereign needed a way to learn from build failures without requiring manual triage after every failed build.
+**Context:** Visila needed a way to learn from build failures without requiring manual triage after every failed build.
 
 **Decision:** Every build failure caught by the outer provisionErr catch in run-build.ts is automatically inserted into the lessons table via recordFailureLesson(). Category is inferred from the error message. The solution field starts empty — to be reviewed and filled in manually. GET /api/lessons serves them publicly for apps with non-empty solutions.
 

@@ -144,6 +144,9 @@ export default function EditApp() {
   const [queueOpen, setQueueOpen] = useState(false)
   const [queueRunning, setQueueRunning] = useState(false)
 
+  // Plan mode — pending instruction awaiting user approval
+  const [planPending, setPlanPending] = useState<string | null>(null)
+
   // Brain hints
   const [hint, setHint] = useState<BrainHint | null>(null)
   const [lastHintType, setLastHintType] = useState<string | null>(null)
@@ -159,7 +162,7 @@ export default function EditApp() {
   // Chat history loading from Supabase
   const [messagesLoading, setMessagesLoading] = useState(false)
 
-  // Prefill auto-submit from SovereignChat "Do it →" navigation
+  // Prefill auto-submit from VisilaChat "Do it →" navigation
   const [pendingAutoSubmit, setPendingAutoSubmit] = useState<string | null>(null)
 
   // Panel theme (persisted)
@@ -256,12 +259,12 @@ export default function EditApp() {
       setBuild(found)
       setIframeSrc(found.deploy_url ?? '')
 
-      // Mark that the user has visited this edit page (used by SovereignChat proactive)
+      // Mark that the user has visited this edit page (used by VisilaChat proactive)
       if (buildId) {
         try { localStorage.setItem(`sovereign_edit_opened_${buildId}`, '1') } catch { /* storage unavailable */ }
       }
 
-      // Check for prefill from SovereignChat "Do it →" navigation
+      // Check for prefill from VisilaChat "Do it →" navigation
       try {
         const raw = sessionStorage.getItem('sc_prefill')
         if (raw) {
@@ -398,7 +401,7 @@ export default function EditApp() {
 
   // ── Submit edit ──────────────────────────────────────────────────────────────
 
-  const submitEdit = useCallback(async (text: string) => {
+  const submitEdit = useCallback(async (text: string, opts?: { skipPlan?: boolean }) => {
     if (!build || !text.trim() || busy || deploying) return
 
     // Amber intercept — dangerous patterns pause execution
@@ -413,12 +416,54 @@ export default function EditApp() {
       return
     }
 
+    // Plan mode — trigger for multi-word instructions containing action verbs
+    const ACTION_VERBS = /\b(add|remove|change|delete|update|create|build|replace|redesign|move)\b/i
+    const wordCount = text.trim().split(/\s+/).length
+    if (!opts?.skipPlan && wordCount > 4 && ACTION_VERBS.test(text)) {
+      setInput('')
+      if (inputRef.current) inputRef.current.style.height = 'auto'
+      setBusy(true)
+      setHint(null)
+      try {
+        const planRes = await fetch('/api/edit?plan=true', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            buildId: build.id,
+            appName: build.app_name,
+            repoUrl: build.repo_url,
+            editRequest: text.slice(0, 1000),
+          }),
+        })
+        const planData = await planRes.json() as { plan?: boolean; summary?: string; fileCount?: number; error?: string }
+        if (planRes.ok && planData.plan && planData.summary) {
+          setPlanPending(text)
+          setHint({
+            type: 'blue',
+            body: planData.summary,
+            action: text,
+            actionLabel: 'Do it →',
+          })
+        } else {
+          // Plan fetch failed — fall through to direct edit
+          void submitEdit(text, { skipPlan: true })
+        }
+      } catch {
+        // Network error on plan — fall through to direct edit
+        void submitEdit(text, { skipPlan: true })
+      } finally {
+        setBusy(false)
+      }
+      return
+    }
+
     pushMsg({ role: 'user', text })
     saveMessage('user', text)
     setInput('')
     if (inputRef.current) inputRef.current.style.height = 'auto'
     setBusy(true)
     setHint(null)
+    setPlanPending(null)
 
     try {
       const res = await fetch('/api/edit', {
@@ -456,7 +501,7 @@ export default function EditApp() {
     }
   }, [build, busy, deploying, editCount])
 
-  // ── Prefill auto-submit (from SovereignChat "Do it →" navigation) ────────────
+  // ── Prefill auto-submit (from VisilaChat "Do it →" navigation) ────────────
 
   useEffect(() => {
     if (!pendingAutoSubmit || !build) return
@@ -1124,10 +1169,27 @@ export default function EditApp() {
                     <HintCard
                       hint={hint}
                       onAction={(action) => {
+                        const wasPlan = planPending !== null
                         setHint(null)
-                        if (action) void submitEdit(action)
+                        setPlanPending(null)
+                        if (action) {
+                          if (wasPlan) {
+                            // Plan "Do it →" — execute directly, skip plan re-check
+                            void submitEdit(action, { skipPlan: true })
+                          } else {
+                            // Brain hint — populate input for user review
+                            setInput(action)
+                            setTimeout(() => {
+                              if (inputRef.current) {
+                                inputRef.current.focus()
+                                inputRef.current.style.height = 'auto'
+                                inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`
+                              }
+                            }, 0)
+                          }
+                        }
                       }}
-                      onDismiss={() => setHint(null)}
+                      onDismiss={() => { setHint(null); setPlanPending(null) }}
                     />
                   )}
                 </div>
@@ -1174,7 +1236,7 @@ export default function EditApp() {
                     className="ea-textarea"
                     placeholder="What do you want to change..."
                     value={input}
-                    disabled={busy || deploying}
+                    disabled={busy || deploying || planPending !== null}
                     onChange={(e) => {
                       setInput(e.target.value)
                       e.target.style.height = 'auto'
@@ -1210,7 +1272,7 @@ export default function EditApp() {
                       <button
                         className="ea-btn-green"
                         onClick={() => void submitEdit(input)}
-                        disabled={!input.trim() || busy || deploying}
+                        disabled={!input.trim() || busy || deploying || planPending !== null}
                       >
                         {busy ? '…' : 'Update →'}
                       </button>

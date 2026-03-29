@@ -1,4 +1,4 @@
-// src/lib/sovereign.ts
+// src/lib/visila.ts
 //
 // The full provisioning sequence.
 // Calls all four engine functions in order and returns a combined result.

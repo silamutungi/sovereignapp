@@ -251,7 +251,7 @@ function claimEmailHtml(appName: string, claimedUrl: string): string {
           <!-- Footer -->
           <tr>
             <td style="text-align:center;">
-              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862;">© 2026 Sovereign &nbsp;·&nbsp; <a href="https://sovereignapp.dev" style="color:#6b6862;text-decoration:none;">sovereignapp.dev</a> &nbsp;·&nbsp; Built without permission</p>
+              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862;">© 2026 Sovereign &nbsp;·&nbsp; <a href="https://visila.com" style="color:#6b6862;text-decoration:none;">visila.com</a> &nbsp;·&nbsp; Built without permission</p>
             </td>
           </tr>
 
@@ -278,7 +278,7 @@ async function sendClaimEmail(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Sovereign <noreply@sovereignapp.dev>',
+        from: 'Visila <noreply@visila.com>',
         to: [email],
         subject: `${appName} is on its way to you`,
         html: claimEmailHtml(appName, claimedUrl),

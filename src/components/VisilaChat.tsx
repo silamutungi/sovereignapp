@@ -1,4 +1,4 @@
-// src/components/SovereignChat.tsx
+// src/components/VisilaChat.tsx
 //
 // Floating Sovereign Chat — available on every page.
 // Co-founder experience: proactive outreach, action buttons with navigation,
@@ -237,7 +237,7 @@ function ChatPanel() {
   }, [closeChat, navigate])
 
   return (
-    <div className="sc-panel" role="dialog" aria-label="Sovereign Chat">
+    <div className="sc-panel" role="dialog" aria-label="Visila Chat">
       {/* Header */}
       <div className="sc-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -413,7 +413,7 @@ function ChatPanel() {
 
 // ── Root component ────────────────────────────────────────────────────────────
 
-export function SovereignChat() {
+export function VisilaChat() {
   const { isOpen, openChat, closeChat } = useChatStore()
 
   return (
@@ -589,7 +589,7 @@ export function SovereignChat() {
       <button
         className="sc-fab"
         onClick={() => (isOpen ? closeChat() : openChat())}
-        aria-label={isOpen ? 'Close Sovereign Chat' : 'Open Sovereign Chat'}
+        aria-label={isOpen ? 'Close Visila Chat' : 'Open Visila Chat'}
       >
         <span className="sc-fab-letter">S</span>
       </button>

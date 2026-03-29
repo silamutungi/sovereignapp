@@ -28,4 +28,4 @@ Sovereign exists to give everyone the benefits of AI-powered app building withou
 
 ## Reporting a vulnerability
 
-If you find a security issue in Sovereign or in a Sovereign-generated app template, please email security@sovereignapp.dev. We will respond within 24 hours. We take every report seriously.
+If you find a security issue in Sovereign or in a Sovereign-generated app template, please email security@visila.com. We will respond within 24 hours. We take every report seriously.

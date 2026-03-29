@@ -10,8 +10,8 @@ See `scripts/env-checklist.md` for the complete env var reference.
 
 1. **Clone the repo**
    ```bash
-   git clone git@github.com:silamutungi/sovereignapp.git
-   cd sovereignapp
+   git clone git@github.com:silamutungi/visila.git
+   cd visila
    npm install
    ```
 
@@ -58,13 +58,13 @@ See `scripts/env-checklist.md` for the complete env var reference.
    npx tsx scripts/check-env.ts
 
    # API health check:
-   curl https://sovereignapp.dev/api/health
+   curl https://visila.com/api/health
 
    # Lessons check:
-   curl https://sovereignapp.dev/api/lessons | head -c 200
+   curl https://visila.com/api/lessons | head -c 200
    ```
 
-10. **Test with a fresh build on sovereignapp.dev**
+10. **Test with a fresh build on visila.com**
     - Type an idea → click Build → complete the OAuth chain → verify confetti screen shows live URL
 
 ---
@@ -76,21 +76,21 @@ These require manual configuration in third-party dashboards:
 ### GitHub OAuth App
 - Go to [github.com/settings/developers](https://github.com/settings/developers) → OAuth Apps → New OAuth App
 - Application name: `Sovereign App`
-- Homepage URL: `https://sovereignapp.dev`
-- Callback URL: `https://sovereignapp.dev/api/auth/github/callback`
+- Homepage URL: `https://visila.com`
+- Callback URL: `https://visila.com/api/auth/github/callback`
 - Copy Client ID → `GITHUB_CLIENT_ID` and `VITE_GITHUB_CLIENT_ID`
 - Generate Client Secret → `GITHUB_CLIENT_SECRET`
 
 ### Vercel OAuth Integration
 - Go to [vercel.com/docs/integrations](https://vercel.com/docs/integrations) → Create Integration
-- Redirect URL: `https://sovereignapp.dev/api/auth/vercel/callback`
+- Redirect URL: `https://visila.com/api/auth/vercel/callback`
 - Copy `oac_*` client ID → `VERCEL_CLIENT_ID`
 - Copy client secret → `VERCEL_CLIENT_SECRET`
 - Copy integration slug → `VERCEL_INTEGRATION_SLUG`
 
 ### Supabase OAuth App
 - Go to [app.supabase.com](https://app.supabase.com) → Account → OAuth Apps → Create App
-- Redirect URI: `https://sovereignapp.dev/auth/supabase/callback`
+- Redirect URI: `https://visila.com/auth/supabase/callback`
 - Copy client ID → `SUPABASE_OAUTH_CLIENT_ID` and `VITE_SUPABASE_OAUTH_CLIENT_ID`
 - Copy client secret → `SUPABASE_OAUTH_CLIENT_SECRET`
 
@@ -112,7 +112,7 @@ Run these in order in the [Supabase SQL editor](https://supabase.com/dashboard):
 
 Run through this checklist after any deploy or when debugging:
 
-- [ ] Landing page loads at `https://sovereignapp.dev`
+- [ ] Landing page loads at `https://visila.com`
 - [ ] Idea input accepts text, placeholder cycles
 - [ ] Short idea (<200 chars): submit goes straight to generation spinner
 - [ ] Long idea (200+ chars): submit shows "Extracting your brief…" then brief confirmation screen
@@ -128,7 +128,7 @@ Run through this checklist after any deploy or when debugging:
 - [ ] Confetti screen shows live URL + repo link
 - [ ] Welcome email arrives (check Resend dashboard for delivery)
 - [ ] Magic link → dashboard shows the build with correct status
-- [ ] Lessons API responds: `curl https://sovereignapp.dev/api/lessons`
+- [ ] Lessons API responds: `curl https://visila.com/api/lessons`
 
 ---
 
@@ -150,7 +150,7 @@ Run through this checklist after any deploy or when debugging:
 
 ### Supabase OAuth not working
 - Verify `SUPABASE_OAUTH_CLIENT_ID`, `SUPABASE_OAUTH_CLIENT_SECRET`, `VITE_SUPABASE_OAUTH_CLIENT_ID` are set in Vercel
-- Verify redirect URI `https://sovereignapp.dev/auth/supabase/callback` is registered in Supabase OAuth App settings
+- Verify redirect URI `https://visila.com/auth/supabase/callback` is registered in Supabase OAuth App settings
 - After adding env vars, trigger a redeploy: `git commit --allow-empty -m 'chore: redeploy' && git push`
 
 ### Emails not sending
@@ -161,7 +161,7 @@ Run through this checklist after any deploy or when debugging:
 ### Cron not running
 - Verify `CRON_SECRET` is set in Vercel
 - Check `vercel.json` has the cron entry for `/api/expire-builds`
-- Test manually: `curl -H "x-cron-secret: <your-secret>" https://sovereignapp.dev/api/expire-builds`
+- Test manually: `curl -H "x-cron-secret: <your-secret>" https://visila.com/api/expire-builds`
 
 ---
 

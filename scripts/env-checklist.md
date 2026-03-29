@@ -36,7 +36,7 @@ Last updated: 2026-03-23
 | `GITHUB_CLIENT_SECRET` | GitHub OAuth App client secret | Same location | **Hard fail** — GitHub OAuth broken |
 | `VITE_GITHUB_CLIENT_ID` | Same client ID — public, used by frontend to build OAuth URL | Same value as `GITHUB_CLIENT_ID` | **Hard fail** — OAuth URL not built |
 
-> **Setup:** Callback URL to register: `https://sovereignapp.dev/api/auth/github/callback`
+> **Setup:** Callback URL to register: `https://visila.com/api/auth/github/callback`
 > For local dev also add: `http://localhost:5173/api/auth/github/callback`
 
 ---
@@ -49,7 +49,7 @@ Last updated: 2026-03-23
 | `VERCEL_CLIENT_SECRET` | Vercel integration client secret | Same location | **Hard fail** — Vercel OAuth broken |
 | `VERCEL_INTEGRATION_SLUG` | Marketplace listing slug (e.g. `sovereign-app`) | Set when creating the Vercel integration | **Hard fail** — OAuth redirect URL not built |
 
-> **Setup:** Redirect URL to register: `https://sovereignapp.dev/api/auth/vercel/callback`
+> **Setup:** Redirect URL to register: `https://visila.com/api/auth/vercel/callback`
 
 ---
 
@@ -61,7 +61,7 @@ Last updated: 2026-03-23
 | `SUPABASE_OAUTH_CLIENT_SECRET` | Supabase OAuth App client secret | Same page — copy Secret field | **Hard fail** — Supabase OAuth step broken. ⚠️ Secret not in any local env file — get from dashboard |
 | `VITE_SUPABASE_OAUTH_CLIENT_ID` | Same client ID — public, used by frontend to build OAuth URL | Same value as `SUPABASE_OAUTH_CLIENT_ID` | **Hard fail** — Supabase OAuth button broken. **Known value: `4c2d6168-822f-4f0f-9052-56393a467ae3`** |
 
-> **Setup:** Redirect URI to register: `https://sovereignapp.dev/auth/supabase/callback`
+> **Setup:** Redirect URI to register: `https://visila.com/auth/supabase/callback`
 > **Status:** Client ID values known. Secret requires dashboard. Run `scripts/set-vercel-env.ts` with fresh Vercel token to set the IDs automatically.
 
 ---
@@ -70,8 +70,8 @@ Last updated: 2026-03-23
 
 | Var | Purpose | Where to get it | Fail mode |
 |-----|---------|-----------------|-----------|
-| `SOVEREIGN_VERCEL_TEAM_ID` | Sovereign's staging Vercel team ID (team_*) — all generated apps deploy here | Vercel dashboard → Team Settings → General → Team ID | **Hard fail** — staging builds cannot deploy |
-| `SOVEREIGN_VERCEL_TOKEN` | Token scoped to sovereign staging team — used for all Vercel API calls during builds | [vercel.com/account/tokens](https://vercel.com/account/tokens) → Create token scoped to staging team | **Hard fail** — staging builds cannot deploy |
+| `VISILA_VERCEL_TEAM_ID` | Sovereign's staging Vercel team ID (team_*) — all generated apps deploy here | Vercel dashboard → Team Settings → General → Team ID | **Hard fail** — staging builds cannot deploy |
+| `VISILA_VERCEL_TOKEN` | Token scoped to sovereign staging team — used for all Vercel API calls during builds | [vercel.com/account/tokens](https://vercel.com/account/tokens) → Create token scoped to staging team | **Hard fail** — staging builds cannot deploy |
 
 > **Architecture:** Generated apps deploy to Sovereign's staging team, NOT the user's Vercel account. The user's `vercel_token` is preserved on the build record for future use in the claim flow (ownership transfer).
 
@@ -81,8 +81,8 @@ Last updated: 2026-03-23
 
 | Var | Purpose | Where to get it | Fail mode |
 |-----|---------|-----------------|-----------|
-| `SOVEREIGN_SUPABASE_REF` | Sovereign's own Supabase project ref (e.g. `abcdefghij`) | Supabase dashboard → Project Settings → General → Reference ID | Optional — sovereign-hosted path disabled if missing |
-| `SOVEREIGN_SUPABASE_MANAGEMENT_TOKEN` | Personal access token — runs schema SQL via Management API | [app.supabase.com](https://app.supabase.com) → Account → Access Tokens → Generate | Optional — sovereign-hosted path disabled if missing |
+| `VISILA_SUPABASE_REF` | Sovereign's own Supabase project ref (e.g. `abcdefghij`) | Supabase dashboard → Project Settings → General → Reference ID | Optional — sovereign-hosted path disabled if missing |
+| `VISILA_SUPABASE_MANAGEMENT_TOKEN` | Personal access token — runs schema SQL via Management API | [app.supabase.com](https://app.supabase.com) → Account → Access Tokens → Generate | Optional — sovereign-hosted path disabled if missing |
 | `SUPABASE_ORG_ID` | Sovereign's Supabase org ID — used when creating new projects | Supabase dashboard → Organization Settings → General → Organization ID | Optional — project creation disabled if missing |
 
 ---

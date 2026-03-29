@@ -565,8 +565,8 @@ function NdevPanel({ locale }: { locale: Locale }) {
       body: JSON.stringify({
         email,
         projectName: spec?.appName ?? '',
-        liveUrl: 'https://sovereignapp.dev',
-        repoUrl: 'https://github.com/silamutungi/sovereignapp',
+        liveUrl: 'https://visila.com',
+        repoUrl: 'https://github.com/silamutungi/visila',
       }),
     })
     setStage('connect')

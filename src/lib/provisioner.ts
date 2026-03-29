@@ -215,7 +215,7 @@ createRoot(document.getElementById('root')!).render(
       <p>Your app. Your code. Your infrastructure.</p>
       <p style={{ color: '#6b6862', fontSize: '0.875rem' }}>
         Built with{' '}
-        <a href="https://sovereignapp.dev" style={{ color: 'inherit' }}>
+        <a href="https://visila.com" style={{ color: 'inherit' }}>
           Sovereign
         </a>{' '}
         — you own everything.
@@ -267,7 +267,7 @@ export async function provisionGitHub(
     'POST',
     {
       name: projectName,
-      description: 'Built with Sovereign — sovereignapp.dev',
+      description: 'Built with Visila — visila.com',
       private: false,
       auto_init: false,
     },
@@ -509,7 +509,7 @@ export async function sendWelcomeEmail(
     `Sovereign has stepped back. This is yours now.`,
     ``,
     `— The Sovereign team`,
-    `sovereignapp.dev`,
+    `visila.com`,
   ].join('\n')
 
   const res = await fetch('https://api.resend.com/emails', {
@@ -519,7 +519,7 @@ export async function sendWelcomeEmail(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'Sovereign <noreply@sovereignapp.dev>',
+      from: 'Visila <noreply@visila.com>',
       to: [email],
       subject: 'Your app is live — you own everything',
       text: body,

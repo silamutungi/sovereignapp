@@ -10,7 +10,7 @@ import Changelog from './pages/Changelog'
 import EditApp from './pages/EditApp'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { ChatProvider } from './store/chatStore.tsx'
-import { SovereignChat } from './components/SovereignChat.tsx'
+import { VisilaChat } from './components/VisilaChat.tsx'
 
 // ── Diagnostic error boundary — shows full stack trace on render failures ─────
 class AppErrorBoundary extends Component<
@@ -53,7 +53,7 @@ createRoot(document.getElementById('root')!).render(
             </Routes>
           </AppErrorBoundary>
           {/* Global chat — renders on every page */}
-          <SovereignChat />
+          <VisilaChat />
         </BrowserRouter>
       </ChatProvider>
     </ErrorBoundary>

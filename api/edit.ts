@@ -21,6 +21,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { checkRateLimit } from './_rateLimit.js'
 
 export const MODEL_GENERATION = 'claude-sonnet-4-6'
+export const MODEL_FAST = 'claude-haiku-4-5-20251001'
 
 // SECURITY AUDIT
 // - Rate limited: 10/hr per IP
@@ -118,9 +119,6 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
-    // Mark build as building so the dashboard reflects the edit immediately
-    await setBuildStatus('building', 'Applying your edit…')
-
     const repoPath = String(repoUrl).replace('https://github.com/', '')
     console.log('[edit] repo target:', repoPath, 'buildId:', buildId)
 
@@ -128,6 +126,75 @@ export default async function handler(req: any, res: any): Promise<void> {
       Authorization: `Bearer ${githubToken}`,
       Accept: 'application/vnd.github.v3+json',
     }
+
+    // ── Plan mode — return summary without executing edit ────────────────────
+    if (req.query?.plan === 'true') {
+      // Step 1: Fetch file tree
+      let planFileTree: string[] = []
+      try {
+        const treeRes = await fetch(
+          `https://api.github.com/repos/${repoPath}/git/trees/main?recursive=1`,
+          { headers: ghHeaders },
+        )
+        if (treeRes.ok) {
+          const treeData = await treeRes.json() as { tree: Array<{ path: string; type: string }> }
+          planFileTree = treeData.tree
+            .filter((f) => f.type === 'blob' && f.path.startsWith('src/') && (f.path.endsWith('.tsx') || f.path.endsWith('.ts')))
+            .map((f) => f.path)
+        }
+      } catch { /* non-fatal — planFileTree stays empty */ }
+
+      // Step 2: Identify relevant files via Haiku
+      let planRelevantPaths: string[] = []
+      if (planFileTree.length > 0) {
+        try {
+          const haikuMsg = await anthropic.messages.create({
+            model: MODEL_FAST,
+            max_tokens: 256,
+            messages: [{
+              role: 'user',
+              content: `Here is the file tree of a React + Vite app:\n${planFileTree.join('\n')}\n\nThe user wants to make this change: ${editRequest}\n\nReturn a JSON array of the file paths most likely to need reading or editing to fulfill this instruction. Include the file that owns the relevant component. Max 5 files. Return only JSON, no fences, no explanation.`,
+            }],
+          })
+          const haikuRaw = haikuMsg.content
+            .filter((b) => b.type === 'text')
+            .map((b) => (b as { type: 'text'; text: string }).text)
+            .join('')
+            .trim()
+            .replace(/^```(?:json)?\s*/i, '')
+            .replace(/\s*```\s*$/, '')
+            .trim()
+          const parsed = JSON.parse(haikuRaw) as unknown
+          if (Array.isArray(parsed)) {
+            planRelevantPaths = (parsed as unknown[])
+              .filter((p): p is string => typeof p === 'string' && planFileTree.includes(p))
+              .slice(0, 5)
+          }
+        } catch { /* non-fatal — fileCount will be 0 */ }
+      }
+
+      // Generate plain English summary via Haiku
+      const summaryMsg = await anthropic.messages.create({
+        model: MODEL_FAST,
+        max_tokens: 128,
+        messages: [{
+          role: 'user',
+          content: `A user is editing their web app. Their instruction is: "${editRequest}"\n\nThe files that will change are: ${planRelevantPaths.length > 0 ? planRelevantPaths.join(', ') : 'the main page'}\n\nSummarize in one sentence what files will change and what the user will see. Never mention file names. Example: "I'll remove the image gallery from your homepage and clean up the footer." Return only the sentence.`,
+        }],
+      })
+      const summary = summaryMsg.content
+        .filter((b) => b.type === 'text')
+        .map((b) => (b as { type: 'text'; text: string }).text)
+        .join('')
+        .trim()
+
+      console.log(`[edit] plan mode — ${summary}`)
+      res.status(200).json({ plan: true, summary, fileCount: planRelevantPaths.length })
+      return
+    }
+
+    // Mark build as building so the dashboard reflects the edit immediately
+    await setBuildStatus('building', 'Applying your edit…')
 
     // ── GitHub file helper ───────────────────────────────────────────────────
     async function fetchGitHubFile(filePath: string): Promise<{ content: string; sha: string; path: string } | null> {
@@ -388,33 +455,12 @@ Rules for the new page:
       console.log('[edit] atomic commit succeeded', commitSha.slice(0, 7), new Date().toISOString())
 
     // ════════════════════════════════════════════════════════════════════════
-    // FILE_EDIT PATH (existing single-file logic)
+    // FILE_EDIT PATH — multi-file context-aware edit with single-file fallback
     // ════════════════════════════════════════════════════════════════════════
     } else {
-      console.log('[edit] detecting app type...', new Date().toISOString())
+      console.log('[edit] FILE_EDIT path — fetching file tree...', new Date().toISOString())
 
-      const CANDIDATE_FILES = ['src/pages/Home.tsx', 'src/App.tsx', 'index.html']
-      let targetFile: { content: string; sha: string; path: string } | null = null
-      for (const candidate of CANDIDATE_FILES) {
-        targetFile = await fetchGitHubFile(candidate)
-        if (targetFile) { console.log('[edit] editing file:', candidate); break }
-      }
-
-      if (!targetFile) {
-        console.error('[edit] no editable file found in repo')
-        await setBuildStatus('error', null, 'Could not read app code from GitHub')
-        res.status(500).json({ error: 'Could not read your app code' })
-        return
-      }
-
-      const isReact = targetFile.path.endsWith('.tsx') || targetFile.path.endsWith('.ts')
-      console.log('[edit] file:', targetFile.path, 'isReact:', isReact, 'length:', targetFile.content.length, new Date().toISOString())
-
-      // ── Generate updated file via Claude ───────────────────────────────────
-      console.log('[edit] generating edit...', new Date().toISOString())
-      await setBuildStatus('building', 'Generating your edit…')
-
-      // If the edit involves an image, pre-fetch a real URL server-side
+      // ── Image pre-fetch (shared by both multi-file and fallback paths) ─────
       let resolvedImageUrl: string | null = null
       const imageKeywords = editRequest.toLowerCase().match(
         /\b(image|photo|picture|hero|banner|background|portrait|scene|shot)\b/i
@@ -444,8 +490,161 @@ Rules for the new page:
         ? `\nIMAGES: Use this exact pre-fetched image URL (guaranteed to work): ${resolvedImageUrl}\nDo NOT use any other image URL — this one is already verified to load correctly.`
         : `\nIMAGES: Use https://loremflickr.com/1600/900/{keyword1},{keyword2},{keyword3} with keywords from the description. Never use source.unsplash.com, placeholder.com, or images.unsplash.com/photo-{id}.`
 
-      const prompt = isReact
-        ? `You are Sovereign's world-class design + engineering agent. You embody the Jony Ive standard: calm, precise, trustworthy, quietly powerful, inevitable to use. A founder is asking you to improve their app. You don't apply changes mechanically — you apply design judgment at every level.
+      // ── STEP 1: Fetch full file tree from GitHub ───────────────────────────
+      let fileTree: string[] = []
+      try {
+        const treeRes = await fetch(
+          `https://api.github.com/repos/${repoPath}/git/trees/main?recursive=1`,
+          { headers: ghHeaders },
+        )
+        if (treeRes.ok) {
+          const treeData = await treeRes.json() as { tree: Array<{ path: string; type: string }> }
+          fileTree = treeData.tree
+            .filter((f) => f.type === 'blob' && f.path.startsWith('src/') && (f.path.endsWith('.tsx') || f.path.endsWith('.ts')))
+            .map((f) => f.path)
+          console.log(`[edit] file-tree: ${fileTree.length} files`)
+        }
+      } catch (e) {
+        console.warn('[edit] file tree fetch failed (non-fatal):', e)
+      }
+
+      let multiFileSucceeded = false
+
+      if (fileTree.length > 0) {
+        // ── STEP 2: Identify relevant files via Haiku ────────────────────────
+        let relevantPaths: string[] = []
+        try {
+          const haikuMsg = await anthropic.messages.create({
+            model: MODEL_FAST,
+            max_tokens: 256,
+            messages: [{
+              role: 'user',
+              content: `Here is the file tree of a React + Vite app:\n${fileTree.join('\n')}\n\nThe user wants to make this change: ${editRequest}\n\nReturn a JSON array of the file paths most likely to need reading or editing to fulfill this instruction. Include the file that owns the relevant component. Max 5 files. Return only JSON, no fences, no explanation.`,
+            }],
+          })
+          const haikuRaw = haikuMsg.content
+            .filter((b) => b.type === 'text')
+            .map((b) => (b as { type: 'text'; text: string }).text)
+            .join('')
+            .trim()
+            .replace(/^```(?:json)?\s*/i, '')
+            .replace(/\s*```\s*$/, '')
+            .trim()
+          const parsed = JSON.parse(haikuRaw) as unknown
+          if (Array.isArray(parsed)) {
+            relevantPaths = (parsed as unknown[])
+              .filter((p): p is string => typeof p === 'string' && fileTree.includes(p))
+              .slice(0, 5)
+          }
+          console.log('[edit] relevant files:', relevantPaths.join(', '))
+        } catch (e) {
+          console.warn('[edit] Haiku file identification failed (falling back):', e)
+        }
+
+        if (relevantPaths.length > 0) {
+          // ── STEP 3: Fetch content of each relevant file ──────────────────
+          const fetchedFiles = await Promise.all(relevantPaths.map((p) => fetchGitHubFile(p)))
+          const validFiles = fetchedFiles.filter((f): f is NonNullable<typeof f> => f !== null)
+
+          if (validFiles.length > 0) {
+            await setBuildStatus('building', 'Generating your edit…')
+
+            const fileContextBlocks = validFiles
+              .map((f) => `### ${f.path}\n${f.content}`)
+              .join('\n\n---\n\n')
+
+            // ── STEP 4: Generate multi-file edit with Sonnet ───────────────
+            const multiFilePrompt = `You are Sovereign's world-class engineering agent editing a React + Vite + TypeScript web application. You apply design judgment at every level — the Jony Ive standard: calm, precise, trustworthy, quietly powerful.
+
+User instruction: ${editRequest}
+${imageGuidance}
+
+Current file contents:
+${fileContextBlocks}
+${editLessonContext}
+
+CODE RULES:
+- Never use React.* namespace (use named imports: import { useState, type FormEvent } from 'react')
+- Never use @/ path aliases — relative paths only
+- React Router v6: useNavigate not useHistory, Routes not Switch
+- Tailwind classes only — no inline styles except backgroundImage on hero sections
+- Hero images: backgroundImage inline style on section element, never an img tag
+
+Return a JSON object where:
+- keys are file paths (e.g. "src/pages/Home.tsx")
+- values are the complete updated file content
+
+Only include files that actually need to change.
+Return only valid JSON, no markdown fences. First character must be { and last must be }.`
+
+            try {
+              const multiFileMsg = await anthropic.messages.create({
+                model: MODEL_GENERATION,
+                max_tokens: 8000,
+                messages: [{ role: 'user', content: multiFilePrompt }],
+              })
+
+              const rawMulti = multiFileMsg.content
+                .filter((b) => b.type === 'text')
+                .map((b) => (b as { type: 'text'; text: string }).text)
+                .join('')
+                .trim()
+                .replace(/^```(?:json)?\s*/i, '')
+                .replace(/\s*```\s*$/, '')
+                .trim()
+
+              const changedFiles = JSON.parse(rawMulti) as Record<string, string>
+              const entries = Object.entries(changedFiles).filter(([, v]) => typeof v === 'string' && v.length > 0)
+
+              if (entries.length > 0) {
+                const filesToCommit = entries.map(([path, content]) => ({ path, content }))
+                console.log('[edit] atomic commit — files changed:', filesToCommit.map((f) => f.path).join(', '))
+                await setBuildStatus('building', 'Pushing your change…')
+
+                const atomicSha = await atomicCommit(filesToCommit, `edit: ${editRequest.slice(0, 60)}`)
+                if (atomicSha) {
+                  commitSha = atomicSha
+                  multiFileSucceeded = true
+                  console.log('[edit] atomic commit succeeded', commitSha.slice(0, 7), new Date().toISOString())
+                } else {
+                  console.warn('[edit] atomic commit failed — falling back to single-file mode')
+                }
+              } else {
+                console.warn('[edit] multi-file response had no valid entries — falling back')
+              }
+            } catch (e) {
+              console.warn('[edit] multi-file generation/parse failed (falling back):', e)
+            }
+          }
+        }
+      }
+
+      // ── STEP 5: Fallback — single-file edit if multi-file path failed ──────
+      if (!multiFileSucceeded) {
+        console.log('[edit] file-map failed, falling back to single-file mode')
+
+        const CANDIDATE_FILES = ['src/pages/Home.tsx', 'src/App.tsx', 'index.html']
+        let targetFile: { content: string; sha: string; path: string } | null = null
+        for (const candidate of CANDIDATE_FILES) {
+          targetFile = await fetchGitHubFile(candidate)
+          if (targetFile) { console.log('[edit] editing file:', candidate); break }
+        }
+
+        if (!targetFile) {
+          console.error('[edit] no editable file found in repo')
+          await setBuildStatus('error', null, 'Could not read app code from GitHub')
+          res.status(500).json({ error: 'Could not read your app code' })
+          return
+        }
+
+        const isReact = targetFile.path.endsWith('.tsx') || targetFile.path.endsWith('.ts')
+        console.log('[edit] file:', targetFile.path, 'isReact:', isReact, 'length:', targetFile.content.length, new Date().toISOString())
+
+        console.log('[edit] generating edit...', new Date().toISOString())
+        await setBuildStatus('building', 'Generating your edit…')
+
+        const prompt = isReact
+          ? `You are Sovereign's world-class design + engineering agent. You embody the Jony Ive standard: calm, precise, trustworthy, quietly powerful, inevitable to use. A founder is asking you to improve their app. You don't apply changes mechanically — you apply design judgment at every level.
 
 Return ONLY the complete updated file. No explanation, no markdown, no code fences. Just the raw TypeScript/JSX.
 
@@ -517,7 +716,7 @@ ${targetFile.content}
 The user wants this change: ${editRequest}
 ${editLessonContext}
 Apply the change with full design judgment. Return the complete updated file.`
-        : `You are editing a web app. Return ONLY the complete updated index.html file. No explanation, no markdown, no code fences. Just the raw HTML.
+          : `You are editing a web app. Return ONLY the complete updated index.html file. No explanation, no markdown, no code fences. Just the raw HTML.
 ${imageGuidance}
 
 Here is the current index.html:
@@ -528,62 +727,61 @@ The user wants this change: ${editRequest}
 ${editLessonContext}
 Apply the change. Keep everything else identical. Return the complete updated index.html.`
 
-      const message = await anthropic.messages.create({
-        model: MODEL_GENERATION,
-        max_tokens: 8000,
-        messages: [{ role: 'user', content: prompt }],
-      })
+        const message = await anthropic.messages.create({
+          model: MODEL_GENERATION,
+          max_tokens: 8000,
+          messages: [{ role: 'user', content: prompt }],
+        })
 
-      const updatedContent = message.content
-        .filter((b) => b.type === 'text')
-        .map((b) => (b as { type: 'text'; text: string }).text)
-        .join('')
-        .trim()
+        const updatedContent = message.content
+          .filter((b) => b.type === 'text')
+          .map((b) => (b as { type: 'text'; text: string }).text)
+          .join('')
+          .trim()
 
-      // Validate output matches expected file type
-      const isValidOutput = isReact
-        ? updatedContent.length > 50
-        : updatedContent.includes('<!DOCTYPE') || updatedContent.includes('<html')
+        const isValidOutput = isReact
+          ? updatedContent.length > 50
+          : updatedContent.includes('<!DOCTYPE') || updatedContent.includes('<html')
 
-      if (!isValidOutput) {
-        console.error('[edit] Claude returned unexpected output, length:', updatedContent.length)
-        await setBuildStatus('error', null, 'Could not generate the edit')
-        res.status(500).json({ error: 'Could not generate the edit' })
-        return
-      }
-      console.log('[edit] edit generated, length:', updatedContent.length, new Date().toISOString())
+        if (!isValidOutput) {
+          console.error('[edit] Claude returned unexpected output, length:', updatedContent.length)
+          await setBuildStatus('error', null, 'Could not generate the edit')
+          res.status(500).json({ error: 'Could not generate the edit' })
+          return
+        }
+        console.log('[edit] edit generated, length:', updatedContent.length, new Date().toISOString())
 
-      // ── Push updated file to GitHub ────────────────────────────────────────
-      console.log('[edit] pushing to github...', new Date().toISOString())
-      await setBuildStatus('building', 'Pushing your change…')
+        console.log('[edit] pushing to github...', new Date().toISOString())
+        await setBuildStatus('building', 'Pushing your change…')
 
-      const pushRes = await fetch(
-        `https://api.github.com/repos/${repoPath}/contents/${targetFile.path}`,
-        {
-          method: 'PUT',
-          headers: {
-            ...ghHeaders,
-            'Content-Type': 'application/json',
+        const pushRes = await fetch(
+          `https://api.github.com/repos/${repoPath}/contents/${targetFile.path}`,
+          {
+            method: 'PUT',
+            headers: {
+              ...ghHeaders,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              message: `Edit: ${editRequest.slice(0, 50)}`,
+              content: Buffer.from(updatedContent).toString('base64'),
+              sha: targetFile.sha,
+            }),
           },
-          body: JSON.stringify({
-            message: `Edit: ${editRequest.slice(0, 50)}`,
-            content: Buffer.from(updatedContent).toString('base64'),
-            sha: targetFile.sha,
-          }),
-        },
-      )
+        )
 
-      if (!pushRes.ok) {
-        const pushBody = await pushRes.text().catch(() => '')
-        console.error('[edit] GitHub push FAILED:', pushRes.status, pushBody)
-        await setBuildStatus('error', null, 'Could not push change to GitHub')
-        res.status(500).json({ error: 'Could not save the change' })
-        return
+        if (!pushRes.ok) {
+          const pushBody = await pushRes.text().catch(() => '')
+          console.error('[edit] GitHub push FAILED:', pushRes.status, pushBody)
+          await setBuildStatus('error', null, 'Could not push change to GitHub')
+          res.status(500).json({ error: 'Could not save the change' })
+          return
+        }
+
+        const pushData = await pushRes.json() as { commit?: { sha: string } }
+        commitSha = pushData.commit?.sha ?? null
+        console.log('[edit] pushed to github, commit sha:', commitSha ?? 'unknown', new Date().toISOString())
       }
-
-      const pushData = await pushRes.json() as { commit?: { sha: string } }
-      commitSha = pushData.commit?.sha ?? null
-      console.log('[edit] pushed to github, commit sha:', commitSha ?? 'unknown', new Date().toISOString())
     }
 
     // ════════════════════════════════════════════════════════════════════════

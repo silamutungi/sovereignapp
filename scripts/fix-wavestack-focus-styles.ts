@@ -28,9 +28,9 @@ for (const file of ['.env', '.env.local']) {
   }
 }
 
-const GITHUB_TOKEN = process.env.SOVEREIGN_GITHUB_TOKEN
+const GITHUB_TOKEN = process.env.VISILA_GITHUB_TOKEN
 if (!GITHUB_TOKEN) {
-  console.error('SOVEREIGN_GITHUB_TOKEN is not set')
+  console.error('VISILA_GITHUB_TOKEN is not set')
   process.exit(1)
 }
 

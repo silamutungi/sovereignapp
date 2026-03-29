@@ -53,6 +53,36 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   const count = Number(edit_count ?? 0)
 
+  // ── Competitive edge hint — fires once on the very first edit ──────────
+  // If the build has known competitors, prompt the founder to differentiate.
+  if (count === 1) {
+    try {
+      const supabaseUrl = process.env.SUPABASE_URL
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+      if (supabaseUrl && serviceKey) {
+        const buildRes = await fetch(
+          `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(build_id)}&deleted_at=is.null&select=competitors`,
+          { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } },
+        )
+        if (buildRes.ok) {
+          const rows = await buildRes.json() as Array<{ competitors: string[] | null }>
+          const storedCompetitors = rows[0]?.competitors
+          if (Array.isArray(storedCompetitors) && storedCompetitors.length > 0) {
+            return res.status(200).json({
+              show_hint: true,
+              hint_type: 'green',
+              hint_body: `You've matched the core features of ${storedCompetitors[0]}. Here's what could set you apart:`,
+              hint_action: `What would make this more unique than ${storedCompetitors[0]}? Suggest 3 specific differentiators.`,
+              hint_action_label: 'Find my edge →',
+            })
+          }
+        }
+      }
+    } catch (compErr) {
+      console.warn('[brain-hint] competitive edge fetch failed (non-fatal):', compErr instanceof Error ? compErr.message : String(compErr))
+    }
+  }
+
   // No hint for the first two edits — let the user orient
   if (count < 2) {
     res.status(200).json({ show_hint: false, hint_type: null, hint_body: null, hint_action: null, hint_action_label: null })
@@ -82,37 +112,27 @@ export default async function handler(req: any, res: any): Promise<void> {
       return res.status(200).json({ show_hint: false, hint_type: null, hint_body: null, hint_action: null, hint_action_label: null })
     }
 
-    // ── Blue proactive hint — Claude detects missing features ────────────────
+    // ── Blue post-edit hint — co-founder insight on what they just changed ──
     const featureList = Array.isArray(features_built) && features_built.length > 0
       ? features_built.join(', ')
       : 'none listed'
 
-    const prompt = `You are Sovereign's Brain — a co-founder who sees what the founder hasn't thought of yet.
+    const prompt = `You are a startup co-founder advisor. A founder just made this change to their app: ${String(edit_instruction).slice(0, 300)}
 
-App type: ${app_type ?? 'web app'}
-Features built: ${featureList}
-Last edit: "${String(edit_instruction).slice(0, 200)}"
-Edit count: ${count}
+Their app: ${app_type ?? 'web app'}
+Total edits so far: ${count}
+Recent sovereign messages (what's been built): ${featureList}
 
-Decide whether to suggest ONE specific next step that would meaningfully improve this app's success.
+Give one specific, actionable next step that builds on what they just did. Think like a YC partner — focus on getting users, reducing churn, or increasing conversion. Be specific to what they just changed, not generic.
 
-Rules:
-- Only suggest if there is a clear, valuable gap not already in the features list
-- Be concrete — name the exact feature, not a category
-- Max 2 sentences, calm and direct tone
-- If the app already looks complete, do not force a suggestion
-
-Return JSON only (no other text):
+Return only JSON (no other text):
 {
-  "show_hint": boolean,
-  "hint_type": "blue" | null,
-  "hint_body": string | null,
-  "hint_action": string | null,
-  "hint_action_label": string | null
-}
-
-If showing a hint: hint_action = exact edit instruction (max 60 chars), hint_action_label = "Add it →"
-If not showing: all values null except show_hint false.`
+  "show_hint": true,
+  "hint_type": "blue",
+  "hint_body": "<one sentence, specific to the edit>",
+  "hint_action": "<optional: exact prompt the user can send to build the logical next thing, max 80 chars, or null if no obvious next step>",
+  "hint_action_label": "<3 words max, or null>"
+}`
 
     const message = await anthropic.messages.create({
       model: MODEL_FAST,

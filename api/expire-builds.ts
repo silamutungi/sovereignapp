@@ -20,7 +20,7 @@ export const maxDuration = 30
 export const config = { runtime: 'nodejs' }
 
 function expiryWarningHtml(appName: string, deployUrl: string, ideaEncoded: string): string {
-  const rebuildUrl = `https://sovereignapp.dev/?idea=${ideaEncoded}`
+  const rebuildUrl = `https://visila.com/?idea=${ideaEncoded}`
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -56,7 +56,7 @@ function expiryWarningHtml(appName: string, deployUrl: string, ideaEncoded: stri
           <tr>
             <td style="padding:0 0 40px 0;text-align:center;">
               <a href="${deployUrl}" style="display:inline-block;background:#c8f060;color:#0e0d0b;font-size:14px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:6px;margin:0 6px 12px;">View your app →</a>
-              <a href="https://sovereignapp.dev/#pricing" style="display:inline-block;background:#0e0d0b;color:#c8f060;font-size:14px;font-weight:700;text-decoration:none;padding:13px 32px;border-radius:6px;border:1px solid rgba(200,240,96,0.4);margin:0 6px 12px;">Claim it — keep it live →</a>
+              <a href="https://visila.com/#pricing" style="display:inline-block;background:#0e0d0b;color:#c8f060;font-size:14px;font-weight:700;text-decoration:none;padding:13px 32px;border-radius:6px;border:1px solid rgba(200,240,96,0.4);margin:0 6px 12px;">Claim it — keep it live →</a>
             </td>
           </tr>
           <tr>
@@ -78,7 +78,7 @@ function expiryWarningHtml(appName: string, deployUrl: string, ideaEncoded: stri
           </tr>
           <tr>
             <td style="text-align:center;">
-              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862;">© 2026 Sovereign &nbsp;·&nbsp; <a href="https://sovereignapp.dev" style="color:#6b6862;text-decoration:none;">sovereignapp.dev</a></p>
+              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862;">© 2026 Sovereign &nbsp;·&nbsp; <a href="https://visila.com" style="color:#6b6862;text-decoration:none;">visila.com</a></p>
             </td>
           </tr>
         </table>
@@ -90,7 +90,7 @@ function expiryWarningHtml(appName: string, deployUrl: string, ideaEncoded: stri
 }
 
 function expiredHtml(appName: string, ideaEncoded: string): string {
-  const rebuildUrl = `https://sovereignapp.dev/?idea=${ideaEncoded}`
+  const rebuildUrl = `https://visila.com/?idea=${ideaEncoded}`
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -140,7 +140,7 @@ function expiredHtml(appName: string, ideaEncoded: string): string {
           </tr>
           <tr>
             <td style="text-align:center;">
-              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862;">© 2026 Sovereign &nbsp;·&nbsp; <a href="https://sovereignapp.dev" style="color:#6b6862;text-decoration:none;">sovereignapp.dev</a></p>
+              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862;">© 2026 Sovereign &nbsp;·&nbsp; <a href="https://visila.com" style="color:#6b6862;text-decoration:none;">visila.com</a></p>
             </td>
           </tr>
         </table>
@@ -223,7 +223,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       for (const build of warningBuilds) {
         if (!build.email || !resendKey) continue
         const ideaEncoded = encodeURIComponent((build.idea ?? '').slice(0, 500))
-        const deployUrl   = build.deploy_url ?? 'https://sovereignapp.dev'
+        const deployUrl   = build.deploy_url ?? 'https://visila.com'
         try {
           const emailRes = await fetch('https://api.resend.com/emails', {
             method: 'POST',
@@ -232,7 +232,7 @@ export default async function handler(req: any, res: any): Promise<void> {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              from:    'Sovereign <noreply@sovereignapp.dev>',
+              from:    'Visila <noreply@visila.com>',
               to:      [build.email],
               subject: `${build.app_name} expires in 2 days — claim it to keep it live`,
               html:    expiryWarningHtml(build.app_name, deployUrl, ideaEncoded),
@@ -321,7 +321,7 @@ export default async function handler(req: any, res: any): Promise<void> {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                from:    'Sovereign <noreply@sovereignapp.dev>',
+                from:    'Visila <noreply@visila.com>',
                 to:      [build.email],
                 subject: `${build.app_name} has expired — rebuild it here`,
                 html:    expiredHtml(build.app_name, ideaEncoded),

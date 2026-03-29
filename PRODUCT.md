@@ -122,7 +122,7 @@ Built in this session. See `api/expire-builds.ts`.
 
 Flow:
 - Day 5: send warning email "Your app expires in 2 days — claim it to keep it live"
-- Day 7: set `deleted_at`, send "Your app has expired — rebuild it here" email with `?idea=` link back to sovereignapp.dev
+- Day 7: set `deleted_at`, send "Your app has expired — rebuild it here" email with `?idea=` link back to visila.com
 - Cron runs daily at 09:00 UTC via Vercel cron
 - Protected by `CRON_SECRET` header check
 
@@ -166,7 +166,7 @@ Optional vars still missing (sovereign-hosted DB path disabled until set):
 
 ### Step 4 — Register Supabase redirect URI
 Register this URI in the Supabase OAuth App settings:
-`https://sovereignapp.dev/auth/supabase/callback`
+`https://visila.com/auth/supabase/callback`
 
 > ⚠️ Still needs manual registration at app.supabase.com → Account → OAuth Apps → Sovereign → Redirect URIs
 
@@ -298,7 +298,7 @@ git commit --allow-empty -m 'chore: redeploy with env vars' && git push
 
 **What will still need manual action after scripts run:**
 - `SUPABASE_OAUTH_CLIENT_SECRET` — only available in Supabase OAuth App dashboard (not derivable)
-- Register redirect URI `https://sovereignapp.dev/auth/supabase/callback` in Supabase OAuth App settings
+- Register redirect URI `https://visila.com/auth/supabase/callback` in Supabase OAuth App settings
 
 **What's working in production right now:**
 - Full build flow: idea → generate → GitHub OAuth → Vercel OAuth → deploy → live URL

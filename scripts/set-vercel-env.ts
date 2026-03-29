@@ -89,13 +89,13 @@ const VARS_TO_SET: Array<{key: string; value: string | undefined; sensitive: boo
     sensitive: true,
   },
   {
-    key: 'SOVEREIGN_VERCEL_TEAM_ID',
-    value: getEnv('SOVEREIGN_VERCEL_TEAM_ID'),
+    key: 'VISILA_VERCEL_TEAM_ID',
+    value: getEnv('VISILA_VERCEL_TEAM_ID'),
     sensitive: false,
   },
   {
-    key: 'SOVEREIGN_VERCEL_TOKEN',
-    value: getEnv('SOVEREIGN_VERCEL_TOKEN'),
+    key: 'VISILA_VERCEL_TOKEN',
+    value: getEnv('VISILA_VERCEL_TOKEN'),
     sensitive: true,
   },
 ]
@@ -208,7 +208,7 @@ async function main() {
   }
   if (skipped > 0) {
     console.log('\n⚠ Skipped vars must be added manually in Vercel dashboard:')
-    console.log('  https://vercel.com/juapath/sovereignapp/settings/environment-variables')
+    console.log('  https://vercel.com/juapath/visila/settings/environment-variables')
   }
 }
 

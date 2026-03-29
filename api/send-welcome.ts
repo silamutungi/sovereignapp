@@ -75,7 +75,7 @@ function waitlistHtml(email: string): string {
           <!-- CTA button -->
           <tr>
             <td style="padding:0 0 40px 0;text-align:center;background-color:#0e0d0b !important;">
-              <a href="https://sovereignapp.dev" style="display:inline-block;background:#c8f060;color:#0e0d0b !important;-webkit-text-fill-color:#0e0d0b;font-size:14px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:6px;letter-spacing:0.01em;">Visit Sovereign →</a>
+              <a href="https://visila.com" style="display:inline-block;background:#c8f060;color:#0e0d0b !important;-webkit-text-fill-color:#0e0d0b;font-size:14px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:6px;letter-spacing:0.01em;">Visit Sovereign →</a>
             </td>
           </tr>
 
@@ -96,7 +96,7 @@ function waitlistHtml(email: string): string {
           <!-- Footer -->
           <tr>
             <td style="text-align:center;background-color:#0e0d0b !important;">
-              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862 !important;">© 2026 Sovereign &nbsp;·&nbsp; <a href="https://sovereignapp.dev" style="color:#6b6862 !important;text-decoration:none;">sovereignapp.dev</a> &nbsp;·&nbsp; Built without permission</p>
+              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862 !important;">© 2026 Sovereign &nbsp;·&nbsp; <a href="https://visila.com" style="color:#6b6862 !important;text-decoration:none;">visila.com</a> &nbsp;·&nbsp; Built without permission</p>
             </td>
           </tr>
 
@@ -213,7 +213,7 @@ function appLaunchHtml(projectName: string, liveUrl: string, repoUrl: string): s
           <tr>
             <td style="padding:0 0 20px 0;text-align:center;background-color:#0e0d0b !important;">
               <p style="margin:0;font-size:12px;color:#6b6862 !important;">
-                <a href="https://sovereignapp.dev/dashboard" style="color:#8ab800 !important;text-decoration:none;">Manage all your apps →</a>
+                <a href="https://visila.com/dashboard" style="color:#8ab800 !important;text-decoration:none;">Manage all your apps →</a>
               </p>
             </td>
           </tr>
@@ -221,7 +221,7 @@ function appLaunchHtml(projectName: string, liveUrl: string, repoUrl: string): s
           <!-- Footer -->
           <tr>
             <td style="text-align:center;background-color:#0e0d0b !important;">
-              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862 !important;">© 2026 Sovereign &nbsp;·&nbsp; <a href="https://sovereignapp.dev" style="color:#6b6862 !important;text-decoration:none;">sovereignapp.dev</a> &nbsp;·&nbsp; Built without permission</p>
+              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862 !important;">© 2026 Sovereign &nbsp;·&nbsp; <a href="https://visila.com" style="color:#6b6862 !important;text-decoration:none;">visila.com</a> &nbsp;·&nbsp; Built without permission</p>
             </td>
           </tr>
 
@@ -280,7 +280,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     const subject = subjectOverride ?? 'Your app is live — you own everything'
     const html = isWaitlist
       ? waitlistHtml(email)
-      : appLaunchHtml(projectName, liveUrl ?? 'https://sovereignapp.dev', repoUrl ?? '')
+      : appLaunchHtml(projectName, liveUrl ?? 'https://visila.com', repoUrl ?? '')
 
     const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -289,7 +289,7 @@ export default async function handler(req: any, res: any): Promise<void> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Sovereign <noreply@sovereignapp.dev>',
+        from: 'Visila <noreply@visila.com>',
         to: [email],
         subject,
         html,

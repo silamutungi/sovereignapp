@@ -1,6 +1,6 @@
-# SOVEREIGN SELF-IMPROVING SYSTEM
+# VISILA SELF-IMPROVING SYSTEM
 
-Sovereign gets smarter with every session. This is not optional. This is how Sovereign stays ahead.
+Visila gets smarter with every session. This is not optional. This is how Visila stays ahead.
 
 ## The Rule
 
@@ -44,12 +44,12 @@ Decided: [YYYY-MM-DD].
 Every lesson gets triaged into one or more of these four destinations. Ask this question for each lesson: "Who does this affect?"
 
 DESTINATION 1 — CLAUDE.md Hard-Won Lessons
-Who: Claude Code building and maintaining Sovereign
+Who: Claude Code building and maintaining Visila
 When: Always — every lesson goes here first
 What: Operational memory, API quirks, build failures, architecture decisions, environment config
 
 DESTINATION 2 — Generation prompt (api/generate.ts + server/generate.ts)
-Who: Every app Sovereign generates for users
+Who: Every app Visila generates for users
 When: When the lesson reveals a pattern that every generated app should follow
 Examples:
 - Security vulnerability in generated code
@@ -57,19 +57,19 @@ Examples:
 - Package or dependency issue in generated scaffold
 - File that must always be included in generated repos
 - Configuration that must always be set a certain way
-Rule: If fixing it in Sovereign's own code would also fix it in every generated app — it goes here too
+Rule: If fixing it in Visila's own code would also fix it in every generated app — it goes here too
 
 DESTINATION 3 — Generated app CLAUDE.md template
 Who: The user's own Claude Code sessions on their app
-When: When the lesson is useful for anyone maintaining a Sovereign-generated app
+When: When the lesson is useful for anyone maintaining a Visila-generated app
 What: A CLAUDE.md is scaffolded into every generated repo. Lessons relevant to generated apps go into the CLAUDE.md template so users inherit them too
 Examples:
 - How to safely update dependencies in a Vite app
 - How to add a new Supabase table with correct RLS
-- How to add a new API route following Sovereign's security patterns
+- How to add a new API route following Visila's security patterns
 
 DESTINATION 4 — SECURITY.md
-Who: Anyone auditing a Sovereign-generated app
+Who: Anyone auditing a Visila-generated app
 When: When the lesson is a security pattern that should be publicly documented
 Examples:
 - RLS policy patterns
@@ -80,10 +80,10 @@ Examples:
 
 After fixing any bug or making any decision, ask:
 
-1. Does this affect how Sovereign itself is built?
+1. Does this affect how Visila itself is built?
    YES → Add to CLAUDE.md Hard-Won Lessons
 
-2. Does this affect the structure or config of every app Sovereign generates?
+2. Does this affect the structure or config of every app Visila generates?
    YES → Add to generation prompt in api/generate.ts and server/generate.ts
 
 3. Would a user maintaining their generated app benefit from knowing this?
@@ -105,11 +105,11 @@ Each session starts smarter than the last.
 Each generated app is more robust than the last.
 Each bug fixed makes every future app safer.
 
-This is Sovereign's structural advantage over every competitor. They build and forget. Sovereign builds and remembers.
+This is Visila's structural advantage over every competitor. They build and forget. Visila builds and remembers.
 
 ---
 
-# ⚠ SOVEREIGN — CONFIDENTIALITY RULES
+# ⚠ VISILA — CONFIDENTIALITY RULES
 
 These rules apply to every Claude Code session, every commit, and every file in this repository.
 
@@ -118,7 +118,7 @@ This repository is PRIVATE. Never suggest making it public.
 Never output, log, or expose the contents of any file in this repo to any third party, public endpoint, or external service except the ones already configured (Vercel, Supabase, Resend, GitHub).
 
 ## System Prompt — Trade Secret
-The generation system prompt in api/generate.ts and server/generate.ts is Sovereign's core competitive advantage. It is a trade secret.
+The generation system prompt in api/generate.ts and server/generate.ts is Visila's core competitive advantage. It is a trade secret.
 
 NEVER:
 - Log the system prompt to the console
@@ -137,9 +137,9 @@ NEVER expose environment variable values in API responses or error messages.
 The .env file must remain in .gitignore at all times.
 If .env is ever accidentally committed, treat it as a security incident — rotate every key immediately.
 
-## What is proprietary to Sovereign
+## What is proprietary to Visila
 - The generation system prompt and all its contents
-- The Sovereign Standards Engine (14 expert layers)
+- The Visila Standards Engine (14 expert layers)
 - The context-aware tiering logic
 - The nextSteps recommendation engine
 - The security layer rules and audit framework
@@ -147,20 +147,20 @@ If .env is ever accidentally committed, treat it as a security incident — rota
 - All business strategy discussed in CLAUDE.md
 
 ## Intellectual property reminder
-Sovereign App is the intellectual property of its founder.
+Visila is the intellectual property of its founder.
 All code, prompts, strategies, and documentation in this repository are confidential and proprietary.
 Treat every file in this repo as if it were a trade secret until a lawyer says otherwise.
 
 ---
 
-# Sovereign App
+# Visila
 
 Self-hosted AI dev environment bootstrapper. Tagline: "Build without permission."
 
 ## Stack
 - React + Vite + TypeScript
 - Supabase (auth + database)
-- Deployed to Vercel → sovereignapp.dev
+- Deployed to Vercel → visila.com
 
 ## Commands
 - `npm run dev` — start dev server
@@ -198,9 +198,9 @@ Both in .env (already set up, not committed)
 Accessibility is built in by default. Every UI element must meet WCAG AA contrast ratio (4.5:1 for text, 3:1 for UI components). Never use light text on light backgrounds or dark text on dark backgrounds. Always test color combinations before shipping.
 
 ## Next steps
-- Deploy to Vercel and point sovereignapp.dev DNS
+- Deploy to Vercel and point visila.com DNS
 - Wire Stripe for Pro plan ($19/mo) and Team plan ($49/mo)
-- Build Phase 2: npx sovereign-app@latest CLI
+- Build Phase 2: npx visila-app@latest CLI
 
 ## Phase 4 — CLI Features
 
@@ -210,7 +210,7 @@ Three levels of depth, shipped in sequence:
 
 **Level 1 — Token extraction (v1, buildable in days)**
 - User provides Figma file URL + personal access token
-- Sovereign calls Figma REST API, reads all color styles, text styles, spacing values
+- Visila calls Figma REST API, reads all color styles, text styles, spacing values
 - Converts to src/styles/tokens.css in the user's repo
 - CSS custom properties: --color-primary, --color-surface, font families, sizes, weights, line heights
 - Covers 80% of what developers need from a design handoff
@@ -219,7 +219,7 @@ Three levels of depth, shipped in sequence:
 - Detect the 5 most common components in the Figma file: button, input, card, navbar, modal
 - Generate typed React components from each
 - Components land in src/components/ in the user's repo
-- Developer owns the output — no Sovereign dependency
+- Developer owns the output — no Visila dependency
 
 **Level 3 — Full layout translation (v3, buildable in months)**
 - Read entire Figma node tree (frames, auto-layout, instances)
@@ -229,28 +229,28 @@ Three levels of depth, shipped in sequence:
   3. Responsive intent — infer mobile behavior from desktop-only frames
   4. Code quality — post-process raw output through Claude API to produce clean, semantic, accessible React + Tailwind
 - Claude API is the primary translation layer (not just cleanup)
-- This is Sovereign's answer to Figma Make and Builder.io
-- Competitive angle: they use AI as a cleanup pass, Sovereign uses it as the core engine
+- This is Visila's answer to Figma Make and Builder.io
+- Competitive angle: they use AI as a cleanup pass, Visila uses it as the core engine
 
 **CLI flow (Phase 4):**
-npx sovereign-app@latest
+npx visila-app@latest
 → "Do you have a Figma design system? (y/n)"
 → Paste Figma file URL
 → Paste Figma personal access token
-→ Sovereign extracts tokens → tokens.css committed to repo
+→ Visila extracts tokens → tokens.css committed to repo
 → (Level 2+) Components generated → src/components/
 
 **Key principle:**
-Everything extracted from Figma lives in the user's repo in standard files they own. No Sovereign lock-in. If they stop using Sovereign, their tokens and components remain unchanged.
+Everything extracted from Figma lives in the user's repo in standard files they own. No Visila lock-in. If they stop using Visila, their tokens and components remain unchanged.
 
-### npx sovereign-app@latest — Status: IN PROGRESS
-- Repo: github.com/silamutungi/sovereign-cli
-- npm package name: sovereign-app
+### npx visila-app@latest — Status: IN PROGRESS
+- Repo: github.com/silamutungi/visila-cli
+- npm package name: visila-app
 - v1 flow: idea → GitHub OAuth → Vercel OAuth → optional Figma → generate via API → live URL
 - Entry: src/index.ts → steps: idea, github, vercel, figma, scaffold, done
-- Auth cached in ~/.sovereign/config.json
-- Calls sovereignapp.dev API — CLI is a thin shell over the existing pipeline
-- Needs: SOVEREIGN_GITHUB_CLIENT_ID and SOVEREIGN_VERCEL_CLIENT_ID env vars (separate OAuth apps for localhost redirect)
+- Auth cached in ~/.visila/config.json
+- Calls visila.com API — CLI is a thin shell over the existing pipeline
+- Needs: VISILA_GITHUB_CLIENT_ID and VISILA_VERCEL_CLIENT_ID env vars (separate OAuth apps for localhost redirect)
 - Blockers before publish: register CLI OAuth apps on GitHub and Vercel with localhost redirect URIs
 
 ### Figma Import — Level 1 Status: SHIPPED (web UI)
@@ -258,7 +258,7 @@ Everything extracted from Figma lives in the user's repo in standard files they 
 - FigmaImport component in App.tsx behind VITE_FIGMA_IMPORT flag
 - Returns tokens.css preview in the browser
 - Set VITE_FIGMA_IMPORT=true in Vercel to enable
-- Next: wire into npx sovereign-app@latest CLI flow
+- Next: wire into npx visila-app@latest CLI flow
 
 ### Auto-Migration Engine — Status: NOT BUILT
 - Detects schema changes in edit output via Haiku
@@ -268,20 +268,20 @@ Everything extracted from Figma lives in the user's repo in standard files they 
 - Confirms in Brain hint: "Database updated: {description}"
 - Safety rules: never auto-run DROP statements,
   never run on claimed builds, always wrap in transaction
-- Stores history in `migrations` table in Sovereign's DB
+- Stores history in `migrations` table in Visila's DB
 - Build after edit engine + plan mode are stable
 - This closes the Lovable UX gap without creating lock-in
 
-## Sovereign Security Layer
+## Visila Security Layer
 
 Every generated app follows 9 non-negotiable security rules:
-RLS with explicit policies on every Supabase table, no direct client-to-database access, no secrets in client code, server-side auth validation on every request, server-side input validation on every endpoint, secure HTTP headers via vercel.json, rate limiting on every API route, soft deletes on all user data tables, and a security audit comment block at the top of every API route file. These rules exist because CVE-2025-48757 exposed 170+ apps on a competing platform due to missing Supabase RLS. Sovereign must never generate that class of vulnerability.
+RLS with explicit policies on every Supabase table, no direct client-to-database access, no secrets in client code, server-side auth validation on every request, server-side input validation on every endpoint, secure HTTP headers via vercel.json, rate limiting on every API route, soft deletes on all user data tables, and a security audit comment block at the top of every API route file. These rules exist because CVE-2025-48757 exposed 170+ apps on a competing platform due to missing Supabase RLS. Visila must never generate that class of vulnerability.
 
-## Sovereign Standards Engine
+## Visila Standards Engine
 
 Every generated app is classified as SIMPLE, STANDARD, or COMPLEX based on the idea input. This determines which of the 14 expert standards are activated. Tier 1 (design, accessibility, SEO, performance, content, legal, IA) applies to every app. Tier 2 (security, analytics, onboarding, email, i18n, user story mapping, product discovery, execution) activates for apps with user accounts or public products. Tier 3 (rate limiting, data backup, CI/CD) activates for complex multi-user or financial apps. The business intelligence layer (monitoring, domain readiness, referral hooks, audit log, billing) activates based on app context. Every app also gets a nextSteps array of 3 tailored recommendations returned in the JSON response — these are rendered as chips in the dashboard.
 
-The authoritative quality reference is **SOVEREIGN_STANDARDS.md** in the repo root. It defines all 14 expert standards, the tier activation rules, and the quality bar checklist. When adding new standards or updating generation prompts, update both SOVEREIGN_STANDARDS.md and api/_systemPrompt.ts in the same session — they must stay in sync.
+The authoritative quality reference is **VISILA_STANDARDS.md** in the repo root. It defines all 14 expert standards, the tier activation rules, and the quality bar checklist. When adding new standards or updating generation prompts, update both VISILA_STANDARDS.md and api/_systemPrompt.ts in the same session — they must stay in sync.
 
 ## Hard-Won Lessons
 
@@ -379,7 +379,7 @@ Fix: Added /dashboard route to main.tsx alongside /building. Never modify App.ts
 Learned: 2026-03-20.
 
 **Magic link auth shipped — sessionStorage only, never localStorage**
-Dashboard Phase 2 shipped. Magic link flow: POST /api/auth/magic-link → email sent → GET /api/auth/verify-token?token= → sessionStorage.setItem('sovereign_user', JSON.stringify({ email })) → dashboard loads. Token is 64-char random hex (256-bit). One-time use enforced server-side. 24h expiry enforced server-side. Never use localStorage for auth state on Sovereign.
+Dashboard Phase 2 shipped. Magic link flow: POST /api/auth/magic-link → email sent → GET /api/auth/verify-token?token= → sessionStorage.setItem('visila_user', JSON.stringify({ email })) → dashboard loads. Token is 64-char random hex (256-bit). One-time use enforced server-side. 24h expiry enforced server-side. Never use localStorage for auth state on Visila.
 Decided: 2026-03-20.
 
 **Pre-dashboard dogfood audit — 2026-03-20**
@@ -387,7 +387,7 @@ Security and infrastructure audit completed before dashboard build. All items pa
 Decided: 2026-03-20.
 
 **Lessons flow to four destinations, not just one**
-When a bug is fixed or decision made, triage it: (1) CLAUDE.md — always, for Sovereign's own builds; (2) Generation prompt — if every generated app is affected; (3) Generated app CLAUDE.md template — if users maintaining their app would benefit; (4) SECURITY.md — if it is a security pattern. One lesson can go to all four destinations.
+When a bug is fixed or decision made, triage it: (1) CLAUDE.md — always, for Visila's own builds; (2) Generation prompt — if every generated app is affected; (3) Generated app CLAUDE.md template — if users maintaining their app would benefit; (4) SECURITY.md — if it is a security pattern. One lesson can go to all four destinations.
 Decided: 2026-03-20.
 
 **run-build.ts was missing rate limiting entirely**
@@ -527,7 +527,7 @@ Lesson: always add detailed catch logging first. Generic 500s hide the real caus
 Learned: 2026-03-20.
 
 **Preview regeneration — 3 attempts before build**
-Lovable commits immediately with no preview iteration. Sovereign shows a preview and allows up to 3 regenerations with variation hints before the user commits to building.
+Lovable commits immediately with no preview iteration. Visila shows a preview and allows up to 3 regenerations with variation hints before the user commits to building.
 Each attempt uses a variation hint to ensure meaningful visual difference between versions. Users can navigate back to previous versions to compare and pick their favourite.
 The build always uses whichever version is currently showing when the user commits. Rate limit: each regeneration counts as one generation toward the daily/hourly limit.
 Competitive advantage: try before you own.
@@ -539,10 +539,10 @@ Fix: confirmation step added between email submit and OAuth. Email remains edita
 UX principle: destructive-feeling actions always need a confirmation or undo. Never trap users.
 Learned: 2026-03-20.
 
-**_systemPrompt.ts must contain all 14 Sovereign Standards expert references by name**
+**_systemPrompt.ts must contain all 14 Visila Standards expert references by name**
 Wrong assumption: having correct behaviour described is sufficient — experts don't need to be named.
 Correct behaviour: audit checks verify named references (Don Norman, Steve Krug, Rosenfeld, Jeff Patton, Marty Cagan, David Allen GTD) because naming the source locks in the quality standard and prevents drift.
-Fix: added all expert names and their frameworks explicitly to _systemPrompt.ts with specific rules from each. Also added Playfair Display/DM Mono font names and brand color tokens to the prompt so generated apps inherit Sovereign's typographic identity.
+Fix: added all expert names and their frameworks explicitly to _systemPrompt.ts with specific rules from each. Also added Playfair Display/DM Mono font names and brand color tokens to the prompt so generated apps inherit Visila's typographic identity.
 Learned: 2026-03-21.
 
 **run-build.ts scaffold was missing .env.example — added as programmatic file**
@@ -674,9 +674,9 @@ Also add these to Vercel environment variables before deploying:
 - SUPABASE_OAUTH_CLIENT_ID — from app.supabase.com → Account → OAuth Apps
 - SUPABASE_OAUTH_CLIENT_SECRET — same location
 - VITE_SUPABASE_OAUTH_CLIENT_ID — same value as SUPABASE_OAUTH_CLIENT_ID (public)
-- SOVEREIGN_SUPABASE_REF — the project ref for Sovereign's own Supabase instance
-- SOVEREIGN_SUPABASE_MANAGEMENT_TOKEN — personal access token from app.supabase.com → Account → Access Tokens
-Register the redirect URI with Supabase OAuth App: https://sovereignapp.dev/auth/supabase/callback
+- VISILA_SUPABASE_REF — the project ref for Visila's own Supabase instance
+- VISILA_SUPABASE_MANAGEMENT_TOKEN — personal access token from app.supabase.com → Account → Access Tokens
+Register the redirect URI with Supabase OAuth App: https://visila.com/auth/supabase/callback
 
 ### 2026-03-21 — magic_links table (create if missing)
 
@@ -740,11 +740,11 @@ CREATE INDEX IF NOT EXISTS magic_links_email_idx ON magic_links(email);
 
 ## Supabase provisioning
 - Migration required: ALTER TABLE builds ADD COLUMN IF NOT EXISTS supabase_token TEXT DEFAULT NULL
-- Sovereign-hosted path uses SOVEREIGN_SUPABASE_MANAGEMENT_TOKEN (service role key) — never expose client-side
+- Visila-hosted path uses VISILA_SUPABASE_MANAGEMENT_TOKEN (service role key) — never expose client-side
 - Own Supabase path uses token stored in builds.supabase_token — retrieved server-side only
 - All generated app schemas get build_id (uuid not null) prepended to every CREATE TABLE
-- Supabase OAuth redirect URL: https://sovereignapp.dev/auth/supabase/callback
-- Test sovereign path first — it works without OAuth app credentials
+- Supabase OAuth redirect URL: https://visila.com/auth/supabase/callback
+- Test visila path first — it works without OAuth app credentials
 - Test own path second — requires SUPABASE_OAUTH_CLIENT_ID and SUPABASE_OAUTH_CLIENT_SECRET in Vercel env vars
 
 **Anthropic SDK 0.78 supports prompt caching natively — no @ts-expect-error needed**
@@ -780,17 +780,17 @@ Fix: rule added to TYPESCRIPT BUILD RULES in _systemPrompt.ts. When a string con
 Triage: → CLAUDE.md ✓ → Generation prompt (_systemPrompt.ts) ✓
 Learned: 2026-03-23.
 
-**Staging builds deploy to Sovereign's Vercel team, not the user's account**
+**Staging builds deploy to Visila's Vercel team, not the user's account**
 Context: previously run-build.ts used the user's vercel_token for all Vercel API calls. This is wrong — the user's token should only be used for the claim flow (ownership transfer) when they're ready to move the app to their own account.
-Decision: all staging builds use SOVEREIGN_VERCEL_TOKEN and SOVEREIGN_VERCEL_TEAM_ID. The user's vercel_token is captured during Vercel OAuth and stored on the build record, but never used during the build pipeline.
-Rule: createVercelProject, injectVercelEnvVars, waitForVercelDeployment, and fetchDeploymentError all read process.env.SOVEREIGN_VERCEL_TOKEN internally — they no longer accept a token parameter. SOVEREIGN_VERCEL_TOKEN is a hard-fail env var; builds will 500 if it is missing.
+Decision: all staging builds use VISILA_VERCEL_TOKEN and VISILA_VERCEL_TEAM_ID. The user's vercel_token is captured during Vercel OAuth and stored on the build record, but never used during the build pipeline.
+Rule: createVercelProject, injectVercelEnvVars, waitForVercelDeployment, and fetchDeploymentError all read process.env.VISILA_VERCEL_TOKEN internally — they no longer accept a token parameter. VISILA_VERCEL_TOKEN is a hard-fail env var; builds will 500 if it is missing.
 Decided: 2026-03-23.
 
 ## The Jony Ive Bar — Design Standard
 
 Every generated app must feel like Apple hired Jony Ive as creative director and a senior engineering team to ship it. "Award-winning design. Expert implementation. World-class defaults. Out of the box."
 
-This is not a landing page generator. Founders receiving Sovereign-generated apps should be able to share them proudly the same day.
+This is not a landing page generator. Founders receiving Visila-generated apps should be able to share them proudly the same day.
 
 **Pre-ship quality gate (mandatory):**
 - npm run build exits 0 ✓
@@ -826,14 +826,14 @@ Fix: add `connect-src 'self' https://*.supabase.co wss://*.supabase.co` to the C
 Rule: every generated app's CSP must include `connect-src` covering the Supabase wildcard. Never rely on `default-src` fallback for network-connected apps.
 Learned: 2026-03-23.
 
-**Git SSH over HTTPS for Sovereign-generated repos**
+**Git SSH over HTTPS for Visila-generated repos**
 When cloning generated repos via `git clone https://github.com/...` for local editing, the HTTPS remote cannot push (no token cached). Switch to SSH before pushing: `git remote set-url origin git@github.com:user/repo.git`. The user's SSH key at `~/.ssh/id_ed25519` is configured for `silamutungi` and works for all repos they own.
 Rule: always switch generated repo remotes to SSH before attempting a push from the local environment.
 Learned: 2026-03-23.
 
 **Vercel SSO on staging previews — 401 is expected, not an app failure**
-Wrong assumption: a 401 on a sovereign-staging preview URL means the app is broken or returning a blank screen.
-Correct behaviour: the sovereign-staging Vercel team has `ssoProtection: all_except_custom_domains` enabled. Every `*.vercel.app` preview URL requires Vercel account login — the app itself is fully built and serving content behind that auth wall.
+Wrong assumption: a 401 on a visila-staging preview URL means the app is broken or returning a blank screen.
+Correct behaviour: the visila-staging Vercel team has `ssoProtection: all_except_custom_domains` enabled. Every `*.vercel.app` preview URL requires Vercel account login — the app itself is fully built and serving content behind that auth wall.
 Fix: to confirm a build is healthy, check deployment `readyState: READY` and build logs for `✓ built in Xs` via the Vercel API — do not rely on a curl HTTP status check against the preview URL. To make a build publicly accessible without login, connect a custom domain (custom domains are exempt from SSO protection).
 Learned: 2026-03-24.
 
@@ -850,10 +850,10 @@ Learned: 2026-03-24.
 - lessons table: id, category, source, problem, solution, applied_automatically, build_count, created_at
 - Future: increment build_count when a lesson pattern recurs; feed high-count lessons back into generation system prompt automatically
 
-## Sovereign v2.0.0 — Self-Build Session (2026-03-24)
+## Visila v2.0.0 — Self-Build Session (2026-03-24)
 
 **Confidence Engine evaluator calibration — false positives from legitimate production patterns**
-The initial evaluators were calibrated too strictly for generated apps, not for the Sovereign codebase itself.
+The initial evaluators were calibrated too strictly for generated apps, not for the Visila codebase itself.
 Specific false positives caught and fixed:
 1. Rate limiting check: flagged `_` prefixed utility files, auth callbacks, and cron endpoints — all legitimately exempt
 2. `dangerouslySetInnerHTML` check: flagged usage in template literal string content inside `_systemPrompt.ts` — fixed by stripping template strings before regex check
@@ -866,16 +866,16 @@ Rule: evaluator calibration requires running against real production code, not j
 Learned: 2026-03-24.
 
 **Real bug found by dogfooding own security evaluator — CSP missing connect-src**
-The security evaluator correctly flagged Sovereign's own `vercel.json` as missing `connect-src` — every Supabase call was being silently blocked by CSP `default-src 'self'`.
+The security evaluator correctly flagged Visila's own `vercel.json` as missing `connect-src` — every Supabase call was being silently blocked by CSP `default-src 'self'`.
 This is the exact same bug documented in the 2026-03-23 lesson. The evaluator caught a real regression.
-Rule: the confidence engine is not just for generated apps — run it against Sovereign itself regularly. The dogfood principle means bugs we'd catch in user apps must be caught in our own code first.
+Rule: the confidence engine is not just for generated apps — run it against Visila itself regularly. The dogfood principle means bugs we'd catch in user apps must be caught in our own code first.
 Learned: 2026-03-24.
 
-**React.* namespace types cause tsc failures — applies to Sovereign's own src/ too**
+**React.* namespace types cause tsc failures — applies to Visila's own src/ too**
 App.tsx and Dashboard.tsx both used `React.KeyboardEvent`, `React.FormEvent`, `React.RefObject` without importing React.
-These are the exact patterns documented in the generation prompt as antipatterns. Sovereign's own code had the same issue.
+These are the exact patterns documented in the generation prompt as antipatterns. Visila's own code had the same issue.
 Fix: `import { type KeyboardEvent, type FormEvent, type RefObject } from 'react'` and replace all `React.*` namespace references with the named imports.
-Lesson: whenever we add a rule to the generation prompt, audit Sovereign's own codebase for the same pattern.
+Lesson: whenever we add a rule to the generation prompt, audit Visila's own codebase for the same pattern.
 Learned: 2026-03-24.
 
 **source.unsplash.com is deprecated — use loremflickr.com with server-side prefetch**
@@ -908,8 +908,8 @@ Learned: 2026-03-26.
 
 **X-Frame-Options: DENY on generated apps blocks the dashboard preview iframe**
 Wrong assumption: `X-Frame-Options: DENY` is a safe default security header for all generated apps.
-Correct behaviour: DENY prevents the app from being embedded in any iframe — including Sovereign's own dashboard preview. Users see a blank black screen instead of their app.
-Fix: remove `X-Frame-Options` from generated `vercel.json`. Use `Content-Security-Policy: frame-ancestors 'self' https://sovereignapp.dev` instead — this allows the Sovereign dashboard to embed the app while blocking all other origins. Applied in `run-build.ts` scaffold and backfilled on existing builds via `scripts/fix-vercel-json.ts`.
+Correct behaviour: DENY prevents the app from being embedded in any iframe — including Visila's own dashboard preview. Users see a blank black screen instead of their app.
+Fix: remove `X-Frame-Options` from generated `vercel.json`. Use `Content-Security-Policy: frame-ancestors 'self' https://visila.com` instead — this allows the Visila dashboard to embed the app while blocking all other origins. Applied in `run-build.ts` scaffold and backfilled on existing builds via `scripts/fix-vercel-json.ts`.
 Learned: 2026-03-26.
 
 **Edit API returns `{ ok: true }` — not `{ success: true }`**
@@ -924,7 +924,7 @@ Correct behaviour: after an edit, the redeploy is queued within seconds. A 10-mi
 Fix: `const stuckThresholdMs = 30 * 1000` in `build-status.ts`. Builds in 'building' state for >30s with a `vercel_project_id` trigger an automatic Vercel state check.
 Learned: 2026-03-26.
 
-**Sovereign v2.0.0 self-build final score: 86/100 STRONG — launch gate PASSED**
+**Visila v2.0.0 self-build final score: 86/100 STRONG — launch gate PASSED**
 Full multi-agent system built and evaluated:
 - Brain API (3 learning cycles: per-project, weekly, monthly)
 - 10-dimension Confidence Engine (all evaluators calibrated)
@@ -940,7 +940,7 @@ Decided: 2026-03-24.
 **Brain/coaching must be present in EVERY AI interaction, not just generation**
 Wrong assumption: the brain and agents are for the initial build pipeline only.
 Correct behaviour: the brain's accumulated lessons must inform every Claude call — generation, edit, and chat. Coaching interventions must trigger at the right lifecycle moment (launch, first day, first week, inactivity) — not just at build time. The coach is always present.
-Fix: lessons injected into api/edit.ts and api/chat.ts (same best-effort 2s fetch pattern as generate.ts). api/chat.ts evolved from edit-assistant to Sovereign Coach — knows app age, coaches on strategy and momentum, not just edits. api/coach.ts (new) returns time-based interventions + brain-derived recommendations per build. Dashboard polls /api/coach every 5 minutes and shows the active intervention as a dismissable coaching banner with a CTA.
+Fix: lessons injected into api/edit.ts and api/chat.ts (same best-effort 2s fetch pattern as generate.ts). api/chat.ts evolved from edit-assistant to Visila Coach — knows app age, coaches on strategy and momentum, not just edits. api/coach.ts (new) returns time-based interventions + brain-derived recommendations per build. Dashboard polls /api/coach every 5 minutes and shows the active intervention as a dismissable coaching banner with a CTA.
 Architecture rule: any new AI call in api/ must include lesson context injection. Any new user-facing endpoint that returns build data should also return coaching context.
 Learned: 2026-03-26.
 
@@ -952,11 +952,11 @@ Rule: anything running on Vercel must be Supabase-native. brain/ files = local/p
 Learned: 2026-03-26.
 
 **Claim flow: staged app transfer to user's GitHub + Vercel accounts**
-Context: staging builds deploy to Sovereign's team. Users need a way to take ownership of their app permanently.
+Context: staging builds deploy to Visila's team. Users need a way to take ownership of their app permanently.
 Decision: POST /api/claim-build takes { build_id }, reads stored github_token and vercel_token from the builds table (never from request body — tokens are server-side only), and orchestrates:
-  1. GitHub transfer (if SOVEREIGN_GITHUB_ORG env var is set and repo is on that org) — sends user a GitHub email to accept
+  1. GitHub transfer (if VISILA_GITHUB_ORG env var is set and repo is on that org) — sends user a GitHub email to accept
   2. Create Vercel project on user's personal account using stored vercel_token (no teamId = personal scope)
-  3. Delete staging Vercel project using SOVEREIGN_VERCEL_TOKEN
+  3. Delete staging Vercel project using VISILA_VERCEL_TOKEN
   4. Update builds: claimed_at=now(), staging=false, claim_status='claimed', claimed_url=newVercelUrl
   5. Send "on its way" email via Resend
 Error states: 'claiming' (in progress), 'transfer_partial' (Vercel failed after GitHub transfer), 'pending_github_acceptance' (GitHub transfer sent).
@@ -994,31 +994,31 @@ Must return 3 rows.
 
 **Vercel SSO protection is enabled by default on all team projects — breaks all iframe previews**
 Wrong assumption: creating a Vercel project on a team with SSO configured produces a publicly accessible URL.
-Correct behaviour: Vercel enables `ssoProtection` by default on every project in a team that has SSO configured. Every preview URL requires a Vercel login — the iframe in the Sovereign dashboard shows a blank screen with no obvious error.
-Fix: immediately after `createVercelProject` succeeds, call `PATCH /v9/projects/{id}?teamId={teamId}` with body `{ "ssoProtection": null }` using `SOVEREIGN_VERCEL_TOKEN`. Non-fatal — build proceeds regardless. Also: `scripts/disable-sso-protection.ts` (single project) and `scripts/backfill-sso.ts` (all existing staging builds).
-Rule: any new Vercel project created on the sovereign-staging team must have SSO protection disabled immediately after creation. This call lives in `run-build.ts` right after `markDone('vercel')`.
+Correct behaviour: Vercel enables `ssoProtection` by default on every project in a team that has SSO configured. Every preview URL requires a Vercel login — the iframe in the Visila dashboard shows a blank screen with no obvious error.
+Fix: immediately after `createVercelProject` succeeds, call `PATCH /v9/projects/{id}?teamId={teamId}` with body `{ "ssoProtection": null }` using `VISILA_VERCEL_TOKEN`. Non-fatal — build proceeds regardless. Also: `scripts/disable-sso-protection.ts` (single project) and `scripts/backfill-sso.ts` (all existing staging builds).
+Rule: any new Vercel project created on the visila-staging team must have SSO protection disabled immediately after creation. This call lives in `run-build.ts` right after `markDone('vercel')`.
 Learned: 2026-03-28.
 
 **Dark mode is default — CSS custom properties only, never hardcoded hex in components**
 Wrong assumption: generated apps can use hardcoded hex values (#f2efe8, #0e0d0b, etc.) in component styles as long as the overall design looks correct.
 Correct behaviour: all color values in component code must use CSS custom properties (var(--color-*)) defined on :root. Hardcoded hex is a dark mode violation — it never adapts to the user's preferred scheme. :root must define both light and dark variants via @media (prefers-color-scheme: dark). The <html> element must carry color-scheme="light dark" so the browser renders system UI (scrollbars, form controls) in the correct mode.
-Fix: DARK MODE SYSTEM section added to api/_systemPrompt.ts (full :root custom property block, both light and dark variants, image filter, html element requirement). Section 11 added to docs/SOVEREIGN_DESIGN_SYSTEM.md. scoreI18n in _scoreApp.ts drops to 70 for hardcoded 'en-US' locale. api/audit-generated-app.ts checks darkmode-1/2/3. 35-check audit total updated from 32.
-Triage: → CLAUDE.md ✓ → Generation prompt (_systemPrompt.ts) ✓ → docs/SOVEREIGN_DESIGN_SYSTEM.md ✓
+Fix: DARK MODE SYSTEM section added to api/_systemPrompt.ts (full :root custom property block, both light and dark variants, image filter, html element requirement). Section 11 added to docs/VISILA_DESIGN_SYSTEM.md. scoreI18n in _scoreApp.ts drops to 70 for hardcoded 'en-US' locale. api/audit-generated-app.ts checks darkmode-1/2/3. 35-check audit total updated from 32.
+Triage: → CLAUDE.md ✓ → Generation prompt (_systemPrompt.ts) ✓ → docs/VISILA_DESIGN_SYSTEM.md ✓
 Learned: 2026-03-28.
 
 **Translation-ready is default — Intl API always, never toLocaleDateString with hardcoded locale**
 Wrong assumption: English-only apps can use toLocaleDateString('en-US', ...) and '$' + amount.toFixed(2) since translation is a future concern.
 Correct behaviour: every generated app must use Intl.DateTimeFormat(undefined, {...}).format(date) for dates and Intl.NumberFormat(undefined, {...}).format(amount) for currency. Passing undefined as the locale uses the visitor's browser locale — costs nothing, enables future i18n with zero refactoring.
-Fix: TRANSLATION READINESS section (6 rules) added to api/_systemPrompt.ts. Section 12 added to docs/SOVEREIGN_DESIGN_SYSTEM.md. scoreI18n baseline set to 85 for all generated apps (translation-ready by default). src/components/SovereignChat.tsx and src/pages/Dashboard.tsx updated to use Intl.DateTimeFormat.
-Triage: → CLAUDE.md ✓ → Generation prompt (_systemPrompt.ts) ✓ → docs/SOVEREIGN_DESIGN_SYSTEM.md ✓
+Fix: TRANSLATION READINESS section (6 rules) added to api/_systemPrompt.ts. Section 12 added to docs/VISILA_DESIGN_SYSTEM.md. scoreI18n baseline set to 85 for all generated apps (translation-ready by default). src/components/VisilaChat.tsx and src/pages/Dashboard.tsx updated to use Intl.DateTimeFormat.
+Triage: → CLAUDE.md ✓ → Generation prompt (_systemPrompt.ts) ✓ → docs/VISILA_DESIGN_SYSTEM.md ✓
 Learned: 2026-03-28.
 
-## Claim Flow — Optional Env Vars (for sovereign-org GitHub staging)
+## Claim Flow — Optional Env Vars (for visila-org GitHub staging)
 
 These env vars enable the GitHub transfer step. If not set, the GitHub step is skipped (safe — repo is already on user's account in current architecture).
 
-- SOVEREIGN_GITHUB_ORG — GitHub org where staged repos live (e.g., "sovereign-builds")
-- SOVEREIGN_GITHUB_TOKEN — Personal access token with admin rights on SOVEREIGN_GITHUB_ORG
+- VISILA_GITHUB_ORG — GitHub org where staged repos live (e.g., "visila-builds")
+- VISILA_GITHUB_TOKEN — Personal access token with admin rights on VISILA_GITHUB_ORG
 
 ## Landing Page — 2026-03-28 UI Fixes (src/App.tsx, src/App.css, src/lib/i18n.ts)
 
@@ -1039,18 +1039,18 @@ This applies to the "Generate my app →" button and all other uses of `.gobtn`.
 Decided: 2026-03-28.
 
 **Foundation conflict resolution — 2026-03-28**
-Four contradictions existed between the system prompt, SOVEREIGN_STANDARDS.md, and run-build.ts:
+Four contradictions existed between the system prompt, VISILA_STANDARDS.md, and run-build.ts:
 1. X-Frame-Options: DENY in the system prompt vercel.json template vs ALLOWALL in the pipeline — resolved by removing X-Frame-Options from the system prompt template entirely and adding a comment explaining the pipeline handles it.
-2. Same conflict in SOVEREIGN_STANDARDS.md Part 13 — resolved to match pipeline behaviour: X-Frame-Options is set by the pipeline, not by generated apps.
-3. Acid green CTA color: three sources said three different things — resolved to the two-variant rule: #c8f060 on dark (#0e0d0b), #8ab800 on light (#f2efe8). Updated in both SOVEREIGN_STANDARDS.md Part 1 and api/_systemPrompt.ts.
+2. Same conflict in VISILA_STANDARDS.md Part 13 — resolved to match pipeline behaviour: X-Frame-Options is set by the pipeline, not by generated apps.
+3. Acid green CTA color: three sources said three different things — resolved to the two-variant rule: #c8f060 on dark (#0e0d0b), #8ab800 on light (#f2efe8). Updated in both VISILA_STANDARDS.md Part 1 and api/_systemPrompt.ts.
 4. File count: "7 scaffold files" and "8 scaffold files" were stale since the multi-file era — updated to 24 total files per build (19 Claude-generated + 5 programmatic).
-Rule: SOVEREIGN_STANDARDS.md is the single source of truth. When any other file contradicts it, SOVEREIGN_STANDARDS.md wins and the other file updates.
+Rule: VISILA_STANDARDS.md is the single source of truth. When any other file contradicts it, VISILA_STANDARDS.md wins and the other file updates.
 Decided: 2026-03-28.
 
-**docs/SOVEREIGN_DESIGN_SYSTEM.md is the authoritative design reference**
-Context: design rules were scattered across CLAUDE.md, SOVEREIGN_STANDARDS.md, and the system prompt. No single canonical source existed.
-Decision: docs/SOVEREIGN_DESIGN_SYSTEM.md is the definitive 12-section spec: Philosophy, Spacing System, Typography Scale, Color System, Component Library, Responsive Rules, Motion, Accessibility, Default Inclusions, Audit Checklist, Dark Mode System, Translation Readiness.
-Rule: when adding new design rules, update docs/SOVEREIGN_DESIGN_SYSTEM.md first, then api/_systemPrompt.ts, then SOVEREIGN_STANDARDS.md if needed. The design doc is the source of truth for design decisions.
+**docs/VISILA_DESIGN_SYSTEM.md is the authoritative design reference**
+Context: design rules were scattered across CLAUDE.md, VISILA_STANDARDS.md, and the system prompt. No single canonical source existed.
+Decision: docs/VISILA_DESIGN_SYSTEM.md is the definitive 12-section spec: Philosophy, Spacing System, Typography Scale, Color System, Component Library, Responsive Rules, Motion, Accessibility, Default Inclusions, Audit Checklist, Dark Mode System, Translation Readiness.
+Rule: when adding new design rules, update docs/VISILA_DESIGN_SYSTEM.md first, then api/_systemPrompt.ts, then VISILA_STANDARDS.md if needed. The design doc is the source of truth for design decisions.
 Decided: 2026-03-28.
 
 **Audit pipeline wired into run-build.ts — 'auditing' status, audit_score field**
@@ -1094,9 +1094,9 @@ Correct behaviour: checkRateLimit(key: string, limit: number, windowMs: number) 
 Fix: extract IP with getClientIp(req), then call checkRateLimit(`endpoint:${ip}`, limit, windowMs) — no await.
 Learned: 2026-03-28.
 
-## Sovereign Edit Experience — 2026-03-28
+## Visila Edit Experience — 2026-03-28
 
-**Sovereign edit experience shipped — route /app/:buildId/edit**
+**Visila edit experience shipped — route /app/:buildId/edit**
 Context: The old edit experience was an overlay modal (EditPanel) inside Dashboard.tsx. It had two tabs (Chat/Preview) but no brain intelligence, no click-to-describe, no prompt queue, and no security scan.
 Decision: Full dedicated page at /app/:buildId/edit replacing the modal. Two-column layout (360px brain panel + live preview). Mobile: single column with Chat/Preview tab toggle.
 Key files: src/pages/EditApp.tsx (main page), api/brain-hint.ts, api/verify-deployment.ts, api/security-scan.ts.
@@ -1122,8 +1122,8 @@ Learned: 2026-03-28.
 Called when user clicks "Claim →". Fetches 6 key files from GitHub (src/lib/supabase.ts, vercel.json, src/App.tsx, Login.tsx, Signup.tsx, .env.example), sends to Haiku for security analysis. Returns { passed, issues[], score }. passed = score >= 70 AND no high severity issues. Rate limit: 5/hr per IP (heavy). Token always read from builds table server-side — never from request body.
 Learned: 2026-03-28.
 
-**Prompt queue persists in localStorage with key sovereign_queue_{buildId}**
-Queue items are stored in localStorage so they survive page refreshes. Key pattern: `sovereign_queue_${buildId}`. Queue runs items in sequence, waiting for each deployment to complete before starting the next. Max 10 items (UI enforced). Queue is displayed as numbered pills in the collapsible panel above the input area.
+**Prompt queue persists in localStorage with key visila_queue_{buildId}**
+Queue items are stored in localStorage so they survive page refreshes. Key pattern: `visila_queue_${buildId}`. Queue runs items in sequence, waiting for each deployment to complete before starting the next. Max 10 items (UI enforced). Queue is displayed as numbered pills in the collapsible panel above the input area.
 Decided: 2026-03-28.
 
 **Amber hints intercept dangerous edit patterns in the frontend before calling the API**

@@ -1,6 +1,6 @@
-# Sovereign Changelog
+# Visila Changelog
 
-All notable changes to Sovereign are documented here.
+All notable changes to Visila are documented here.
 
 ---
 
@@ -8,8 +8,8 @@ All notable changes to Sovereign are documented here.
 
 ### The Company OS Release
 
-Sovereign v2.0.0 is the most significant release since launch. The entire system was
-rebuilt using Sovereign's own multi-agent pipeline — the ultimate dogfood.
+Visila v2.0.0 is the most significant release since launch. The entire system was
+rebuilt using Visila's own multi-agent pipeline — the ultimate dogfood.
 
 ### Added
 
@@ -18,10 +18,10 @@ rebuilt using Sovereign's own multi-agent pipeline — the ultimate dogfood.
 - `brain/cycle1-per-project.js` — Per-build learning cycle. Extracts lessons after every ship.
 - `brain/cycle2-weekly.js` — Weekly synthesis. Identifies recurring patterns and failure modes.
 - `brain/cycle3-monthly.js` — Monthly strategic report. Calculates quality trends and prompt improvements.
-- `brain/SOVEREIGN_RULES.md` — Canonical rules file read by all agents before writing any code.
-- `brain/SOVEREIGN_PATTERNS.md` — Seeded pattern library from CLAUDE.md lessons.
-- `brain/SOVEREIGN_ANTIPATTERNS.md` — Known antipatterns with fixes.
-- `brain/SOVEREIGN_COMPONENT_LIBRARY.md` — Reusable component patterns.
+- `brain/VISILA_RULES.md` — Canonical rules file read by all agents before writing any code.
+- `brain/VISILA_PATTERNS.md` — Seeded pattern library from CLAUDE.md lessons.
+- `brain/VISILA_ANTIPATTERNS.md` — Known antipatterns with fixes.
+- `brain/VISILA_COMPONENT_LIBRARY.md` — Reusable component patterns.
 - `src/pages/brain-dashboard.tsx` — Brain dashboard UI.
 
 **30-Agent Pipeline**
@@ -68,7 +68,7 @@ rebuilt using Sovereign's own multi-agent pipeline — the ultimate dogfood.
 - `scripts/self-build/orchestrator.js` — Manages parallel build groups, monitors progress.
 - `scripts/self-build/build-plan.json` — Master build plan with dependency graph.
 - `scripts/self-build/pipeline-state.json` — Live build state.
-- `scripts/self-build/sovereign-confidence-report-2026-03-24.md` — Sovereign's self-assessment.
+- `scripts/self-build/visila-confidence-report-2026-03-24.md` — Visila's self-assessment.
 
 **Shared Infrastructure**
 - `shared/agent-base-class.js` — Base class all 30 agents extend.
@@ -77,7 +77,7 @@ rebuilt using Sovereign's own multi-agent pipeline — the ultimate dogfood.
 
 ### Self-Assessment Results
 
-Sovereign scored **87/100 (STRONG)** on its own confidence evaluation.
+Visila scored **87/100 (STRONG)** on its own confidence evaluation.
 Launch gate: **PASSED** (threshold: 75).
 
 All 10 dimensions passed their minimums:
@@ -102,21 +102,21 @@ All 10 dimensions passed their minimums:
 
 ## [1.x.x] — 2026-03-20 to 2026-03-23
 
-### Sovereign v1 — The Foundation
+### Visila v1 — The Foundation
 
 - Landing page with ndev (idea) and dev (CLI) toggle
 - Brief extraction (extract-brief.ts) for PRDs 200+ chars
 - 18-file React/TS/Tailwind app generation (SSE streaming, Sonnet 4.6)
 - 3-version preview with regeneration before commit
 - GitHub OAuth + Vercel OAuth + Supabase OAuth
-- Staging builds deploy to Sovereign's Vercel team
+- Staging builds deploy to Visila's Vercel team
 - GitHub repo creation with 19-file scaffold
 - Vercel auto-deploy with polling to READY
 - Magic link auth for dashboard access
 - Dashboard with build history and live URLs
 - 7-day build expiry system
 - Lessons knowledge base (42 seed lessons from CLAUDE.md)
-- Sovereign Standards Engine v15 (14 expert layers + Resilience standard)
+- Visila Standards Engine v15 (14 expert layers + Resilience standard)
 - Company OS activation on ship (handoff protocol)
 
 ### Security

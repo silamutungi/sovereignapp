@@ -1,4 +1,4 @@
-# Sovereign — Engineering Rules
+# Visila — Engineering Rules
 
 Rules that apply to every session, every commit, every generated scaffold.
 
@@ -12,7 +12,7 @@ Every generated app must pass this test before shipping:
 Every scaffold must also pass:
 **"Would a senior engineer at Stripe, Linear, or Vercel be proud of this?"**
 
-This is not a landing page generator. Every app Sovereign builds is indistinguishable from a product that went through 6 months of design sprints and a senior engineering team.
+This is not a landing page generator. Every app Visila builds is indistinguishable from a product that went through 6 months of design sprints and a senior engineering team.
 
 ---
 
