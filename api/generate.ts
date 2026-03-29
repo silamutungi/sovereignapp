@@ -219,6 +219,42 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   await sendEvent({ type: 'progress', message: 'Designing your app…' })
 
+  // ── Layer 1: Input moderation (fail open — if the call errors, continue) ──
+  try {
+    const moderationClient = new Anthropic({ apiKey })
+    const modRes = await moderationClient.messages.create({
+      model: MODEL_FAST,
+      max_tokens: 60,
+      messages: [{
+        role: 'user',
+        content: `You are a content moderator. Does this app idea request anything that is: adult content, pornography, gambling, weapons, drugs, illegal activity, or hate speech?
+
+App idea: ${userMessage.slice(0, 500)}
+
+Return only JSON: { "flagged": boolean, "reason": string }
+If not flagged, reason should be empty string.`,
+      }],
+    })
+    const modRaw = modRes.content
+      .filter((b) => b.type === 'text')
+      .map((b) => (b as { type: 'text'; text: string }).text)
+      .join('')
+      .trim()
+    const modMatch = modRaw.match(/\{[\s\S]*?\}/)
+    if (modMatch) {
+      const modParsed = JSON.parse(modMatch[0]) as { flagged: boolean; reason: string }
+      if (modParsed.flagged === true) {
+        console.log('[generate] moderation flagged:', modParsed.reason)
+        await sendEvent({ type: 'error', error: "We can't build that. Sovereign is for legitimate businesses only." })
+        endStream()
+        return
+      }
+    }
+  } catch {
+    // Fail open — moderation error must not block legitimate users
+    console.warn('[generate] moderation check failed (non-fatal), continuing')
+  }
+
   const PROGRESS_THRESHOLDS = [2000, 5000, 9000, 12000]
   const PROGRESS_MESSAGES = [
     'Writing your landing page…',
@@ -396,6 +432,16 @@ Return only the image prompt text, nothing else. Max 100 words.`
             break
           }
         }
+
+        const finishReason = imgResponse.candidates?.[0]?.finishReason
+        if (finishReason && finishReason !== 'STOP') {
+          console.log('[generate] nano banana safety filter triggered:', finishReason)
+          // b64 will be undefined — falls through to Unsplash naturally
+        }
+        if (imgResponse.promptFeedback?.blockReason) {
+          console.log('[generate] nano banana prompt blocked:', imgResponse.promptFeedback.blockReason)
+        }
+
         console.log('[generate] nano banana image part found:', !!b64)
 
         if (b64) {
