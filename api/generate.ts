@@ -390,12 +390,14 @@ Return only the image prompt text, nothing else. Max 100 words.`
             })
           }
         )
-        const imagenData = await imagenRes.json() as {
-          predictions?: Array<{ bytesBase64Encoded?: string; mimeType?: string }>
-        }
         console.log('[generate] imagen response status:', imagenRes.status)
-        if (!imagenRes.ok) {
-          console.log('[generate] imagen error:', JSON.stringify(imagenData).slice(0, 300))
+        const rawText = await imagenRes.text()
+        console.log('[generate] imagen raw response:', rawText.slice(0, 500))
+        let imagenData: { predictions?: Array<{ bytesBase64Encoded?: string; mimeType?: string }> } = {}
+        try {
+          imagenData = JSON.parse(rawText)
+        } catch {
+          console.log('[generate] imagen response is not JSON')
         }
         const b64 = imagenData.predictions?.[0]?.bytesBase64Encoded
         const mimeType = imagenData.predictions?.[0]?.mimeType ?? 'image/png'
