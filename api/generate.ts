@@ -374,7 +374,7 @@ Return only the image prompt text, nothing else. Max 100 words.`
         // Path A — Gemini 2.5 Flash Image
         console.log('[generate] image: using gemini')
         const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey },
@@ -385,15 +385,15 @@ Return only the image prompt text, nothing else. Max 100 words.`
           }
         )
         console.log('[generate] gemini response status:', geminiRes.status)
-        if (!geminiRes.ok) {
-          const errText = await geminiRes.text()
-          console.log('[generate] gemini error body:', errText.slice(0, 300))
-        }
-        const geminiData = await geminiRes.json() as {
+        const geminiBody = await geminiRes.json().catch(() => null) as {
           candidates?: Array<{ content: { parts: Array<{ inlineData?: { data: string; mimeType: string } }> } }>
+        } | null
+        if (!geminiRes.ok) {
+          console.log('[generate] gemini error body:', JSON.stringify(geminiBody).slice(0, 300))
         }
-        console.log('[generate] gemini candidates:', JSON.stringify(geminiData.candidates?.map(c => c.content?.parts?.map(p => p.inlineData ? 'has-image' : 'text'))))
-        const imgPart = geminiData.candidates?.[0]?.content?.parts?.find(p => p.inlineData)
+        const geminiData = geminiBody
+        console.log('[generate] gemini candidates:', JSON.stringify(geminiData?.candidates?.map(c => c.content?.parts?.map(p => p.inlineData ? 'has-image' : 'text'))))
+        const imgPart = geminiData?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)
         if (imgPart?.inlineData) {
           const { data: b64, mimeType } = imgPart.inlineData
           const imageBuffer = Buffer.from(b64, 'base64')
