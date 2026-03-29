@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, type KeyboardEvent, type FormEvent, type RefObject } from 'react'
 import { t, type Locale } from './lib/i18n'
+import VisilaLogo from './components/VisilaLogo'
 import './styles/global.css'
 import './App.css'
 
@@ -54,8 +55,8 @@ function Nav({ locale }: { locale: Locale }) {
   return (
     <header>
       <nav className="nav" aria-label="Main navigation">
-        <a href="/" className="logo" aria-label="Sovereign App home">
-          sovereign
+        <a href="/" className="logo" aria-label="Visila home">
+          <VisilaLogo size="sm" />
         </a>
         {/* FIX 3 — nav: logo | How it works · Dashboard only */}
         <div className="nav-r">
@@ -1387,7 +1388,9 @@ function Footer({ locale, setLocale }: { locale: Locale; setLocale: (l: Locale) 
     <footer className="footer">
       <div className="footer-inner">
         {/* Logo */}
-        <a href="/" className="footer-logo" aria-label="Sovereign App home">sovereign</a>
+        <a href="/" className="footer-logo" aria-label="Visila home">
+          <VisilaLogo size="sm" />
+        </a>
 
         {/* Nav links */}
         <nav className="footer-nav" aria-label="Footer navigation">

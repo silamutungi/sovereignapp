@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import VisilaLogo from '../components/VisilaLogo'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -60,23 +61,6 @@ function getSession(): { email: string } | null {
   } catch {
     return null
   }
-}
-
-// ── Wordmark ───────────────────────────────────────────────────────────────────
-
-function Wordmark({ dark }: { dark?: boolean }) {
-  return (
-    <span
-      style={{
-        fontFamily: "'Playfair Display', Georgia, serif",
-        fontSize: '20px',
-        fontWeight: 400,
-        color: dark ? '#f2efe8' : '#0e0d0b',
-      }}
-    >
-      Sovereign<span style={{ color: '#FF1F6E' }}>.</span>
-    </span>
-  )
 }
 
 // ── STATE A — Email gate ───────────────────────────────────────────────────────
@@ -131,7 +115,7 @@ function EmailGate({ onVerified }: { onVerified: (email: string) => void }) {
       >
         {/* Fixed wordmark */}
         <div style={{ padding: '20px 32px', position: 'fixed', top: 0, left: 0 }}>
-          <Wordmark />
+          <VisilaLogo size="sm" />
         </div>
 
         {/* Center content */}
@@ -375,7 +359,7 @@ function TokenVerify({
         >
           <div style={{ maxWidth: '440px', width: '100%' }}>
             <div style={{ marginBottom: '32px' }}>
-              <Wordmark />
+              <VisilaLogo size="sm" />
             </div>
             <h2
               style={{
@@ -431,7 +415,7 @@ function TokenVerify({
           gap: '16px',
         }}
       >
-        <Wordmark />
+        <VisilaLogo size="sm" />
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span
             style={{
@@ -579,7 +563,7 @@ function AuthDashboard({ email }: { email: string }) {
           zIndex: 100,
         }}
       >
-        <Wordmark dark />
+        <VisilaLogo size="sm" color="light" />
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
           <span
             style={{
