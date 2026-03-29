@@ -227,6 +227,64 @@ export default async function handler(req: any, res: any): Promise<void> {
   try {
     const client = new Anthropic({ apiKey })
 
+    // ── Prefetch hero image from Unsplash ──────────────────────────────────
+    // Step 1: Haiku extracts 2-3 domain-specific keywords from the app idea.
+    // Step 2: Unsplash search returns a permanent, specific photo URL for the
+    //         first keyword — injected as HERO_IMAGE_URL so the generation
+    //         prompt uses a stable URL, not a random-on-every-load loremflickr.
+    // Non-fatal: if UNSPLASH_ACCESS_KEY is missing or the API call fails,
+    //            heroImageUrl stays null and the generation prompt falls back
+    //            to the static loremflickr fallback defined in _systemPrompt.ts.
+    let heroImageUrl: string | null = null
+    const unsplashKey = process.env.UNSPLASH_ACCESS_KEY
+    if (unsplashKey) {
+      try {
+        await sendEvent({ type: 'progress', message: 'Selecting hero image…' })
+
+        // Extract keywords via Haiku — bounded output, fast, cheap
+        const kwMsg = await client.messages.create({
+          model: MODEL_FAST,
+          max_tokens: 80,
+          messages: [{
+            role: 'user',
+            content: `Extract 2-3 image search keywords for a hero background photo for this app idea. Return ONLY a JSON array of strings, nothing else. Example: ["celebration","party","confetti"]\n\nApp idea: ${idea.slice(0, 500)}`,
+          }],
+        })
+        const kwRaw = kwMsg.content
+          .filter((b) => b.type === 'text')
+          .map((b) => (b as { type: 'text'; text: string }).text)
+          .join('')
+          .trim()
+        const kwMatch = kwRaw.match(/\[[\s\S]*?\]/)
+        const keywords: string[] = kwMatch ? (JSON.parse(kwMatch[0]) as string[]) : []
+
+        // Fetch first Unsplash result for the first keyword
+        if (keywords.length > 0) {
+          const query = encodeURIComponent(String(keywords[0]))
+          const uRes = await fetch(
+            `https://api.unsplash.com/search/photos?query=${query}&per_page=3&orientation=landscape`,
+            { headers: { Authorization: `Client-ID ${unsplashKey}` } },
+          )
+          if (uRes.ok) {
+            const uData = await uRes.json() as { results: Array<{ urls: { regular: string } }> }
+            heroImageUrl = uData.results[0]?.urls?.regular ?? null
+            if (heroImageUrl) console.log('[generate] Unsplash hero resolved, keyword:', keywords[0])
+          } else {
+            console.warn('[generate] Unsplash API returned', uRes.status, '(non-fatal, using fallback)')
+          }
+        }
+      } catch (imgErr) {
+        console.warn('[generate] Unsplash prefetch failed (non-fatal):', imgErr instanceof Error ? imgErr.message : String(imgErr))
+      }
+    }
+
+    // Inject the permanent hero URL into the user message.
+    // Claude reads HERO_IMAGE_URL and uses it as-is — no URL generation needed.
+    const heroImageInjection = heroImageUrl
+      ? `\n\nHERO_IMAGE_URL = ${heroImageUrl}`
+      : ''
+    const finalUserMessage = userMessage + heroImageInjection
+
     console.log('[generate] Creating Anthropic stream...')
     const stream = client.messages.stream({
       // Sonnet 4.6: handles 18-file React/TS/Tailwind generation at ~80% lower cost than Opus.
@@ -325,7 +383,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       messages: [
         {
           role: 'user',
-          content: `Idea: "${userMessage}"`,
+          content: `Idea: "${finalUserMessage}"`,
         },
       ],
     })

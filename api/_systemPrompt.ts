@@ -915,10 +915,11 @@ Exactly ONE image per app: the hero background. Zero elsewhere.
 
 **Hero section — mandatory, exactly one per Home page:**
 Every Home.tsx must communicate the emotional promise of the app in under 3 seconds:
-- Keywords must be domain-specific. Party invite app: "party,celebration,confetti". Finance app: "charts,finance,growth". Fitness: "running,athlete,training". Never generic keywords.
-- Use https://loremflickr.com/1600/900/{keyword1},{keyword2},{keyword3}
+- The user message contains HERO_IMAGE_URL — a permanent, pre-fetched Unsplash photo URL. Use it exactly as-is as the backgroundImage value.
+- If HERO_IMAGE_URL is not present in the user message, fall back to: https://loremflickr.com/1600/900/app,product,modern
+- NEVER construct, guess, or randomise any image URL. Do NOT use loremflickr.com with dynamic keywords, source.unsplash.com, picsum.photos, placeholder.com, or any service that generates a different image on every request. All image src values must be permanent, specific URLs.
 - Implementation — backgroundImage inline style on the section — NEVER an img tag (img h-full breaks on iOS Safari):
-  section: style={{ backgroundImage: 'url(URL)', backgroundSize: 'cover', backgroundPosition: 'center' }} className="relative min-h-screen flex items-center overflow-hidden"
+  section: style={{ backgroundImage: 'url(HERO_IMAGE_URL_VALUE)', backgroundSize: 'cover', backgroundPosition: 'center' }} className="relative min-h-screen flex items-center overflow-hidden"
   child 1: div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80"
   child 2: div className="relative z-10" — headline and one CTA
 - Headline: large serif, bold, the user's core benefit in one sentence. One CTA below it. Nothing else.
