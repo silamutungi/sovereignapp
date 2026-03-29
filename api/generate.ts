@@ -374,7 +374,7 @@ Return only the image prompt text, nothing else. Max 100 words.`
         // Path A — Imagen 3 via REST API
         console.log('[generate] image: using imagen')
         const imagenRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict`,
+          `https://generativelanguage.googleapis.com/v1/models/imagen-3.0-generate-002:predict`,
           {
             method: 'POST',
             headers: {
