@@ -640,9 +640,72 @@ function NdevPanel({ locale }: { locale: Locale }) {
         )}
 
         {stage === 'generating' && (
-          <div className="gen-loading" role="status" aria-live="polite">
-            <span className="gen-spinner" aria-hidden="true" />
-            <p>{generatingMessage}</p>
+          <div className="gen-loading" role="status" aria-live="polite"
+            style={{ padding: '32px 24px', textAlign: 'center' }}>
+
+            {/* Pulsing brand color orb */}
+            <div style={{
+              width: 64,
+              height: 64,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #c8f060 0%, #0e0d0b 100%)',
+              margin: '0 auto 24px',
+              animation: 'pulse 2s ease-in-out infinite',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <div style={{
+                width: 24,
+                height: 24,
+                borderRadius: '50%',
+                background: '#f2efe8',
+                opacity: 0.9
+              }} />
+            </div>
+
+            {/* Progress message */}
+            <p style={{
+              fontFamily: 'DM Mono, monospace',
+              fontSize: '13px',
+              color: '#6b6862',
+              margin: '0 0 8px',
+              minHeight: '20px',
+              transition: 'opacity 0.3s ease'
+            }}>{generatingMessage}</p>
+
+            {/* Sovereign tagline */}
+            <p style={{
+              fontFamily: "'Playfair Display', Georgia, serif",
+              fontSize: '18px',
+              fontWeight: 600,
+              color: '#0e0d0b',
+              margin: 0
+            }}>Building your company...</p>
+
+            {/* Animated progress bar */}
+            <div style={{
+              marginTop: 24,
+              height: 2,
+              background: '#e8e4dc',
+              borderRadius: 1,
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                height: '100%',
+                background: '#c8f060',
+                borderRadius: 1,
+                animation: 'progress 90s linear forwards',
+                width: '0%'
+              }} />
+            </div>
+
+            <p style={{
+              fontFamily: 'DM Mono, monospace',
+              fontSize: '11px',
+              color: '#aaa89f',
+              marginTop: 12
+            }}>Free. No signup to generate.</p>
           </div>
         )}
 
@@ -698,8 +761,8 @@ function NdevPanel({ locale }: { locale: Locale }) {
               </>
             )}
 
-            <div className="gen-preview-wrap" style={{ borderColor: spec.primaryColor + '55', position: 'relative', minHeight: '280px', padding: '24px' }}>
-              <p className="gen-preview-label">Generated app</p>
+            <div className="gen-preview-wrap" style={{ borderColor: spec.primaryColor + '55', position: 'relative', padding: '0' }}>
+              <p className="gen-preview-label" style={{ position: 'absolute', top: 12, left: 16, fontSize: '10px', color: 'rgba(255,255,255,0.7)', fontFamily: 'DM Mono, monospace', letterSpacing: '0.08em', textTransform: 'uppercase', zIndex: 2, margin: 0 }}>Generated app</p>
 
               {spec.heroImageUrl ? (
                 <div style={{
