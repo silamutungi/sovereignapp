@@ -5,7 +5,6 @@
 // Returns: AppSpec JSON
 //
 import Anthropic from '@anthropic-ai/sdk'
-import { GoogleGenAI } from '@google/genai'
 import { createClient } from '@supabase/supabase-js'
 import { randomUUID } from 'crypto'
 import { checkRateLimit } from './_rateLimit.js'
@@ -372,24 +371,34 @@ Return only the image prompt text, nothing else. Max 100 words.`
       const unsplashKey = process.env.UNSPLASH_ACCESS_KEY
 
       if (imagePrompt && geminiKey) {
-        // Path A — Gemini image generation via @google/genai SDK
-        console.log('[generate] image: using gemini')
-        const genAI = new GoogleGenAI({ apiKey: geminiKey })
-        const imgResponse = await genAI.models.generateContent({
-          model: 'gemini-2.0-flash-exp',
-          contents: imagePrompt,
-          config: { responseModalities: ['TEXT', 'IMAGE'] }
-        })
-        const parts = imgResponse.candidates?.[0]?.content?.parts ?? []
-        let b64: string | undefined
-        let mimeType: string = 'image/png'
-        for (const part of parts) {
-          if (part.inlineData?.data) {
-            b64 = part.inlineData.data
-            mimeType = part.inlineData.mimeType ?? 'image/png'
-            break
+        // Path A — Imagen 3 via REST API
+        console.log('[generate] image: using imagen')
+        const imagenRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': geminiKey
+            },
+            body: JSON.stringify({
+              instances: [{ prompt: imagePrompt }],
+              parameters: {
+                sampleCount: 1,
+                aspectRatio: '16:9'
+              }
+            })
           }
+        )
+        const imagenData = await imagenRes.json() as {
+          predictions?: Array<{ bytesBase64Encoded?: string; mimeType?: string }>
         }
+        console.log('[generate] imagen response status:', imagenRes.status)
+        if (!imagenRes.ok) {
+          console.log('[generate] imagen error:', JSON.stringify(imagenData).slice(0, 300))
+        }
+        const b64 = imagenData.predictions?.[0]?.bytesBase64Encoded
+        const mimeType = imagenData.predictions?.[0]?.mimeType ?? 'image/png'
         if (b64) {
           const imageBuffer = Buffer.from(b64, 'base64')
           const fileName = `${buildId}-hero.png`
@@ -403,9 +412,9 @@ Return only the image prompt text, nothing else. Max 100 words.`
           const { data: urlData } = supabaseAdmin.storage
             .from('hero-images').getPublicUrl(fileName)
           heroImageUrl = urlData.publicUrl
-          console.log('[generate] hero image uploaded (gemini):', heroImageUrl)
+          console.log('[generate] hero image uploaded (imagen):', heroImageUrl)
         } else {
-          console.log('[generate] gemini returned no image part')
+          console.log('[generate] imagen returned no image')
         }
 
       } else if (imagePrompt && openaiKey) {
