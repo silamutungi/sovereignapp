@@ -3,6 +3,8 @@ import { t, type Locale } from './lib/i18n'
 import './styles/global.css'
 import './App.css'
 
+const FIGMA_IMPORT_ENABLED = import.meta.env.VITE_FIGMA_IMPORT === 'true'
+
 // ── useInView ────────────────────────────────────────────────────────────────
 function useInView() {
   const ref = useRef<HTMLElement | null>(null)
@@ -125,6 +127,153 @@ function Hero({
   )
 }
 
+// ── FigmaImport ──────────────────────────────────────────────────────────────
+function FigmaImport() {
+  const [figmaUrl, setFigmaUrl] = useState('')
+  const [figmaToken, setFigmaToken] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<{
+    tokens: string
+    colors: number
+    typography: number
+  } | null>(null)
+  const [error, setError] = useState('')
+
+  async function handleExtract() {
+    if (!figmaUrl || !figmaToken) return
+    setLoading(true)
+    setError('')
+    setResult(null)
+    try {
+      const res = await fetch('/api/figma-extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          figma_url: figmaUrl,
+          figma_token: figmaToken
+        })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Extraction failed')
+      setResult(data)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong')
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div style={{
+      marginTop: 32,
+      borderTop: '1px solid #e8e4dc',
+      paddingTop: 28
+    }}>
+      <p style={{
+        fontFamily: 'DM Mono, monospace',
+        fontSize: 11,
+        letterSpacing: '0.1em',
+        textTransform: 'uppercase',
+        color: '#6b6862',
+        marginBottom: 16
+      }}>Import design tokens from Figma</p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <input
+          type="url"
+          placeholder="Figma file URL"
+          value={figmaUrl}
+          onChange={e => setFigmaUrl(e.target.value)}
+          style={{
+            fontFamily: 'DM Mono, monospace',
+            fontSize: 13,
+            padding: '10px 14px',
+            border: '1px solid #d8d4ca',
+            borderRadius: 6,
+            background: '#f9f7f3',
+            color: '#0e0d0b',
+            outline: 'none'
+          }}
+        />
+        <input
+          type="password"
+          placeholder="Figma personal access token"
+          value={figmaToken}
+          onChange={e => setFigmaToken(e.target.value)}
+          style={{
+            fontFamily: 'DM Mono, monospace',
+            fontSize: 13,
+            padding: '10px 14px',
+            border: '1px solid #d8d4ca',
+            borderRadius: 6,
+            background: '#f9f7f3',
+            color: '#0e0d0b',
+            outline: 'none'
+          }}
+        />
+        <button
+          onClick={handleExtract}
+          disabled={loading || !figmaUrl || !figmaToken}
+          style={{
+            fontFamily: 'DM Mono, monospace',
+            fontSize: 13,
+            padding: '10px 14px',
+            background: loading ? '#d8d4ca' : '#c8f060',
+            color: '#0e0d0b',
+            border: 'none',
+            borderRadius: 6,
+            cursor: loading ? 'default' : 'pointer',
+            fontWeight: 600
+          }}
+        >
+          {loading ? 'Extracting tokens…' : 'Extract design tokens →'}
+        </button>
+      </div>
+
+      {error && (
+        <p style={{
+          fontFamily: 'DM Mono, monospace',
+          fontSize: 12,
+          color: '#c0392b',
+          marginTop: 12
+        }}>{error}</p>
+      )}
+
+      {result && (
+        <div style={{ marginTop: 20 }}>
+          <p style={{
+            fontFamily: 'DM Mono, monospace',
+            fontSize: 11,
+            color: '#6b6862',
+            marginBottom: 10
+          }}>
+            ✓ {result.colors} colors · {result.typography} text styles extracted
+          </p>
+          <pre style={{
+            fontFamily: 'DM Mono, monospace',
+            fontSize: 11,
+            background: '#0e0d0b',
+            color: '#c8f060',
+            padding: 16,
+            borderRadius: 8,
+            overflow: 'auto',
+            maxHeight: 300,
+            margin: 0
+          }}>{result.tokens}</pre>
+          <p style={{
+            fontFamily: 'DM Mono, monospace',
+            fontSize: 11,
+            color: '#6b6862',
+            marginTop: 10
+          }}>
+            This file will be written to src/styles/tokens.css
+            in your repo when you run npx sovereign-app@latest
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── DevPanel ─────────────────────────────────────────────────────────────────
 const CMD = 'npx sovereign-app@latest'
 const STACKS = ['React + Vite', 'TypeScript', 'Tailwind', 'Supabase', 'Vercel', 'GitHub']
@@ -173,6 +322,7 @@ function DevPanel({ locale }: { locale: Locale }) {
             <span key={s} className="pill">{s}</span>
           ))}
         </div>
+        {FIGMA_IMPORT_ENABLED && <FigmaImport />}
       </div>
     </section>
   )
