@@ -2,7 +2,7 @@
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { code, redirect_uri } = req.body
+  const { code, redirect_uri, code_verifier } = req.body
   if (!code || !redirect_uri) return res.status(400).json({ error: 'Missing code or redirect_uri' })
 
   const clientId = process.env.VISILA_CLI_VERCEL_CLIENT_ID
@@ -16,7 +16,8 @@ export default async function handler(req: any, res: any) {
     code,
     client_id: clientId,
     client_secret: clientSecret,
-    redirect_uri
+    redirect_uri,
+    ...(code_verifier ? { code_verifier } : {})
   })
 
   const response = await fetch('https://api.vercel.com/v2/oauth/access_token', {
