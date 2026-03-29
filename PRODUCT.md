@@ -37,7 +37,7 @@ Non-developers describe an app idea → Sovereign generates a complete multi-fil
 | Prompt caching | 🔲 Not built | Anthropic SDK types may need `@ts-expect-error` — see Priority 8 notes |
 | Stripe billing | 🔲 Not built | Phase 3 item |
 | npx sovereign-app@latest CLI | 🔲 Not built | Phase 4 item |
-| Figma import | 🔲 Not built | Phase 4 item |
+| Figma import | ✅ Level 1 live | Token extraction behind `VITE_FIGMA_IMPORT` flag. Level 2 (component detection) is next. |
 
 ---
 

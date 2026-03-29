@@ -243,6 +243,13 @@ npx sovereign-app@latest
 **Key principle:**
 Everything extracted from Figma lives in the user's repo in standard files they own. No Sovereign lock-in. If they stop using Sovereign, their tokens and components remain unchanged.
 
+### Figma Import — Level 1 Status: SHIPPED (web UI)
+- api/figma-extract.ts: extracts color + typography tokens
+- FigmaImport component in App.tsx behind VITE_FIGMA_IMPORT flag
+- Returns tokens.css preview in the browser
+- Set VITE_FIGMA_IMPORT=true in Vercel to enable
+- Next: wire into npx sovereign-app@latest CLI flow
+
 ## Sovereign Security Layer
 
 Every generated app follows 9 non-negotiable security rules:
