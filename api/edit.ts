@@ -2,12 +2,17 @@
 //
 // POST /api/edit
 // Body: { buildId, appName, repoUrl, editRequest }
-// Returns: { ok: true } immediately after triggering the Vercel redeploy.
+// Returns: { ok: true, brain_followup? } immediately after triggering redeploy.
 //
-// Status resolution happens in build-status.ts: when it detects a build
-// in 'building' state with a vercel_project_id, it checks Vercel's latest
-// deployment and auto-updates to 'complete' or 'error'. The dashboard's
-// existing 4s polling loop picks up the change automatically.
+// Two edit modes:
+//   NEW_PAGE  — instruction matches "add/create/build/make X page|section|screen"
+//               → reads router + nav + pages list from GitHub, generates all
+//                 changed files atomically via one Claude call, commits via
+//                 GitHub Trees API (one atomic commit, no conflicts).
+//   FILE_EDIT — all other instructions
+//               → detects and edits a single file (Home.tsx → App.tsx → index.html)
+//
+// Status resolution happens in build-status.ts.
 //
 // Rate limit: 10 edits per hour per IP
 
@@ -34,6 +39,9 @@ function getSupabase() {
 }
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+
+// Matches: "add a pricing page", "create a contact section", "build an about screen"
+const NEW_PAGE_PATTERN = /\b(add|create|build|make)\s+(?:a\s+|an\s+)?(\w+)\s+(?:page|section|screen)\b/i
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function handler(req: any, res: any): Promise<void> {
@@ -116,16 +124,12 @@ export default async function handler(req: any, res: any): Promise<void> {
     const repoPath = String(repoUrl).replace('https://github.com/', '')
     console.log('[edit] repo target:', repoPath, 'buildId:', buildId)
 
-    // ── Detect app type and pick the right file to edit ─────────────────────
-    // React apps: try src/pages/Home.tsx → src/App.tsx → index.html
-    // Plain HTML apps: index.html only
-    console.log('[edit] detecting app type...', new Date().toISOString())
-
     const ghHeaders = {
       Authorization: `Bearer ${githubToken}`,
       Accept: 'application/vnd.github.v3+json',
     }
 
+    // ── GitHub file helper ───────────────────────────────────────────────────
     async function fetchGitHubFile(filePath: string): Promise<{ content: string; sha: string; path: string } | null> {
       const r = await fetch(`https://api.github.com/repos/${repoPath}/contents/${filePath}`, { headers: ghHeaders })
       if (!r.ok) return null
@@ -133,30 +137,92 @@ export default async function handler(req: any, res: any): Promise<void> {
       return { content: Buffer.from(d.content, 'base64').toString('utf-8'), sha: d.sha, path: filePath }
     }
 
-    const CANDIDATE_FILES = ['src/pages/Home.tsx', 'src/App.tsx', 'index.html']
-    let targetFile: { content: string; sha: string; path: string } | null = null
-    for (const candidate of CANDIDATE_FILES) {
-      targetFile = await fetchGitHubFile(candidate)
-      if (targetFile) { console.log('[edit] editing file:', candidate); break }
+    // ── Atomic multi-file commit via GitHub Trees API ────────────────────────
+    // Uses the Git Data API to commit multiple files in one operation — avoids
+    // the SHA conflicts that would occur with sequential single-file PUTs.
+    async function atomicCommit(
+      files: Array<{ path: string; content: string }>,
+      commitMessage: string,
+    ): Promise<boolean> {
+      try {
+        // Find the default branch (Sovereign always creates `main`)
+        let headSha = ''
+        let foundBranch = ''
+        for (const branch of ['main', 'master']) {
+          const refRes = await fetch(
+            `https://api.github.com/repos/${repoPath}/git/refs/heads/${branch}`,
+            { headers: ghHeaders },
+          )
+          if (refRes.ok) {
+            const refData = await refRes.json() as { object: { sha: string } }
+            headSha = refData.object.sha
+            foundBranch = branch
+            break
+          }
+        }
+        if (!headSha) { console.error('[edit] atomicCommit: could not resolve HEAD'); return false }
+
+        // Get the tree SHA from the current commit
+        const commitRes = await fetch(
+          `https://api.github.com/repos/${repoPath}/git/commits/${headSha}`,
+          { headers: ghHeaders },
+        )
+        if (!commitRes.ok) return false
+        const commitData = await commitRes.json() as { tree: { sha: string } }
+
+        // Create a new tree with all changed files
+        const treeRes = await fetch(
+          `https://api.github.com/repos/${repoPath}/git/trees`,
+          {
+            method: 'POST',
+            headers: { ...ghHeaders, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              base_tree: commitData.tree.sha,
+              tree: files.map((f) => ({
+                path: f.path,
+                mode: '100644' as const,
+                type: 'blob' as const,
+                content: f.content,
+              })),
+            }),
+          },
+        )
+        if (!treeRes.ok) { console.error('[edit] atomicCommit: tree create failed', treeRes.status); return false }
+        const treeData = await treeRes.json() as { sha: string }
+
+        // Create the commit
+        const newCommitRes = await fetch(
+          `https://api.github.com/repos/${repoPath}/git/commits`,
+          {
+            method: 'POST',
+            headers: { ...ghHeaders, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: commitMessage,
+              tree: treeData.sha,
+              parents: [headSha],
+            }),
+          },
+        )
+        if (!newCommitRes.ok) { console.error('[edit] atomicCommit: commit create failed', newCommitRes.status); return false }
+        const newCommitData = await newCommitRes.json() as { sha: string }
+
+        // Advance the branch ref
+        const updateRefRes = await fetch(
+          `https://api.github.com/repos/${repoPath}/git/refs/heads/${foundBranch}`,
+          {
+            method: 'PATCH',
+            headers: { ...ghHeaders, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sha: newCommitData.sha }),
+          },
+        )
+        return updateRefRes.ok
+      } catch (e) {
+        console.error('[edit] atomicCommit threw:', e)
+        return false
+      }
     }
 
-    if (!targetFile) {
-      console.error('[edit] no editable file found in repo')
-      await setBuildStatus('error', null, 'Could not read app code from GitHub')
-      res.status(500).json({ error: 'Could not read your app code' })
-      return
-    }
-
-    const isReact = targetFile.path.endsWith('.tsx') || targetFile.path.endsWith('.ts')
-    console.log('[edit] file:', targetFile.path, 'isReact:', isReact, 'length:', targetFile.content.length, new Date().toISOString())
-
-    // ── Generate updated file via Claude ─────────────────────────────────────
-    console.log('[edit] generating edit...', new Date().toISOString())
-    await setBuildStatus('building', 'Generating your edit…')
-
-    // ── Fetch top recurring lessons from Brain (best-effort) ─────────────────
-    // Same pattern as generate.ts — inject proven fixes proactively so the
-    // edit agent doesn't repeat mistakes that production has already solved.
+    // ── Fetch brain lessons (shared by both paths) ───────────────────────────
     let editLessonContext = ''
     try {
       const supabaseUrl = process.env.SUPABASE_URL
@@ -182,41 +248,202 @@ export default async function handler(req: any, res: any): Promise<void> {
       // Non-fatal — proceed without lesson context
     }
 
-    // If the edit involves an image, pre-fetch a real URL server-side so Claude
-    // doesn't need to guess. Extract keywords from the editRequest and resolve
-    // the redirect to get a guaranteed-working CDN URL.
-    let resolvedImageUrl: string | null = null
-    const imageKeywords = editRequest.toLowerCase().match(
-      /\b(image|photo|picture|hero|banner|background|portrait|scene|shot)\b/i
-    )
-    if (imageKeywords) {
-      try {
-        // Extract nouns/adjectives from the request as keywords (strip common words)
-        const stopWords = new Set(['add','a','an','the','of','in','at','on','to','with','and','or','is','are','was','were','be','it','this','that','for','hero','image','photo','picture'])
-        const keywords = editRequest.toLowerCase()
-          .replace(/[^a-z0-9 ]/g, ' ')
-          .split(/\s+/)
-          .filter((w) => w.length > 2 && !stopWords.has(w))
-          .slice(0, 5)
-          .join(',')
-        if (keywords) {
-          const imgRes = await fetch(`https://loremflickr.com/1600/900/${encodeURIComponent(keywords)}`, { redirect: 'follow' })
-          if (imgRes.ok) {
-            resolvedImageUrl = imgRes.url  // final CDN URL after redirect
-            console.log('[edit] resolved image URL:', resolvedImageUrl)
-          }
-        }
-      } catch (e) {
-        console.warn('[edit] image prefetch failed (non-fatal):', e)
+    // ── Detect edit mode ─────────────────────────────────────────────────────
+    const isNewPage = NEW_PAGE_PATTERN.test(editRequest)
+    let brainFollowup: string | null = null
+
+    // ════════════════════════════════════════════════════════════════════════
+    // NEW_PAGE PATH
+    // ════════════════════════════════════════════════════════════════════════
+    if (isNewPage) {
+      console.log('[edit] NEW_PAGE detected:', editRequest)
+
+      const pageMatch = editRequest.match(NEW_PAGE_PATTERN)
+      const pageName = pageMatch
+        ? pageMatch[2].charAt(0).toUpperCase() + pageMatch[2].slice(1).toLowerCase()
+        : 'New'
+
+      // Fetch router file (try candidates in order)
+      const ROUTER_CANDIDATES = ['src/App.tsx', 'src/router.tsx', 'src/routes.tsx']
+      let routerFile: { content: string; sha: string; path: string } | null = null
+      for (const c of ROUTER_CANDIDATES) {
+        routerFile = await fetchGitHubFile(c)
+        if (routerFile) break
       }
-    }
 
-    const imageGuidance = resolvedImageUrl
-      ? `\nIMAGES: Use this exact pre-fetched image URL (guaranteed to work): ${resolvedImageUrl}\nDo NOT use any other image URL — this one is already verified to load correctly.`
-      : `\nIMAGES: Use https://loremflickr.com/1600/900/{keyword1},{keyword2},{keyword3} with keywords from the description. Never use source.unsplash.com, placeholder.com, or images.unsplash.com/photo-{id}.`
+      // Fetch nav file (try candidates in order)
+      const NAV_CANDIDATES = ['src/components/Nav.tsx', 'src/components/Navbar.tsx', 'src/components/Header.tsx']
+      let navFile: { content: string; sha: string; path: string } | null = null
+      for (const c of NAV_CANDIDATES) {
+        navFile = await fetchGitHubFile(c)
+        if (navFile) break
+      }
 
-    const prompt = isReact
-      ? `You are Sovereign's world-class design + engineering agent. You embody the Jony Ive standard: calm, precise, trustworthy, quietly powerful, inevitable to use. A founder is asking you to improve their app. You don't apply changes mechanically — you apply design judgment at every level.
+      // List existing pages
+      let existingPages: string[] = []
+      try {
+        const pagesRes = await fetch(
+          `https://api.github.com/repos/${repoPath}/contents/src/pages`,
+          { headers: ghHeaders },
+        )
+        if (pagesRes.ok) {
+          const pagesData = await pagesRes.json() as Array<{ name: string }>
+          existingPages = pagesData.map((f) => f.name)
+        }
+      } catch { /* non-fatal */ }
+
+      await setBuildStatus('building', 'Generating new page…')
+
+      const newPagePrompt = `You are Sovereign's world-class engineering agent. Add a new "${pageName}" page to this React app.
+
+User instruction: "${editRequest}"
+
+Router file (${routerFile?.path ?? 'src/App.tsx'}):
+${routerFile?.content ?? '(not found — generate a minimal router that includes the new route)'}
+
+Nav file (${navFile?.path ?? 'not found'}):
+${navFile?.content ?? '(not found — set nav_update to null in your response)'}
+
+Existing pages in src/pages/: ${existingPages.length > 0 ? existingPages.join(', ') : '(none)'}
+${editLessonContext}
+
+Return ONLY a raw JSON object — no markdown fences, no preamble, no trailing text. First character must be { and last must be }:
+{
+  "new_page": {
+    "path": "src/pages/${pageName}.tsx",
+    "content": "<complete TypeScript/JSX file>"
+  },
+  "router_update": {
+    "path": "${routerFile?.path ?? 'src/App.tsx'}",
+    "content": "<complete updated router file with new import and Route>"
+  },
+  "nav_update": ${navFile ? `{"path":"${navFile.path}","content":"<complete updated nav with new link>"}` : 'null'},
+  "brain_followup": "<one sentence: the single most valuable next thing to build on this page>"
+}
+
+Rules for the new page:
+- Complete, fully styled TypeScript React component using Tailwind
+- React Router v6: useNavigate not useHistory, Routes not Switch, <Link> not <a> for internal links
+- Named imports from 'react' — never React.* namespace (e.g. import { useState, type FormEvent } from 'react')
+- No @/ path aliases — use relative paths
+- All states designed: loading, error, empty, success
+- WCAG AA contrast on every element
+- Generous spacing: py-20 sections, max-w-5xl mx-auto px-6 content`
+
+      const newPageMsg = await anthropic.messages.create({
+        model: MODEL_GENERATION,
+        max_tokens: 8000,
+        messages: [{ role: 'user', content: newPagePrompt }],
+      })
+
+      const rawNewPage = newPageMsg.content
+        .filter((b) => b.type === 'text')
+        .map((b) => (b as { type: 'text'; text: string }).text)
+        .join('')
+        .trim()
+
+      const cleanedNewPage = rawNewPage.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
+
+      let newPageSpec: {
+        new_page: { path: string; content: string }
+        router_update: { path: string; content: string }
+        nav_update: { path: string; content: string } | null
+        brain_followup: string
+      }
+
+      try {
+        newPageSpec = JSON.parse(cleanedNewPage)
+      } catch (parseErr) {
+        console.error('[edit] NEW_PAGE JSON parse failed:', parseErr, '\nraw (first 300):', cleanedNewPage.slice(0, 300))
+        await setBuildStatus('error', null, 'Could not generate new page')
+        res.status(500).json({ error: 'Could not generate the new page' })
+        return
+      }
+
+      brainFollowup = newPageSpec.brain_followup ?? null
+
+      // Build atomic commit file list
+      const filesToCommit: Array<{ path: string; content: string }> = [
+        { path: newPageSpec.new_page.path, content: newPageSpec.new_page.content },
+        { path: newPageSpec.router_update.path, content: newPageSpec.router_update.content },
+      ]
+      if (newPageSpec.nav_update) {
+        filesToCommit.push({ path: newPageSpec.nav_update.path, content: newPageSpec.nav_update.content })
+      }
+
+      console.log('[edit] atomic commit — files:', filesToCommit.map((f) => f.path).join(', '))
+      await setBuildStatus('building', 'Pushing new page…')
+
+      const committed = await atomicCommit(filesToCommit, `feat: add ${pageName} page with route and nav`)
+
+      if (!committed) {
+        console.error('[edit] atomic commit failed')
+        await setBuildStatus('error', null, 'Could not push new page to GitHub')
+        res.status(500).json({ error: 'Could not push the new page' })
+        return
+      }
+
+      console.log('[edit] atomic commit succeeded', new Date().toISOString())
+
+    // ════════════════════════════════════════════════════════════════════════
+    // FILE_EDIT PATH (existing single-file logic)
+    // ════════════════════════════════════════════════════════════════════════
+    } else {
+      console.log('[edit] detecting app type...', new Date().toISOString())
+
+      const CANDIDATE_FILES = ['src/pages/Home.tsx', 'src/App.tsx', 'index.html']
+      let targetFile: { content: string; sha: string; path: string } | null = null
+      for (const candidate of CANDIDATE_FILES) {
+        targetFile = await fetchGitHubFile(candidate)
+        if (targetFile) { console.log('[edit] editing file:', candidate); break }
+      }
+
+      if (!targetFile) {
+        console.error('[edit] no editable file found in repo')
+        await setBuildStatus('error', null, 'Could not read app code from GitHub')
+        res.status(500).json({ error: 'Could not read your app code' })
+        return
+      }
+
+      const isReact = targetFile.path.endsWith('.tsx') || targetFile.path.endsWith('.ts')
+      console.log('[edit] file:', targetFile.path, 'isReact:', isReact, 'length:', targetFile.content.length, new Date().toISOString())
+
+      // ── Generate updated file via Claude ───────────────────────────────────
+      console.log('[edit] generating edit...', new Date().toISOString())
+      await setBuildStatus('building', 'Generating your edit…')
+
+      // If the edit involves an image, pre-fetch a real URL server-side
+      let resolvedImageUrl: string | null = null
+      const imageKeywords = editRequest.toLowerCase().match(
+        /\b(image|photo|picture|hero|banner|background|portrait|scene|shot)\b/i
+      )
+      if (imageKeywords) {
+        try {
+          const stopWords = new Set(['add','a','an','the','of','in','at','on','to','with','and','or','is','are','was','were','be','it','this','that','for','hero','image','photo','picture'])
+          const keywords = editRequest.toLowerCase()
+            .replace(/[^a-z0-9 ]/g, ' ')
+            .split(/\s+/)
+            .filter((w) => w.length > 2 && !stopWords.has(w))
+            .slice(0, 5)
+            .join(',')
+          if (keywords) {
+            const imgRes = await fetch(`https://loremflickr.com/1600/900/${encodeURIComponent(keywords)}`, { redirect: 'follow' })
+            if (imgRes.ok) {
+              resolvedImageUrl = imgRes.url
+              console.log('[edit] resolved image URL:', resolvedImageUrl)
+            }
+          }
+        } catch (e) {
+          console.warn('[edit] image prefetch failed (non-fatal):', e)
+        }
+      }
+
+      const imageGuidance = resolvedImageUrl
+        ? `\nIMAGES: Use this exact pre-fetched image URL (guaranteed to work): ${resolvedImageUrl}\nDo NOT use any other image URL — this one is already verified to load correctly.`
+        : `\nIMAGES: Use https://loremflickr.com/1600/900/{keyword1},{keyword2},{keyword3} with keywords from the description. Never use source.unsplash.com, placeholder.com, or images.unsplash.com/photo-{id}.`
+
+      const prompt = isReact
+        ? `You are Sovereign's world-class design + engineering agent. You embody the Jony Ive standard: calm, precise, trustworthy, quietly powerful, inevitable to use. A founder is asking you to improve their app. You don't apply changes mechanically — you apply design judgment at every level.
 
 Return ONLY the complete updated file. No explanation, no markdown, no code fences. Just the raw TypeScript/JSX.
 
@@ -288,7 +515,7 @@ ${targetFile.content}
 The user wants this change: ${editRequest}
 ${editLessonContext}
 Apply the change with full design judgment. Return the complete updated file.`
-      : `You are editing a web app. Return ONLY the complete updated index.html file. No explanation, no markdown, no code fences. Just the raw HTML.
+        : `You are editing a web app. Return ONLY the complete updated index.html file. No explanation, no markdown, no code fences. Just the raw HTML.
 ${imageGuidance}
 
 Here is the current index.html:
@@ -299,64 +526,66 @@ The user wants this change: ${editRequest}
 ${editLessonContext}
 Apply the change. Keep everything else identical. Return the complete updated index.html.`
 
-    const message = await anthropic.messages.create({
-      model: MODEL_GENERATION,
-      max_tokens: 8000,
-      messages: [{ role: 'user', content: prompt }],
-    })
+      const message = await anthropic.messages.create({
+        model: MODEL_GENERATION,
+        max_tokens: 8000,
+        messages: [{ role: 'user', content: prompt }],
+      })
 
-    const updatedContent = message.content
-      .filter((b) => b.type === 'text')
-      .map((b) => (b as { type: 'text'; text: string }).text)
-      .join('')
-      .trim()
+      const updatedContent = message.content
+        .filter((b) => b.type === 'text')
+        .map((b) => (b as { type: 'text'; text: string }).text)
+        .join('')
+        .trim()
 
-    // Validate output matches expected file type
-    const isValidOutput = isReact
-      ? updatedContent.length > 50  // TSX: just needs content
-      : updatedContent.includes('<!DOCTYPE') || updatedContent.includes('<html')
+      // Validate output matches expected file type
+      const isValidOutput = isReact
+        ? updatedContent.length > 50
+        : updatedContent.includes('<!DOCTYPE') || updatedContent.includes('<html')
 
-    if (!isValidOutput) {
-      console.error('[edit] Claude returned unexpected output, length:', updatedContent.length)
-      await setBuildStatus('error', null, 'Could not generate the edit')
-      res.status(500).json({ error: 'Could not generate the edit' })
-      return
-    }
-    console.log('[edit] edit generated, length:', updatedContent.length, new Date().toISOString())
+      if (!isValidOutput) {
+        console.error('[edit] Claude returned unexpected output, length:', updatedContent.length)
+        await setBuildStatus('error', null, 'Could not generate the edit')
+        res.status(500).json({ error: 'Could not generate the edit' })
+        return
+      }
+      console.log('[edit] edit generated, length:', updatedContent.length, new Date().toISOString())
 
-    // ── Push updated file to GitHub ──────────────────────────────────────────
-    console.log('[edit] pushing to github...', new Date().toISOString())
-    await setBuildStatus('building', 'Pushing your change…')
+      // ── Push updated file to GitHub ────────────────────────────────────────
+      console.log('[edit] pushing to github...', new Date().toISOString())
+      await setBuildStatus('building', 'Pushing your change…')
 
-    const pushRes = await fetch(
-      `https://api.github.com/repos/${repoPath}/contents/${targetFile.path}`,
-      {
-        method: 'PUT',
-        headers: {
-          ...ghHeaders,
-          'Content-Type': 'application/json',
+      const pushRes = await fetch(
+        `https://api.github.com/repos/${repoPath}/contents/${targetFile.path}`,
+        {
+          method: 'PUT',
+          headers: {
+            ...ghHeaders,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: `Edit: ${editRequest.slice(0, 50)}`,
+            content: Buffer.from(updatedContent).toString('base64'),
+            sha: targetFile.sha,
+          }),
         },
-        body: JSON.stringify({
-          message: `Edit: ${String(editRequest).slice(0, 50)}`,
-          content: Buffer.from(updatedContent).toString('base64'),
-          sha: targetFile.sha,
-        }),
-      },
-    )
+      )
 
-    if (!pushRes.ok) {
-      const pushBody = await pushRes.text().catch(() => '')
-      console.error('[edit] GitHub push FAILED:', pushRes.status, pushBody)
-      await setBuildStatus('error', null, 'Could not push change to GitHub')
-      res.status(500).json({ error: 'Could not save the change' })
-      return
+      if (!pushRes.ok) {
+        const pushBody = await pushRes.text().catch(() => '')
+        console.error('[edit] GitHub push FAILED:', pushRes.status, pushBody)
+        await setBuildStatus('error', null, 'Could not push change to GitHub')
+        res.status(500).json({ error: 'Could not save the change' })
+        return
+      }
+
+      const pushData = await pushRes.json() as { commit?: { sha: string } }
+      console.log('[edit] pushed to github, commit sha:', pushData.commit?.sha ?? 'unknown', new Date().toISOString())
     }
 
-    const pushData = await pushRes.json() as { commit?: { sha: string } }
-    console.log('[edit] pushed to github, commit sha:', pushData.commit?.sha ?? 'unknown', new Date().toISOString())
-
-    // ── Trigger Vercel redeploy ───────────────────────────────────────────────
-    // Returns immediately — build-status.ts polls Vercel and resolves the status
+    // ════════════════════════════════════════════════════════════════════════
+    // VERCEL REDEPLOY (shared by both paths)
+    // ════════════════════════════════════════════════════════════════════════
     console.log('[edit] triggering redeploy...', new Date().toISOString())
     await setBuildStatus('building', 'Deploying your edit…')
 
@@ -416,7 +645,11 @@ Apply the change. Keep everything else identical. Return the complete updated in
     // Return immediately — build-status.ts will detect READY state and resolve
     console.log('[edit] returning 200', new Date().toISOString())
     void appName
-    res.status(200).json({ ok: true, message: 'Edit deployed' })
+    res.status(200).json({
+      ok: true,
+      message: 'Edit deployed',
+      ...(brainFollowup ? { brain_followup: brainFollowup } : {}),
+    })
 
   } catch (err) {
     console.error('[edit] Error:', err, new Date().toISOString())
