@@ -969,7 +969,7 @@ export default async function handler(req: any, res: any): Promise<void> {
           } else {
             await step('Creating your GitHub repo…')
             const ghResult = await createGitHubRepo(build.github_token, repoName)
-            if (!ghResult.ok) {
+            if (ghResult.ok === false) {
               await updateBuild(supabaseUrl, serviceKey, buildId, {
                 status: 'error', step: 'GitHub failed', error: ghResult.error,
               })
@@ -998,7 +998,7 @@ export default async function handler(req: any, res: any): Promise<void> {
           } else {
             await step('Connecting Vercel to your repo…')
             const vcResult = await createVercelProject(repoName, ghRepoUrl)
-            if (!vcResult.ok) {
+            if (vcResult.ok === false) {
               const errMsg = vcResult.isLoginConnection
                 ? `We couldn't link Vercel automatically — the GitHub app needs to be installed on the staging Vercel account for this repository. Error: ${vcResult.error}`
                 : vcResult.error
@@ -1130,7 +1130,7 @@ export default async function handler(req: any, res: any): Promise<void> {
           const pushResult = await pushFilesToGitHub(
             build.github_token, ghOwner, repoName, allFiles,
           )
-          if (!pushResult.ok) {
+          if (pushResult.ok === false) {
             await deleteGitHubRepo(build.github_token, ghOwner, repoName)
             await updateBuild(supabaseUrl, serviceKey, buildId, {
               status: 'error', step: 'File push failed', error: pushResult.error,
@@ -1163,7 +1163,7 @@ export default async function handler(req: any, res: any): Promise<void> {
             fallbackUrl, pollBudgetMs,
           )
 
-          if (!deployResult.ok) {
+          if (deployResult.ok === false) {
             // Deployment errored on Vercel's side
             await updateBuild(supabaseUrl, serviceKey, buildId, {
               status: 'error', step: 'Vercel deploy failed', error: deployResult.error,
