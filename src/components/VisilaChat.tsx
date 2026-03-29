@@ -246,7 +246,7 @@ function ChatPanel() {
             <div style={{ font: '500 14px/1 DM Mono, Courier New, monospace', color: '#f2efe8' }}>
               Sovereign
             </div>
-            <div style={{ font: '11px/1 DM Mono, Courier New, monospace', color: '#8ab800', marginTop: '3px' }}>
+            <div style={{ font: '11px/1 DM Mono, Courier New, monospace', color: '#FF1F6E', marginTop: '3px' }}>
               online
             </div>
           </div>
@@ -431,7 +431,7 @@ export function VisilaChat() {
         .sc-fab:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
         .sc-fab-letter {
           font: 700 18px/1 DM Mono, Courier New, monospace;
-          color: #8ab800;
+          color: #FF1F6E;
         }
 
         /* ── Panel wrapper — desktop: bottom-right anchored ────────────────── */
@@ -455,7 +455,7 @@ export function VisilaChat() {
         }
         .sc-avatar-lg {
           width: 28px; height: 28px; border-radius: 50%;
-          background: #8ab800; color: #0e0d0b;
+          background: #FF1F6E; color: #0e0d0b;
           font: 700 14px/28px DM Mono, Courier New, monospace;
           text-align: center; flex-shrink: 0;
         }
@@ -477,7 +477,7 @@ export function VisilaChat() {
 
         .sc-msg-user {
           align-self: flex-end; max-width: 82%;
-          background: #8ab800; color: #0e0d0b;
+          background: #FF1F6E; color: #0e0d0b;
           padding: 9px 13px;
           border-radius: 12px 12px 2px 12px;
           font: 13px/1.5 DM Mono, Courier New, monospace;
@@ -489,7 +489,7 @@ export function VisilaChat() {
         }
         .sc-avatar-sm {
           width: 20px; height: 20px; border-radius: 50%;
-          background: #8ab800; color: #0e0d0b;
+          background: #FF1F6E; color: #0e0d0b;
           font: 700 9px/20px DM Mono, Courier New, monospace;
           text-align: center; flex-shrink: 0;
         }
@@ -504,7 +504,7 @@ export function VisilaChat() {
         /* ── Do it button + done label ─────────────────────────────────────── */
         .sc-do-it-btn {
           display: block; margin-top: 8px;
-          background: #8ab800; color: #0e0d0b; border: none; border-radius: 6px;
+          background: #FF1F6E; color: #0e0d0b; border: none; border-radius: 6px;
           font: 500 12px/1 DM Mono, Courier New, monospace;
           padding: 6px 12px; cursor: pointer;
           transition: opacity 0.12s;
@@ -512,7 +512,7 @@ export function VisilaChat() {
         .sc-do-it-btn:disabled { opacity: 0.6; cursor: default; }
         .sc-done-label {
           display: inline-block; margin-top: 8px;
-          font: 11px/1 DM Mono, Courier New, monospace; color: #8ab800;
+          font: 11px/1 DM Mono, Courier New, monospace; color: #FF1F6E;
         }
 
         /* ── Typing indicator ──────────────────────────────────────────────── */
@@ -552,10 +552,10 @@ export function VisilaChat() {
           overflow-y: auto; outline: none;
         }
         .sc-textarea::placeholder { color: #6b6862; }
-        .sc-textarea:focus { border-color: #8ab800; }
+        .sc-textarea:focus { border-color: #FF1F6E; }
         .sc-send-btn {
           width: 36px; height: 36px; border-radius: 8px;
-          background: #8ab800; color: #0e0d0b;
+          background: #FF1F6E; color: #0e0d0b;
           border: none; cursor: pointer; font-size: 16px;
           display: flex; align-items: center; justify-content: center;
           flex-shrink: 0; transition: opacity 0.12s;

@@ -51,7 +51,7 @@ const STATUS_CONFIG: Record<
 > = {
   operational: {
     label: 'Operational',
-    dotColor: '#8ab800',
+    dotColor: '#FF1F6E',
     bgColor: 'rgba(138,184,0,0.10)',
     textColor: '#4a6400',
   },
@@ -79,7 +79,7 @@ const OVERALL_CONFIG: Record<
   Overall,
   { label: string; dotColor: string }
 > = {
-  operational: { label: 'All systems operational', dotColor: '#8ab800' },
+  operational: { label: 'All systems operational', dotColor: '#FF1F6E' },
   degraded:    { label: 'Some systems degraded',   dotColor: '#d97706' },
   down:        { label: 'Service disruption',       dotColor: '#d63b2f' },
 }

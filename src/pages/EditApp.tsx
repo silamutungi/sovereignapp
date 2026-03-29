@@ -182,7 +182,7 @@ export default function EditApp() {
   const [reverting, setReverting] = useState(false)
 
   // Brand/themes
-  const [brandColor, setBrandColor] = useState('#8ab800')
+  const [brandColor, setBrandColor] = useState('#FF1F6E')
   const [headingFont, setHeadingFont] = useState<'serif' | 'sans' | 'mono'>('serif')
   const [tone, setTone] = useState<'professional' | 'friendly' | 'bold' | 'minimal'>('professional')
   const [brandApplying, setBrandApplying] = useState(false)
@@ -699,7 +699,7 @@ export default function EditApp() {
             width: 8,
             height: 8,
             borderRadius: '50%',
-            background: '#c8f060',
+            background: '#FF1F6E',
             animation: 'pulse 1.4s infinite',
           }} />
           <span style={{ font: '11px/1 DM Mono, Courier New, monospace', color: '#3a3830' }}>Loading…</span>
@@ -735,12 +735,12 @@ export default function EditApp() {
     textDim:             '#9a9890',
     sovereignBubbleBg:   '#ffffff',
     sovereignBubbleText: '#0e0d0b',
-    userBubbleBg:        '#8ab800',
+    userBubbleBg:        '#FF1F6E',
     userBubbleText:      '#0e0d0b',
-    accent:              '#8ab800',
+    accent:              '#FF1F6E',
     avatarBg:            '#141210',
-    avatarBorder:        '#8ab800',
-    avatarText:          '#8ab800',
+    avatarBorder:        '#FF1F6E',
+    avatarText:          '#FF1F6E',
     typingDot:           '#c8c4bc',
     panelClass:          'ea-panel-light' as const,
   } : {
@@ -752,12 +752,12 @@ export default function EditApp() {
     textDim:             '#5a5850',
     sovereignBubbleBg:   '#1a1917',
     sovereignBubbleText: '#c8c4bc',
-    userBubbleBg:        '#c8f060',
+    userBubbleBg:        '#FF1F6E',
     userBubbleText:      '#0e0d0b',
-    accent:              '#c8f060',
+    accent:              '#FF1F6E',
     avatarBg:            '#141210',
-    avatarBorder:        '#c8f060',
-    avatarText:          '#c8f060',
+    avatarBorder:        '#FF1F6E',
+    avatarText:          '#FF1F6E',
     typingDot:           '#5a5850',
     panelClass:          '' as const,
   }
@@ -768,7 +768,7 @@ export default function EditApp() {
     <>
       <style>{`
         @keyframes pulse { 0%,100%{opacity:0.4;transform:scale(1)} 50%{opacity:1;transform:scale(1.3)} }
-        @keyframes glowFlash { 0%{box-shadow:0 0 0 2px #c8f060} 100%{box-shadow:none} }
+        @keyframes glowFlash { 0%{box-shadow:0 0 0 2px #FF1F6E} 100%{box-shadow:none} }
         @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
         @keyframes dot1 { 0%,80%,100%{transform:translateY(0);opacity:.4} 40%{transform:translateY(-4px);opacity:1} }
         @keyframes dot2 { 0%,80%,100%{transform:translateY(0);opacity:.4} 40%{transform:translateY(-4px);opacity:1} }
@@ -778,19 +778,19 @@ export default function EditApp() {
         .ea-textarea{resize:none;font:12px/1.6 DM Mono,Courier New,monospace;color:#f2efe8;background:#1a1917;border:0.5px solid #2a2925;border-radius:4px;outline:none;width:100%;box-sizing:border-box;padding:10px 12px;min-height:40px;max-height:120px;overflow-y:auto;transition:border-color .15s,background .15s,color .15s}
         .ea-textarea::placeholder{color:#5a5850}
         .ea-textarea:disabled{opacity:0.75;cursor:default}
-        .ea-textarea:focus-visible{outline:1px solid #c8f060;outline-offset:1px;border-color:#c8f060}
+        .ea-textarea:focus-visible{outline:1px solid #FF1F6E;outline-offset:1px;border-color:#FF1F6E}
         .ea-btn-ghost{background:none;border:1px solid #2a2925;color:#5a5850;font:10px/1 DM Mono,Courier New,monospace;padding:6px 10px;cursor:pointer;border-radius:3px;transition:border-color .15s,color .15s,background .15s}
         .ea-btn-ghost:hover{border-color:#5a5850;color:#f2efe8}
-        .ea-btn-ghost:focus-visible{outline:2px solid #c8f060;outline-offset:2px}
+        .ea-btn-ghost:focus-visible{outline:2px solid #FF1F6E;outline-offset:2px}
         .ea-btn-ghost:disabled{opacity:0.4;cursor:default}
-        .ea-btn-green{background:#c8f060;border:none;color:#0e0d0b;font:10px/1 DM Mono,Courier New,monospace;padding:6px 12px;cursor:pointer;border-radius:3px;transition:opacity .15s}
+        .ea-btn-green{background:#FF1F6E;border:none;color:#0e0d0b;font:10px/1 DM Mono,Courier New,monospace;padding:6px 12px;cursor:pointer;border-radius:3px;transition:opacity .15s}
         .ea-btn-green:hover{opacity:.85}
         .ea-btn-green:disabled{opacity:.4;cursor:default}
         .ea-btn-green:focus-visible{outline:2px solid #f2efe8;outline-offset:2px}
         .ea-tab{background:none;border:none;font:10px/1 DM Mono,Courier New,monospace;padding:6px 12px;cursor:pointer;border-radius:3px;transition:background .15s,color .15s}
         .ea-tab.active{background:#1a1917;color:#f2efe8}
         .ea-tab.inactive{color:#5a5850}
-        .ea-tab:focus-visible{outline:2px solid #c8f060;outline-offset:2px}
+        .ea-tab:focus-visible{outline:2px solid #FF1F6E;outline-offset:2px}
         .hint-fade{animation:fadeIn .2s ease}
         .queue-pill{display:flex;align-items:center;gap:6px;background:#111009;border:1px solid #2a2925;border-radius:4px;padding:6px 10px;font:11px/1.4 DM Mono,Courier New,monospace;color:#c8c4bc;transition:background .15s,border-color .15s,color .15s}
         .queue-pill button{background:none;border:none;color:#5a5850;cursor:pointer;padding:0;font-size:12px;line-height:1;transition:color .12s}
@@ -798,10 +798,10 @@ export default function EditApp() {
         /* ── Light mode overrides ─────────────────────────────────────────── */
         .ea-panel-light .ea-textarea{color:#0e0d0b;background:#ffffff;border-color:#e8e4da}
         .ea-panel-light .ea-textarea::placeholder{color:#b8b4ac}
-        .ea-panel-light .ea-textarea:focus-visible{border-color:#8ab800;outline-color:#8ab800}
+        .ea-panel-light .ea-textarea:focus-visible{border-color:#FF1F6E;outline-color:#FF1F6E}
         .ea-panel-light .ea-btn-ghost{color:#0e0d0b;border-color:#c8c4bc}
-        .ea-panel-light .ea-btn-ghost:hover{color:#0e0d0b;border-color:#8ab800}
-        .ea-panel-light .ea-btn-green{background:#8ab800;color:#ffffff}
+        .ea-panel-light .ea-btn-ghost:hover{color:#0e0d0b;border-color:#FF1F6E}
+        .ea-panel-light .ea-btn-green{background:#FF1F6E;color:#ffffff}
         .ea-panel-light .ea-btn-green:focus-visible{outline-color:#0e0d0b}
         .ea-panel-light .ea-tab.active{background:#ffffff;color:#0e0d0b}
         .ea-panel-light .ea-tab.inactive{color:#6b6862}
@@ -837,7 +837,7 @@ export default function EditApp() {
 
           {/* Center: app name */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1, justifyContent: 'center' }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#c8f060', flexShrink: 0, display: 'inline-block' }} />
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#FF1F6E', flexShrink: 0, display: 'inline-block' }} />
             <span style={{
               fontFamily: "'Playfair Display', Georgia, serif",
               fontStyle: 'italic',
@@ -878,7 +878,7 @@ export default function EditApp() {
             {isStaging && (
               <button
                 onClick={handleClaimClick}
-                style={{ background: '#c8f060', border: 'none', color: '#0e0d0b', font: '10px/1 DM Mono, Courier New, monospace', padding: '5px 10px', cursor: 'pointer', borderRadius: 3, whiteSpace: 'nowrap' }}
+                style={{ background: '#FF1F6E', border: 'none', color: '#0e0d0b', font: '10px/1 DM Mono, Courier New, monospace', padding: '5px 10px', cursor: 'pointer', borderRadius: 3, whiteSpace: 'nowrap' }}
               >
                 Claim →
               </button>
@@ -923,7 +923,7 @@ export default function EditApp() {
               width: isMobile ? '100%' : 360,
               flexShrink: 0,
               background: t.panelBg,
-              borderRight: isMobile ? 'none' : '2px solid rgba(200,240,96,0.5)',
+              borderRight: isMobile ? 'none' : '2px solid rgba(255,31,110,0.5)',
               display: isMobile && mobileTab !== 'chat' ? 'none' : 'flex',
               flexDirection: 'column',
               overflow: 'hidden',
@@ -1001,7 +1001,7 @@ export default function EditApp() {
                   justifyContent: 'center',
                   flexShrink: 0,
                   transition: 'background .15s',
-                  color: panelTheme === 'dark' ? '#5a5850' : '#8ab800',
+                  color: panelTheme === 'dark' ? '#5a5850' : '#FF1F6E',
                   padding: 0,
                 }}
               >
@@ -1029,7 +1029,7 @@ export default function EditApp() {
                   justifyContent: 'center',
                   flexShrink: 0,
                   transition: 'background .15s',
-                  color: panelTheme === 'dark' ? '#5a5850' : '#8ab800',
+                  color: panelTheme === 'dark' ? '#5a5850' : '#FF1F6E',
                   padding: 0,
                 }}
               >
@@ -1128,7 +1128,7 @@ export default function EditApp() {
                             }}>
                               {msg.isDeploying ? (
                                 <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#c8f060', flexShrink: 0, animation: 'pulse 1.4s infinite', display: 'inline-block' }} />
+                                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FF1F6E', flexShrink: 0, animation: 'pulse 1.4s infinite', display: 'inline-block' }} />
                                   Deploying · ~60s
                                 </span>
                               ) : msg.text}
@@ -1503,8 +1503,8 @@ export default function EditApp() {
                 <button
                   onClick={() => { setClickMode((c) => !c); setClickPopover(null) }}
                   style={{
-                    background: clickMode ? '#c8f060' : 'none',
-                    border: `1px solid ${clickMode ? '#c8f060' : '#2a2925'}`,
+                    background: clickMode ? '#FF1F6E' : 'none',
+                    border: `1px solid ${clickMode ? '#FF1F6E' : '#2a2925'}`,
                     color: clickMode ? '#0e0d0b' : '#3a3830',
                     font: '10px/1 DM Mono, Courier New, monospace',
                     padding: '3px 8px',
@@ -1544,7 +1544,7 @@ export default function EditApp() {
                 flex: 1,
                 position: 'relative',
                 overflow: 'hidden',
-                boxShadow: previewFlash ? 'inset 0 0 0 2px #c8f060' : 'none',
+                boxShadow: previewFlash ? 'inset 0 0 0 2px #FF1F6E' : 'none',
                 transition: 'box-shadow .2s',
               }}
             >
@@ -1583,7 +1583,7 @@ export default function EditApp() {
                       onClick={handleOverlayClick}
                     >
                       {/* Visible "click mode active" indicator */}
-                      <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', background: 'rgba(200,240,96,0.15)', border: '1px solid rgba(200,240,96,0.4)', borderRadius: 4, padding: '4px 10px', font: '10px/1 DM Mono, Courier New, monospace', color: '#c8f060', pointerEvents: 'none', zIndex: 4 }}>
+                      <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,31,110,0.15)', border: '1px solid rgba(255,31,110,0.4)', borderRadius: 4, padding: '4px 10px', font: '10px/1 DM Mono, Courier New, monospace', color: '#FF1F6E', pointerEvents: 'none', zIndex: 4 }}>
                         Click anywhere to describe a change
                       </div>
 
@@ -1749,7 +1749,7 @@ export default function EditApp() {
             <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 20px' }}>
               {scanning && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 0' }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#c8f060', animation: 'pulse 1.4s infinite', display: 'inline-block' }} />
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FF1F6E', animation: 'pulse 1.4s infinite', display: 'inline-block' }} />
                   <span style={{ font: '11px/1 DM Mono, Courier New, monospace', color: '#5a5850' }}>Scanning…</span>
                 </div>
               )}
@@ -1792,7 +1792,7 @@ export default function EditApp() {
                     {scanResult.passed && (
                       <a
                         href={`/api/claim-build?build_id=${buildId}`}
-                        style={{ flex: 1, textAlign: 'center', background: '#c8f060', color: '#0e0d0b', font: '11px/1 DM Mono, Courier New, monospace', padding: '10px 0', borderRadius: 4, textDecoration: 'none', display: 'block' }}
+                        style={{ flex: 1, textAlign: 'center', background: '#FF1F6E', color: '#0e0d0b', font: '11px/1 DM Mono, Courier New, monospace', padding: '10px 0', borderRadius: 4, textDecoration: 'none', display: 'block' }}
                       >
                         Claim and transfer →
                       </a>

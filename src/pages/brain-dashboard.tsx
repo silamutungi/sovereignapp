@@ -17,13 +17,13 @@ interface BrainStats {
 }
 
 const CATEGORY_COLOR: Record<string, string> = {
-  generation: '#8ab800',
-  deployment: '#8ab800',
-  database:   '#8ab800',
-  oauth:      '#8ab800',
+  generation: '#3B6D11',
+  deployment: '#3B6D11',
+  database:   '#3B6D11',
+  oauth:      '#3B6D11',
   env_vars:   '#c0392b',
-  ux:         '#8ab800',
-  agent:      '#8ab800',
+  ux:         '#3B6D11',
+  agent:      '#3B6D11',
   general:    '#6b6862',
 }
 
@@ -92,7 +92,7 @@ const BrainDashboard: FC = () => {
       {/* Top bar */}
       <div style={{ background: '#0e0d0b', padding: '0 32px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <a href="/dashboard" style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '20px', fontWeight: 400, color: '#f2efe8', textDecoration: 'none' }}>
-          Sovereign<span style={{ color: '#8ab800' }}>.</span>
+          Visila<span style={{ color: '#FF1F6E' }}>.</span>
         </a>
         <a href="/dashboard" style={{ font: '11px/1 DM Mono, Courier New, monospace', color: '#6b6862', textDecoration: 'none' }}>
           ← Dashboard

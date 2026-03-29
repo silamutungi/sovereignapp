@@ -217,7 +217,7 @@ function FigmaImport() {
             fontFamily: 'DM Mono, monospace',
             fontSize: 13,
             padding: '10px 14px',
-            background: loading ? '#d8d4ca' : '#c8f060',
+            background: loading ? '#d8d4ca' : '#FF1F6E',
             color: '#0e0d0b',
             border: 'none',
             borderRadius: 6,
@@ -252,7 +252,7 @@ function FigmaImport() {
             fontFamily: 'DM Mono, monospace',
             fontSize: 11,
             background: '#0e0d0b',
-            color: '#c8f060',
+            color: '#FF1F6E',
             padding: 16,
             borderRadius: 8,
             overflow: 'auto',
@@ -727,7 +727,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
               <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '20px', fontWeight: 600, color: '#0e0d0b', margin: '0 0 16px', lineHeight: 1.3 }}>
                 Here's what we're building.
               </p>
-              <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '26px', fontWeight: 700, color: '#8ab800', margin: '0 0 8px', lineHeight: 1.2 }}>
+              <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '26px', fontWeight: 700, color: '#FF1F6E', margin: '0 0 8px', lineHeight: 1.2 }}>
                 {brief.name}
               </p>
               <p style={{ fontFamily: 'DM Mono, monospace', fontSize: '13px', color: '#6b6862', margin: '0 0 20px', lineHeight: 1.6 }}>
@@ -736,7 +736,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
               <ul style={{ listStyle: 'none', margin: '0 0 24px', padding: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {brief.features.map((f) => (
                   <li key={f} style={{ fontFamily: 'DM Mono, monospace', fontSize: '12px', color: '#0e0d0b', display: 'flex', alignItems: 'flex-start', gap: '8px', lineHeight: 1.5 }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#8ab800', flexShrink: 0, marginTop: '5px' }} aria-hidden="true" />
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FF1F6E', flexShrink: 0, marginTop: '5px' }} aria-hidden="true" />
                     {f}
                   </li>
                 ))}
@@ -755,7 +755,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
                 <button
                   onClick={() => { void handleBriefEditConfirm() }}
                   disabled={!briefEditText.trim()}
-                  style={{ width: '100%', padding: '14px', background: '#8ab800', color: '#0e0d0b', border: 'none', cursor: briefEditText.trim() ? 'pointer' : 'default', fontFamily: 'DM Mono, monospace', fontSize: '13px', fontWeight: 500, borderRadius: '6px', opacity: briefEditText.trim() ? 1 : 0.6 }}
+                  style={{ width: '100%', padding: '14px', background: '#FF1F6E', color: '#0e0d0b', border: 'none', cursor: briefEditText.trim() ? 'pointer' : 'default', fontFamily: 'DM Mono, monospace', fontSize: '13px', fontWeight: 500, borderRadius: '6px', opacity: briefEditText.trim() ? 1 : 0.6 }}
                   type="button"
                 >
                   Build with edited brief →
@@ -772,7 +772,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <button
                   onClick={() => { void handleBriefConfirm() }}
-                  style={{ width: '100%', padding: '14px', background: '#8ab800', color: '#0e0d0b', border: 'none', cursor: 'pointer', fontFamily: 'DM Mono, monospace', fontSize: '13px', fontWeight: 500, borderRadius: '6px' }}
+                  style={{ width: '100%', padding: '14px', background: '#FF1F6E', color: '#0e0d0b', border: 'none', cursor: 'pointer', fontFamily: 'DM Mono, monospace', fontSize: '13px', fontWeight: 500, borderRadius: '6px' }}
                   type="button"
                 >
                   Looks good, build it →
@@ -798,7 +798,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
               width: 64,
               height: 64,
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, #c8f060 0%, #0e0d0b 100%)',
+              background: 'linear-gradient(135deg, #FF1F6E 0%, #0e0d0b 100%)',
               margin: '0 auto 24px',
               animation: 'pulse 2s ease-in-out infinite',
               display: 'flex',
@@ -843,7 +843,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
             }}>
               <div style={{
                 height: '100%',
-                background: '#c8f060',
+                background: '#FF1F6E',
                 borderRadius: 1,
                 animation: 'progress 90s linear forwards',
                 width: '0%'
@@ -905,7 +905,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
                 </div>
                 <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }} aria-label={`${previewAttempt} of 3 versions generated`}>
                   {[1, 2, 3].map(n => (
-                    <div key={n} style={{ width: 6, height: 6, borderRadius: '50%', background: n <= previewAttempt ? '#8ab800' : '#d8d4ca' }} />
+                    <div key={n} style={{ width: 6, height: 6, borderRadius: '50%', background: n <= previewAttempt ? '#FF1F6E' : '#d8d4ca' }} />
                   ))}
                 </div>
               </>
@@ -1115,7 +1115,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
                   {' · '}
                   <button
                     onClick={handleEditEmail}
-                    style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', color: '#8ab800', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                    style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', color: '#FF1F6E', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                     type="button"
                   >
                     Change

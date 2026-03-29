@@ -73,7 +73,7 @@ const S = {
     fontWeight: 600,
     letterSpacing: '0.2em',
     textTransform: 'uppercase' as const,
-    color: '#c8f060',
+    color: '#FF1F6E',
     marginBottom: '40px',
     textAlign: 'center' as const,
   },
@@ -114,12 +114,12 @@ const S = {
   logText: (done: boolean, active: boolean): React.CSSProperties => ({
     fontSize: '13px',
     lineHeight: 1.5,
-    color: done ? '#c8f060' : active ? '#f2efe8' : 'rgba(255,255,255,0.45)',
+    color: done ? '#FF1F6E' : active ? '#f2efe8' : 'rgba(255,255,255,0.45)',
     transition: 'color 0.4s ease',
   }),
   logUrl: {
     fontSize: '11px',
-    color: 'rgba(200,240,96,0.6)',
+    color: 'rgba(255,31,110,0.6)',
     textDecoration: 'none',
     display: 'block',
     marginTop: '3px',
@@ -130,7 +130,7 @@ const S = {
     width: '14px',
     height: '14px',
     border: '2px solid rgba(255,255,255,0.2)',
-    borderTopColor: '#c8f060',
+    borderTopColor: '#FF1F6E',
     borderRadius: '50%',
     animation: 'spin 0.75s linear infinite',
     flexShrink: 0,
@@ -149,7 +149,7 @@ const S = {
   ctaBtn: {
     display: 'block',
     width: '100%',
-    background: '#c8f060',
+    background: '#FF1F6E',
     color: '#0e0d0b',
     fontFamily: "'DM Mono', 'Courier New', monospace",
     fontSize: '14px',
@@ -166,7 +166,7 @@ const S = {
     display: 'block',
     width: '100%',
     background: 'transparent',
-    color: '#c8f060',
+    color: '#FF1F6E',
     fontFamily: "'DM Mono', 'Courier New', monospace",
     fontSize: '13px',
     fontWeight: 600,
@@ -174,7 +174,7 @@ const S = {
     textAlign: 'center' as const,
     padding: '13px 24px',
     borderRadius: '8px',
-    border: '1px solid rgba(200,240,96,0.3)',
+    border: '1px solid rgba(255,31,110,0.3)',
     letterSpacing: '0.01em',
     transition: 'opacity 0.15s',
   },
@@ -185,7 +185,7 @@ const S = {
     color: 'rgba(255,255,255,0.3)',
   },
   homeLinkA: {
-    color: 'rgba(200,240,96,0.5)',
+    color: 'rgba(255,31,110,0.5)',
     textDecoration: 'none',
   },
 }
@@ -473,7 +473,7 @@ export default function Building() {
                 style={{
                   display: 'block',
                   width: '100%',
-                  background: '#c8f060',
+                  background: '#FF1F6E',
                   color: '#0e0d0b',
                   fontFamily: "'DM Mono', 'Courier New', monospace",
                   fontSize: '14px',
@@ -502,7 +502,7 @@ export default function Building() {
                 style={{
                   display: 'block',
                   width: '100%',
-                  background: '#c8f060',
+                  background: '#FF1F6E',
                   color: '#0e0d0b',
                   fontFamily: "'DM Mono', 'Courier New', monospace",
                   fontSize: '14px',
@@ -523,7 +523,7 @@ export default function Building() {
                   display: 'block',
                   width: '100%',
                   background: 'transparent',
-                  color: 'rgba(200,240,96,0.7)',
+                  color: 'rgba(255,31,110,0.7)',
                   fontFamily: "'DM Mono', 'Courier New', monospace",
                   fontSize: '13px',
                   fontWeight: 400,
@@ -532,7 +532,7 @@ export default function Building() {
                   cursor: 'pointer',
                   letterSpacing: '0.01em',
                   textDecoration: 'underline',
-                  textDecorationColor: 'rgba(200,240,96,0.3)',
+                  textDecorationColor: 'rgba(255,31,110,0.3)',
                 }}
               >
                 Use Sovereign's for now →
@@ -604,7 +604,7 @@ export default function Building() {
                 href={`https://vercel.com/new/git/import?s=${encodeURIComponent(status?.repoUrl ?? '')}`}
                 target="_blank"
                 rel="noreferrer"
-                style={{ color: '#c8f060', textDecoration: 'underline' }}
+                style={{ color: '#FF1F6E', textDecoration: 'underline' }}
               >
                 Click here to connect manually →
               </a>

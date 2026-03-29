@@ -245,7 +245,7 @@ function Entry({ entry }: { entry: ChangelogEntry }) {
             style={{
               fontFamily: "'DM Mono', monospace",
               fontSize: '11px',
-              color: '#8ab800',
+              color: '#FF1F6E',
               marginTop: '4px',
               letterSpacing: '0.04em',
             }}

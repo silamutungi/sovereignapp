@@ -74,7 +74,7 @@ function Wordmark({ dark }: { dark?: boolean }) {
         color: dark ? '#f2efe8' : '#0e0d0b',
       }}
     >
-      Sovereign<span style={{ color: '#8ab800' }}>.</span>
+      Sovereign<span style={{ color: '#FF1F6E' }}>.</span>
     </span>
   )
 }
@@ -196,7 +196,7 @@ function EmailGate({ onVerified }: { onVerified: (email: string) => void }) {
                       width: '8px',
                       height: '8px',
                       borderRadius: '50%',
-                      background: '#8ab800',
+                      background: '#FF1F6E',
                       flexShrink: 0,
                       animation: 'pulse 1.4s infinite',
                     }}
@@ -227,7 +227,7 @@ function EmailGate({ onVerified }: { onVerified: (email: string) => void }) {
                     style={{
                       background: 'none',
                       border: 'none',
-                      color: '#8ab800',
+                      color: '#FF1F6E',
                       cursor: 'pointer',
                       font: '12px/1 DM Mono, Courier New, monospace',
                       padding: 0,
@@ -438,7 +438,7 @@ function TokenVerify({
               width: '8px',
               height: '8px',
               borderRadius: '50%',
-              background: '#8ab800',
+              background: '#FF1F6E',
               animation: 'pulse 1.4s infinite',
             }}
           />
@@ -592,7 +592,7 @@ function AuthDashboard({ email }: { email: string }) {
           <button
             onClick={() => navigate('/')}
             style={{
-              background: '#8ab800',
+              background: '#FF1F6E',
               color: '#0e0d0b',
               border: 'none',
               padding: '8px 16px',
@@ -635,7 +635,7 @@ function AuthDashboard({ email }: { email: string }) {
           }}
         >
           Everything you build,<br />
-          <em style={{ color: '#8ab800' }}>you own.</em>
+          <em style={{ color: '#FF1F6E' }}>you own.</em>
         </h1>
 
         {/* Stats row */}
@@ -796,7 +796,7 @@ function AuthDashboard({ email }: { email: string }) {
                 font: '10px/1 DM Mono, Courier New, monospace',
                 letterSpacing: '0.12em',
                 textTransform: 'uppercase',
-                color: '#8ab800',
+                color: '#FF1F6E',
                 paddingTop: '2px',
                 flexShrink: 0,
               }}
@@ -824,7 +824,7 @@ function AuthDashboard({ email }: { email: string }) {
                   }
                 }}
                 style={{
-                  background: '#8ab800',
+                  background: '#FF1F6E',
                   color: '#0e0d0b',
                   border: 'none',
                   padding: '8px 14px',
@@ -840,7 +840,7 @@ function AuthDashboard({ email }: { email: string }) {
               <button
                 onClick={() => latestComplete && navigate(`/app/${latestComplete.id}/edit`)}
                 style={{
-                  background: '#8ab800',
+                  background: '#FF1F6E',
                   color: '#0e0d0b',
                   border: 'none',
                   padding: '8px 14px',
@@ -905,7 +905,7 @@ function AuthDashboard({ email }: { email: string }) {
                       width: '6px',
                       height: '6px',
                       borderRadius: '50%',
-                      background: '#8ab800',
+                      background: '#FF1F6E',
                       flexShrink: 0,
                     }}
                   />
@@ -918,7 +918,7 @@ function AuthDashboard({ email }: { email: string }) {
       )}
 
       {toastMessage && (
-        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: '#0e0d0b', color: '#f2efe8', padding: '10px 20px', font: '12px/1 DM Mono, Courier New, monospace', border: '1px solid #8ab800', zIndex: 2000, whiteSpace: 'nowrap', borderRadius: 4 }}>
+        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: '#0e0d0b', color: '#f2efe8', padding: '10px 20px', font: '12px/1 DM Mono, Courier New, monospace', border: '1px solid #FF1F6E', zIndex: 2000, whiteSpace: 'nowrap', borderRadius: 4 }}>
           {toastMessage}
         </div>
       )}
@@ -947,7 +947,7 @@ function SetupDBModal({ build, onClose }: { build: Build; onClose: () => void })
 
   return (
     <>
-      <style>{`.setup-modal-overlay{position:fixed;inset:0;z-index:1100;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);padding:24px} .setup-modal{background:#0e0d0b;border-radius:12px;width:100%;max-width:600px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden} .setup-sql{flex:1;overflow-y:auto;background:#111009;padding:16px 20px;font:12px/1.7 DM Mono,Courier New,monospace;color:#c8c4bc;white-space:pre-wrap;word-break:break-all;border:none;resize:none;width:100%;box-sizing:border-box} .setup-sql:focus-visible{outline:2px solid #8ab800;outline-offset:-2px} .setup-sql::-webkit-scrollbar{width:4px} .setup-sql::-webkit-scrollbar-thumb{background:#3a3830;border-radius:2px}`}</style>
+      <style>{`.setup-modal-overlay{position:fixed;inset:0;z-index:1100;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);padding:24px} .setup-modal{background:#0e0d0b;border-radius:12px;width:100%;max-width:600px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden} .setup-sql{flex:1;overflow-y:auto;background:#111009;padding:16px 20px;font:12px/1.7 DM Mono,Courier New,monospace;color:#c8c4bc;white-space:pre-wrap;word-break:break-all;border:none;resize:none;width:100%;box-sizing:border-box} .setup-sql:focus-visible{outline:2px solid #FF1F6E;outline-offset:-2px} .setup-sql::-webkit-scrollbar{width:4px} .setup-sql::-webkit-scrollbar-thumb{background:#3a3830;border-radius:2px}`}</style>
       <div
         className="setup-modal-overlay"
         onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
@@ -988,9 +988,9 @@ function SetupDBModal({ build, onClose }: { build: Build; onClose: () => void })
             <button
               onClick={handleCopy}
               style={{
-                background: copied ? '#2a3d0e' : '#8ab800',
-                color: copied ? '#8ab800' : '#0e0d0b',
-                border: copied ? '1px solid #8ab800' : 'none',
+                background: copied ? '#2a3d0e' : '#FF1F6E',
+                color: copied ? '#FF1F6E' : '#0e0d0b',
+                border: copied ? '1px solid #FF1F6E' : 'none',
                 padding: '10px 20px',
                 font: '500 13px/1 DM Mono, Courier New, monospace',
                 cursor: 'pointer',
@@ -1133,7 +1133,7 @@ function ClaimModal({ build, onClose, onClaimed }: { build: Build; onClose: () =
             <div key={s.label} style={{ flex: 1, textAlign: 'center' }}>
               <div style={{
                 width: '32px', height: '32px', borderRadius: '50%',
-                background: s.done ? '#8ab800' : '#d8d4ca',
+                background: s.done ? '#FF1F6E' : '#d8d4ca',
                 color: s.done ? '#0e0d0b' : '#6b6862',
                 font: '12px/32px DM Mono, Courier New, monospace',
                 margin: '0 auto 8px',
@@ -1183,7 +1183,7 @@ function ClaimModal({ build, onClose, onClaimed }: { build: Build; onClose: () =
 
         {step === 'claiming' && (
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{ width: '32px', height: '32px', border: '2px solid #d8d4ca', borderTopColor: '#8ab800', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
+            <div style={{ width: '32px', height: '32px', border: '2px solid #d8d4ca', borderTopColor: '#FF1F6E', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
             <p style={{ font: '13px/1.6 DM Mono, Courier New, monospace', color: '#0e0d0b', margin: 0 }}>
               Initiating transfer…
             </p>
@@ -1193,7 +1193,7 @@ function ClaimModal({ build, onClose, onClaimed }: { build: Build; onClose: () =
         {step === 'done' && (
           <>
             <div style={{ background: '#eceae1', padding: '16px', marginBottom: '24px' }}>
-              <p style={{ font: '12px/1 DM Mono, Courier New, monospace', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8ab800', margin: '0 0 8px' }}>
+              <p style={{ font: '12px/1 DM Mono, Courier New, monospace', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#FF1F6E', margin: '0 0 8px' }}>
                 Transfer initiated
               </p>
               <p style={{ font: '13px/1.6 DM Mono, Courier New, monospace', color: '#0e0d0b', margin: 0 }}>
@@ -1201,7 +1201,7 @@ function ClaimModal({ build, onClose, onClaimed }: { build: Build; onClose: () =
               </p>
               {claimedUrl && (
                 <p style={{ font: '12px/1.5 DM Mono, Courier New, monospace', color: '#6b6862', margin: '12px 0 0' }}>
-                  New URL: <a href={claimedUrl} target="_blank" rel="noreferrer" style={{ color: '#8ab800', textDecoration: 'none' }}>{claimedUrl.replace('https://', '')}</a>
+                  New URL: <a href={claimedUrl} target="_blank" rel="noreferrer" style={{ color: '#FF1F6E', textDecoration: 'none' }}>{claimedUrl.replace('https://', '')}</a>
                 </p>
               )}
             </div>
@@ -1273,8 +1273,8 @@ function AppCard({
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const statusColor = {
-    complete: '#8ab800',
-    building: '#8ab800',
+    complete: '#FF1F6E',
+    building: '#FF1F6E',
     error: '#c0392b',
     pending: '#6b6862',
   }[build.status]
@@ -1311,7 +1311,7 @@ function AppCard({
               position: 'absolute',
               top: 0,
               height: '100%',
-              background: '#8ab800',
+              background: '#FF1F6E',
               animation: 'slideProgress 2s ease-in-out infinite',
             }}
           />
@@ -1361,7 +1361,7 @@ function AppCard({
             style={{
               marginLeft: 'auto',
               font: '11px/1 DM Mono, Courier New, monospace',
-              color: build.confidence_score >= 80 ? '#8ab800'
+              color: build.confidence_score >= 80 ? '#3B6D11'
                    : build.confidence_score >= 60 ? '#f97316'
                    : '#c0392b',
               letterSpacing: '0.04em',
@@ -1410,7 +1410,7 @@ function AppCard({
           style={{
             display: 'block',
             font: '11px/1 DM Mono, Courier New, monospace',
-            color: '#8ab800',
+            color: '#FF1F6E',
             textDecoration: 'none',
             marginBottom: '20px',
             overflow: 'hidden',
@@ -1434,8 +1434,8 @@ function AppCard({
             gap: '6px',
             padding: '5px 12px',
             background: 'transparent',
-            color: '#8ab800',
-            border: '1px solid #8ab80055',
+            color: '#FF1F6E',
+            border: '1px solid #FF1F6E55',
             font: '11px/1 DM Mono, Courier New, monospace',
             cursor: 'pointer',
             borderRadius: '100px',
@@ -1444,15 +1444,15 @@ function AppCard({
             minHeight: '28px',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#8ab80010'
-            e.currentTarget.style.borderColor = '#8ab800'
+            e.currentTarget.style.background = '#FF1F6E10'
+            e.currentTarget.style.borderColor = '#FF1F6E'
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = 'transparent'
-            e.currentTarget.style.borderColor = '#8ab80055'
+            e.currentTarget.style.borderColor = '#FF1F6E55'
           }}
         >
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#8ab800', flexShrink: 0, display: 'inline-block' }} />
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FF1F6E', flexShrink: 0, display: 'inline-block' }} />
           Setup DB
         </button>
       )}
@@ -1482,9 +1482,9 @@ function AppCard({
               alignItems: 'center',
               gap: '6px',
               padding: '6px 14px',
-              background: build.claim_status === 'pending_github_acceptance' ? 'transparent' : '#8ab800',
-              color: build.claim_status === 'pending_github_acceptance' ? '#8ab80099' : '#0e0d0b',
-              border: build.claim_status === 'pending_github_acceptance' ? '1px solid #8ab80040' : 'none',
+              background: build.claim_status === 'pending_github_acceptance' ? 'transparent' : '#FF1F6E',
+              color: build.claim_status === 'pending_github_acceptance' ? '#FF1F6E99' : '#0e0d0b',
+              border: build.claim_status === 'pending_github_acceptance' ? '1px solid #FF1F6E40' : 'none',
               font: '11px/1 DM Mono, Courier New, monospace',
               fontWeight: 600,
               cursor: build.claim_status === 'pending_github_acceptance' ? 'default' : 'pointer',
@@ -1500,8 +1500,8 @@ function AppCard({
       {/* Claimed badge */}
       {build.claim_status === 'claimed' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#8ab800', flexShrink: 0, display: 'inline-block' }} />
-          <span style={{ font: '11px/1 DM Mono, Courier New, monospace', color: '#8ab800' }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FF1F6E', flexShrink: 0, display: 'inline-block' }} />
+          <span style={{ font: '11px/1 DM Mono, Courier New, monospace', color: '#FF1F6E' }}>
             Claimed
           </span>
           {build.claimed_url && (

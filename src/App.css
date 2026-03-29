@@ -483,7 +483,7 @@ html, body { overflow-x: hidden; max-width: 100vw; position: relative; }
   font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 500;
-  background: #c8f060; /* FIX 1 — src/App.css ~line 479 */
+  background: #FF1F6E; /* FIX 1 — src/App.css ~line 479 */
   color: #0e0d0b;
   border: none;
   border-radius: var(--radius-md);
@@ -1245,7 +1245,7 @@ html, body { overflow-x: hidden; max-width: 100vw; position: relative; }
 }
 
 .badge-icon {
-  color: #8ab800;
+  color: #FF1F6E;
   font-size: 10px;
 }
 
@@ -1356,7 +1356,7 @@ html, body { overflow-x: hidden; max-width: 100vw; position: relative; }
 .byok-eye {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: #8ab800;
+  color: #FF1F6E;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 16px;
