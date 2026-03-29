@@ -5,6 +5,7 @@
 // Returns: AppSpec JSON
 //
 import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenAI } from '@google/genai'
 import { createClient } from '@supabase/supabase-js'
 import { randomUUID } from 'crypto'
 import { checkRateLimit } from './_rateLimit.js'
@@ -371,36 +372,32 @@ Return only the image prompt text, nothing else. Max 100 words.`
       const unsplashKey = process.env.UNSPLASH_ACCESS_KEY
 
       if (imagePrompt && geminiKey) {
-        // Path A — Imagen 3 via REST API
-        console.log('[generate] image: using imagen')
-        const imagenRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1/models/imagen-3.0-generate-002:predict`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': geminiKey
-            },
-            body: JSON.stringify({
-              instances: [{ prompt: imagePrompt }],
-              parameters: {
-                sampleCount: 1,
-                aspectRatio: '16:9'
-              }
-            })
+        // Path A — Nano Banana via @google/genai SDK
+        console.log('[generate] image: using nano banana')
+        const genAI = new GoogleGenAI({ apiKey: geminiKey })
+        const imgResponse = await genAI.models.generateContent({
+          model: 'gemini-3.1-flash-image-preview',
+          contents: imagePrompt,
+          config: {
+            responseModalities: ['TEXT', 'IMAGE'],
+            imageConfig: {
+              aspectRatio: '16:9',
+              imageSize: '1K'
+            }
           }
-        )
-        console.log('[generate] imagen response status:', imagenRes.status)
-        const rawText = await imagenRes.text()
-        console.log('[generate] imagen raw response:', rawText.slice(0, 500))
-        let imagenData: { predictions?: Array<{ bytesBase64Encoded?: string; mimeType?: string }> } = {}
-        try {
-          imagenData = JSON.parse(rawText)
-        } catch {
-          console.log('[generate] imagen response is not JSON')
+        })
+
+        let b64: string | undefined
+        let mimeType: string = 'image/png'
+        for (const part of imgResponse.candidates?.[0]?.content?.parts ?? []) {
+          if (part.inlineData?.data) {
+            b64 = part.inlineData.data
+            mimeType = part.inlineData.mimeType ?? 'image/png'
+            break
+          }
         }
-        const b64 = imagenData.predictions?.[0]?.bytesBase64Encoded
-        const mimeType = imagenData.predictions?.[0]?.mimeType ?? 'image/png'
+        console.log('[generate] nano banana image part found:', !!b64)
+
         if (b64) {
           const imageBuffer = Buffer.from(b64, 'base64')
           const fileName = `${buildId}-hero.png`
@@ -414,9 +411,9 @@ Return only the image prompt text, nothing else. Max 100 words.`
           const { data: urlData } = supabaseAdmin.storage
             .from('hero-images').getPublicUrl(fileName)
           heroImageUrl = urlData.publicUrl
-          console.log('[generate] hero image uploaded (imagen):', heroImageUrl)
+          console.log('[generate] hero image uploaded:', heroImageUrl)
         } else {
-          console.log('[generate] imagen returned no image')
+          console.log('[generate] nano banana returned no image')
         }
 
       } else if (imagePrompt && openaiKey) {
