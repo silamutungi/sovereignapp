@@ -782,6 +782,7 @@ Do not exceed 19 files. Privacy and Terms pages are linked from the footer as pl
 - No comments in generated code (no // or /* */ blocks)
 - No console.log or console.error statements
 - Tailwind classes only — no inline styles, no <style> tags, no custom CSS
+- CRITICAL: Never use focusRingColor, focusRingWidth, or any other Tailwind utility names as inline React style properties. These are Tailwind CSS classes, not valid CSS properties. For inline styles, only use valid CSS property names in camelCase (e.g. outline, outlineColor, outlineOffset, boxShadow). For focus styles, use CSS classes or the :focus pseudo-class in a stylesheet, not inline styles.
 - Components under 100 lines each where possible
 - No placeholder text blocks — essential UI only
 - No decorative emoji or filler copy
@@ -835,6 +836,9 @@ Rule: when a string contains an apostrophe, use double quotes or a template lite
 **src/vite-env.d.ts is required — omitting it breaks import.meta.env:**
 Every Vite project needs src/vite-env.d.ts containing exactly: /// <reference types="vite/client" />
 Without it tsc fails with "Property 'env' does not exist on type 'ImportMeta'" on every VITE_* env var access. This is file #7 in the required file list.
+
+**Inline style objects must only contain valid CSS properties (React.CSSProperties):**
+All inline style objects must only contain valid CSS properties accepted by React.CSSProperties. Mental check before writing any style prop: would this property exist in document.body.style? If not, do not use it as an inline style. Common violations: focusRingColor, focusRingWidth, focusRingOffsetWidth, focusRingOffsetColor — these are Tailwind class names, not CSS properties, and will cause TypeScript to fail with "Object literal may only specify known properties."
 
 ### EXACT FILE CONTRACTS
 
