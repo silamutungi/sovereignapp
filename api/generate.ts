@@ -380,10 +380,17 @@ Return only the image prompt text, nothing else. Max 100 words.`
           contents: imagePrompt,
           config: { responseModalities: ['TEXT', 'IMAGE'] }
         })
-        const imgPart = imgResponse.candidates?.[0]?.content?.parts
-          ?.find((p: { inlineData?: { data: string; mimeType: string } }) => p.inlineData)
-        if (imgPart?.inlineData) {
-          const { data: b64, mimeType } = imgPart.inlineData
+        const parts = imgResponse.candidates?.[0]?.content?.parts ?? []
+        let b64: string | undefined
+        let mimeType: string = 'image/png'
+        for (const part of parts) {
+          if (part.inlineData?.data) {
+            b64 = part.inlineData.data
+            mimeType = part.inlineData.mimeType ?? 'image/png'
+            break
+          }
+        }
+        if (b64) {
           const imageBuffer = Buffer.from(b64, 'base64')
           const fileName = `${buildId}-hero.png`
           const supabaseAdmin = createClient(
