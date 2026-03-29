@@ -187,6 +187,36 @@ const ENV_VARS: Record<string, EnvVar[]> = {
       purpose: 'Secret header value for Vercel cron endpoint — prevents unauthorized triggering of expire-builds',
     },
   ],
+
+  'CLI OAuth — GitHub': [
+    {
+      name: 'VISILA_CLI_GITHUB_CLIENT_ID',
+      files: ['api/auth/github-token.ts'],
+      failMode: 'hard',
+      purpose: 'GitHub OAuth app client ID for the npx visila-app CLI (localhost redirect URIs)',
+    },
+    {
+      name: 'VISILA_CLI_GITHUB_CLIENT_SECRET',
+      files: ['api/auth/github-token.ts'],
+      failMode: 'hard',
+      purpose: 'GitHub OAuth app client secret for the npx visila-app CLI',
+    },
+  ],
+
+  'CLI OAuth — Vercel': [
+    {
+      name: 'VISILA_CLI_VERCEL_CLIENT_ID',
+      files: ['api/auth/vercel-token.ts'],
+      failMode: 'hard',
+      purpose: 'Vercel OAuth app client ID for the npx visila-app CLI (localhost redirect URIs)',
+    },
+    {
+      name: 'VISILA_CLI_VERCEL_CLIENT_SECRET',
+      files: ['api/auth/vercel-token.ts'],
+      failMode: 'hard',
+      purpose: 'Vercel OAuth app client secret for the npx visila-app CLI',
+    },
+  ],
 }
 
 // ── Status check ────────────────────────────────────────────────────────────
