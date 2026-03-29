@@ -13,6 +13,7 @@ export default async function handler(req: any, res: any) {
   }
 
   const params = new URLSearchParams({
+    grant_type: 'authorization_code',
     code,
     client_id: clientId,
     client_secret: clientSecret,
@@ -20,7 +21,7 @@ export default async function handler(req: any, res: any) {
     ...(code_verifier ? { code_verifier } : {})
   })
 
-  const response = await fetch('https://api.vercel.com/v2/oauth/access_token', {
+  const response = await fetch('https://api.vercel.com/login/oauth/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: params.toString()
