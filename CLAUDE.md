@@ -260,6 +260,18 @@ Everything extracted from Figma lives in the user's repo in standard files they 
 - Set VITE_FIGMA_IMPORT=true in Vercel to enable
 - Next: wire into npx sovereign-app@latest CLI flow
 
+### Auto-Migration Engine — Status: NOT BUILT
+- Detects schema changes in edit output via Haiku
+- Applies SQL via Supabase Management API
+  (POST /v1/projects/{ref}/database/query)
+- Uses build's stored Supabase credentials
+- Confirms in Brain hint: "Database updated: {description}"
+- Safety rules: never auto-run DROP statements,
+  never run on claimed builds, always wrap in transaction
+- Stores history in `migrations` table in Sovereign's DB
+- Build after edit engine + plan mode are stable
+- This closes the Lovable UX gap without creating lock-in
+
 ## Sovereign Security Layer
 
 Every generated app follows 9 non-negotiable security rules:

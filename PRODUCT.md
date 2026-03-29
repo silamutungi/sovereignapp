@@ -305,3 +305,105 @@ git commit --allow-empty -m 'chore: redeploy with env vars' && git push
 - Brief extraction (short ideas skip, long ideas show confirmation screen)
 - Dashboard, magic link auth, lessons API
 - 7-day expiry cron (configured, but CRON_SECRET not yet in Vercel)
+
+---
+
+## Auto-Migration Engine
+
+**Status:** Not built
+**Priority:** High — required before charging for edits
+**Codename:** Schema Sync
+
+### The problem
+When a user asks Sovereign to "add a delete feature" or "add a
+comments table," the edit engine generates the correct frontend
+and API code — but does not apply the corresponding database
+migration. The user currently has to open Supabase manually,
+paste SQL, and run it themselves. This is the #1 source of
+technical friction for non-developer users.
+
+### What Lovable does
+Lovable orchestrates Supabase directly — it runs migrations
+automatically when it detects schema changes in generated code.
+It built a translation layer on top of the Supabase API and
+runs the Supabase CLI behind the scenes. This is core to why
+non-developers can use Lovable without touching a terminal.
+
+### What Sovereign must do differently
+Lovable holds the Supabase connection on behalf of the user —
+creating lock-in. Sovereign already provisions Supabase into
+the user's own account at build time. The auto-migration engine
+must extend this: when an edit produces a schema change,
+Sovereign applies the migration via the Supabase Management API
+using the credentials already stored for that build, then
+confirms it in the Brain hint. The user never opens a dashboard.
+
+### How it works
+
+**Step 1 — Detect schema changes in the edit**
+After Sonnet generates the multi-file edit, pass the diff to
+Haiku with the instruction: "Does this edit require a database
+migration? If yes, return the SQL. If no, return null."
+Haiku returns either null or a valid SQL string
+(CREATE TABLE, ALTER TABLE, CREATE POLICY, etc.)
+
+**Step 2 — Apply the migration via Supabase Management API**
+If SQL is returned:
+POST https://api.supabase.com/v1/projects/{ref}/database/query
+Headers: Authorization: Bearer {SUPABASE_SERVICE_ROLE_KEY}
+Body: { query: "<sql>" }
+
+The Supabase project ref and service role key are already
+stored on the build record from provisioning time.
+
+**Step 3 — Confirm in the edit response**
+If migration succeeded: append to the Brain hint —
+"Database updated: {one-line description of what changed}."
+If migration failed: return the error to the user in plain
+English — never expose raw SQL errors.
+If Haiku returns null: proceed silently, no migration message.
+
+**Step 4 — Store migration history**
+Add a `migrations` table to Sovereign's own Supabase:
+- build_id
+- sql (the query that was run)
+- applied_at
+- status ('success' | 'error')
+- error_message (nullable)
+
+This gives users a history of every schema change and allows
+revert tooling to be built later.
+
+### Supabase migrations table (run once in Sovereign's DB)
+```sql
+CREATE TABLE IF NOT EXISTS migrations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  build_id uuid REFERENCES builds(id) ON DELETE CASCADE,
+  sql text NOT NULL,
+  applied_at timestamptz DEFAULT now(),
+  status text NOT NULL CHECK (status IN ('success', 'error')),
+  error_message text
+);
+
+ALTER TABLE migrations ENABLE ROW LEVEL SECURITY;
+```
+
+### Safety rules
+- Never run DROP TABLE or DROP COLUMN automatically —
+  flag these to the user for manual confirmation first.
+- Never run migrations on claimed builds — the user owns
+  that Supabase project now and Sovereign should not touch it.
+- Wrap every migration in a transaction — if it fails,
+  roll back cleanly.
+- Log every migration attempt regardless of outcome.
+
+### When to build this
+After the edit engine is battle-tested and plan mode is
+working reliably. Auto-migration adds a new failure surface —
+ship it only when the core edit loop is stable.
+
+### Competitive position
+This closes the last meaningful UX gap between Sovereign and
+Lovable for non-developer users — without creating lock-in.
+Lovable orchestrates your database. Sovereign migrates your
+database, in your account, and gets out of the way.
