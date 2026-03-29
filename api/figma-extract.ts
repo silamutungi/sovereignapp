@@ -62,7 +62,7 @@ export default async function handler(req: any, res: any) {
       throw new Error(`Figma styles API returned ${stylesRes.status}`)
     }
 
-    const stylesData = await stylesRes.json()
+    const stylesData = await stylesRes.json() as Record<string, unknown>
     const allStyles: Array<{ node_id: string; name: string; style_type: string }> =
       stylesData.meta?.styles ?? []
 
@@ -107,7 +107,7 @@ export default async function handler(req: any, res: any) {
         throw new Error(`Figma nodes API returned ${nodesRes.status}`)
       }
 
-      const nodesData = await nodesRes.json()
+      const nodesData = await nodesRes.json() as Record<string, unknown>
       nodes = nodesData.nodes ?? {}
     }
 
