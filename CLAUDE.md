@@ -243,6 +243,16 @@ npx sovereign-app@latest
 **Key principle:**
 Everything extracted from Figma lives in the user's repo in standard files they own. No Sovereign lock-in. If they stop using Sovereign, their tokens and components remain unchanged.
 
+### npx sovereign-app@latest — Status: IN PROGRESS
+- Repo: github.com/silamutungi/sovereign-cli
+- npm package name: sovereign-app
+- v1 flow: idea → GitHub OAuth → Vercel OAuth → optional Figma → generate via API → live URL
+- Entry: src/index.ts → steps: idea, github, vercel, figma, scaffold, done
+- Auth cached in ~/.sovereign/config.json
+- Calls sovereignapp.dev API — CLI is a thin shell over the existing pipeline
+- Needs: SOVEREIGN_GITHUB_CLIENT_ID and SOVEREIGN_VERCEL_CLIENT_ID env vars (separate OAuth apps for localhost redirect)
+- Blockers before publish: register CLI OAuth apps on GitHub and Vercel with localhost redirect URIs
+
 ### Figma Import — Level 1 Status: SHIPPED (web UI)
 - api/figma-extract.ts: extracts color + typography tokens
 - FigmaImport component in App.tsx behind VITE_FIGMA_IMPORT flag
