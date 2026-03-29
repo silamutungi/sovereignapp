@@ -5,6 +5,8 @@
 // Returns: AppSpec JSON
 //
 import Anthropic from '@anthropic-ai/sdk'
+import { createClient } from '@supabase/supabase-js'
+import { randomUUID } from 'crypto'
 import { checkRateLimit } from './_rateLimit.js'
 import { SYSTEM_PROMPT } from './_systemPrompt.js'
 
@@ -224,58 +226,230 @@ export default async function handler(req: any, res: any): Promise<void> {
     'Finishing up…',
   ]
 
+  // ── MIGRATION: run in Supabase SQL Editor before deploying ─────────────
+  // ALTER TABLE builds ADD COLUMN IF NOT EXISTS app_category text;
+  // ALTER TABLE builds ADD COLUMN IF NOT EXISTS parity_features jsonb;
+  // ALTER TABLE builds ADD COLUMN IF NOT EXISTS competitors jsonb;
+
   try {
     const client = new Anthropic({ apiKey })
 
-    // ── Prefetch hero image from Unsplash ──────────────────────────────────
-    // Step 1: Haiku extracts 2-3 domain-specific keywords from the app idea.
-    // Step 2: Unsplash search returns a permanent, specific photo URL for the
-    //         first keyword — injected as HERO_IMAGE_URL so the generation
-    //         prompt uses a stable URL, not a random-on-every-load loremflickr.
-    // Non-fatal: if UNSPLASH_ACCESS_KEY is missing or the API call fails,
-    //            heroImageUrl stays null and the generation prompt falls back
-    //            to the static loremflickr fallback defined in _systemPrompt.ts.
-    let heroImageUrl: string | null = null
-    const unsplashKey = process.env.UNSPLASH_ACCESS_KEY
-    if (unsplashKey) {
-      try {
-        await sendEvent({ type: 'progress', message: 'Selecting hero image…' })
+    // ── Helper: race a promise against a timeout ───────────────────────────
+    const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
+      Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error(`timed out after ${ms}ms`)), ms),
+        ),
+      ])
 
-        // Extract keywords via Haiku — bounded output, fast, cheap
-        const kwMsg = await client.messages.create({
+    // ── Step 1: Classify app category and identify top competitors ─────────
+    let appCategory = 'other'
+    let competitors: string[] = []
+    let parityFeatures: string[] = []
+
+    try {
+      const classifyMsg = await withTimeout(
+        client.messages.create({
           model: MODEL_FAST,
-          max_tokens: 80,
+          max_tokens: 150,
           messages: [{
             role: 'user',
-            content: `Extract 2-3 image search keywords for a hero background photo for this app idea. Return ONLY a JSON array of strings, nothing else. Example: ["celebration","party","confetti"]\n\nApp idea: ${idea.slice(0, 500)}`,
+            content: `Classify this app idea into one of these categories: saas, marketplace, social, ecommerce, tool, content, game, productivity, finance, health, other\n\nApp idea: ${userMessage.slice(0, 300)}\n\nReturn only JSON: { "category": string, "competitors": ["name1", "name2", "name3"] }\nList the 3 most well-known direct competitors. If none exist, return empty array.`,
           }],
-        })
-        const kwRaw = kwMsg.content
-          .filter((b) => b.type === 'text')
-          .map((b) => (b as { type: 'text'; text: string }).text)
-          .join('')
-          .trim()
-        const kwMatch = kwRaw.match(/\[[\s\S]*?\]/)
-        const keywords: string[] = kwMatch ? (JSON.parse(kwMatch[0]) as string[]) : []
+        }),
+        3000,
+      )
+      const classifyRaw = classifyMsg.content
+        .filter((b) => b.type === 'text')
+        .map((b) => (b as { type: 'text'; text: string }).text)
+        .join('')
+        .trim()
+      const classifyMatch = classifyRaw.match(/\{[\s\S]*?\}/)
+      if (classifyMatch) {
+        const parsed = JSON.parse(classifyMatch[0]) as { category: string; competitors: string[] }
+        appCategory = parsed.category ?? 'other'
+        competitors = Array.isArray(parsed.competitors) ? parsed.competitors.slice(0, 3) : []
+        console.log('[generate] category:', appCategory, 'competitors:', competitors.join(', '))
+      }
+    } catch (classifyErr) {
+      console.warn('[generate] category classification failed (non-fatal):', classifyErr instanceof Error ? classifyErr.message : String(classifyErr))
+    }
 
-        // Fetch first Unsplash result for the first keyword
-        if (keywords.length > 0) {
-          const query = encodeURIComponent(String(keywords[0]))
-          const uRes = await fetch(
-            `https://api.unsplash.com/search/photos?query=${query}&per_page=3&orientation=landscape`,
-            { headers: { Authorization: `Client-ID ${unsplashKey}` } },
+    // ── Step 2: Research parity features for top 2 competitors ─────────────
+    if (competitors.length > 0) {
+      const topTwo = competitors.slice(0, 2)
+      const featureSets: string[][] = []
+
+      for (const competitor of topTwo) {
+        try {
+          const featureMsg = await withTimeout(
+            client.messages.create({
+              model: MODEL_FAST,
+              max_tokens: 150,
+              messages: [{
+                role: 'user',
+                content: `What are the 5 core features that make ${competitor} valuable to its users? Return only a JSON array of feature names, max 5 items, no explanation.`,
+              }],
+            }),
+            3000,
           )
-          if (uRes.ok) {
-            const uData = await uRes.json() as { results: Array<{ urls: { regular: string } }> }
-            heroImageUrl = uData.results[0]?.urls?.regular ?? null
-            if (heroImageUrl) console.log('[generate] Unsplash hero resolved, keyword:', keywords[0])
-          } else {
-            console.warn('[generate] Unsplash API returned', uRes.status, '(non-fatal, using fallback)')
+          const featureRaw = featureMsg.content
+            .filter((b) => b.type === 'text')
+            .map((b) => (b as { type: 'text'; text: string }).text)
+            .join('')
+            .trim()
+          const featureMatch = featureRaw.match(/\[[\s\S]*?\]/)
+          if (featureMatch) {
+            const features = JSON.parse(featureMatch[0]) as string[]
+            if (Array.isArray(features)) featureSets.push(features.filter((f) => typeof f === 'string'))
+          }
+        } catch (featureErr) {
+          console.warn(`[generate] feature fetch for "${competitor}" failed (non-fatal):`, featureErr instanceof Error ? featureErr.message : String(featureErr))
+        }
+      }
+
+      // Deduplicate features across competitors
+      const seen = new Set<string>()
+      for (const set of featureSets) {
+        for (const f of set) {
+          const key = f.toLowerCase().trim()
+          if (!seen.has(key)) {
+            seen.add(key)
+            parityFeatures.push(f)
           }
         }
-      } catch (imgErr) {
-        console.warn('[generate] Unsplash prefetch failed (non-fatal):', imgErr instanceof Error ? imgErr.message : String(imgErr))
       }
+      console.log('[generate] parity features identified:', parityFeatures.length)
+    }
+
+    // ── Step 3: Build competitive context string for injection ──────────────
+    let competitiveContext = ''
+    if (parityFeatures.length > 0) {
+      competitiveContext = `\n\nCOMPETITIVE CONTEXT:\nThis app competes with: ${competitors.join(', ')}\nCore parity features to include: ${parityFeatures.join(', ')}\nBuild all parity features into the initial app. Do not mention competitors in the UI copy.`
+    } else if (appCategory !== 'other') {
+      competitiveContext = `\n\nAPP CATEGORY: ${appCategory}\nBuild the standard features expected for this category.`
+    }
+
+    // Requires 'hero-images' bucket in Supabase storage (public)
+    // GEMINI_API_KEY or OPENAI_API_KEY for AI generation
+    // Falls back to Unsplash (UNSPLASH_ACCESS_KEY) if neither present
+
+    const buildId = randomUUID()
+    let heroImageUrl: string | null = null
+
+    // Step 1 — Generate image prompt via Haiku
+    let imagePrompt: string | null = null
+    try {
+      const imgPromptRes = await client.messages.create({
+        model: MODEL_FAST,
+        max_tokens: 150,
+        messages: [{
+          role: 'user',
+          content: `The user wants to build this app: ${userMessage.slice(0, 500)}
+
+Write a single image generation prompt for a hero image for this app's landing page. The image should:
+- Be photorealistic and high quality
+- Visually represent what the app does or the feeling it creates
+- Work as a full-width hero background (landscape orientation)
+- Have a clean area for text overlay (not too busy)
+- Feel premium, editorial, and brand-appropriate
+
+Return only the image prompt text, nothing else. Max 100 words.`
+        }]
+      })
+      imagePrompt = (imgPromptRes.content[0] as { type: string; text: string }).text.trim()
+      console.log('[generate] image prompt:', imagePrompt.slice(0, 80))
+    } catch (e) {
+      console.log('[generate] image prompt generation failed:', e)
+    }
+
+    // Step 2 — AI image generation (BYOK) with Unsplash fallback
+    try {
+      const geminiKey = process.env.GEMINI_API_KEY
+      const openaiKey = process.env.OPENAI_API_KEY
+      const unsplashKey = process.env.UNSPLASH_ACCESS_KEY
+
+      if (imagePrompt && geminiKey) {
+        // Path A — Gemini 2.5 Flash Image
+        console.log('[generate] image: using gemini')
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: imagePrompt }] }],
+              generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
+            })
+          }
+        )
+        const geminiData = await geminiRes.json() as {
+          candidates?: Array<{ content: { parts: Array<{ inlineData?: { data: string; mimeType: string } }> } }>
+        }
+        const imgPart = geminiData.candidates?.[0]?.content?.parts?.find(p => p.inlineData)
+        if (imgPart?.inlineData) {
+          const { data: b64, mimeType } = imgPart.inlineData
+          const imageBuffer = Buffer.from(b64, 'base64')
+          const fileName = `${buildId}-hero.png`
+          const supabaseAdmin = createClient(
+            process.env.SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+          )
+          await supabaseAdmin.storage.from('hero-images').upload(fileName, imageBuffer, {
+            contentType: mimeType,
+            upsert: true
+          })
+          const { data: urlData } = supabaseAdmin.storage.from('hero-images').getPublicUrl(fileName)
+          heroImageUrl = urlData.publicUrl
+          console.log('[generate] hero image uploaded (gemini):', heroImageUrl)
+        }
+
+      } else if (imagePrompt && openaiKey) {
+        // Path B — GPT-image-1
+        console.log('[generate] image: using openai')
+        const oaiRes = await fetch('https://api.openai.com/v1/images/generations', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'gpt-image-1', prompt: imagePrompt, n: 1, size: '1792x1024' })
+        })
+        const oaiData = await oaiRes.json() as { data?: Array<{ b64_json: string }> }
+        const b64 = oaiData.data?.[0]?.b64_json
+        if (b64) {
+          const imageBuffer = Buffer.from(b64, 'base64')
+          const fileName = `${buildId}-hero.png`
+          const supabaseAdmin = createClient(
+            process.env.SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+          )
+          await supabaseAdmin.storage.from('hero-images').upload(fileName, imageBuffer, {
+            contentType: 'image/png',
+            upsert: true
+          })
+          const { data: urlData } = supabaseAdmin.storage.from('hero-images').getPublicUrl(fileName)
+          heroImageUrl = urlData.publicUrl
+          console.log('[generate] hero image uploaded (openai):', heroImageUrl)
+        }
+
+      } else if (unsplashKey) {
+        // Path C — Unsplash fallback
+        console.log('[generate] image: using unsplash fallback')
+        const keywords = imagePrompt
+          ? imagePrompt.split(' ').slice(0, 2).join(' ')
+          : userMessage.slice(0, 30)
+        const query = encodeURIComponent(keywords)
+        const uRes = await fetch(
+          `https://api.unsplash.com/search/photos?query=${query}&per_page=3&orientation=landscape`,
+          { headers: { Authorization: `Client-ID ${unsplashKey}` } }
+        )
+        const uData = await uRes.json() as { results?: Array<{ urls?: { regular?: string } }> }
+        heroImageUrl = uData.results?.[0]?.urls?.regular ?? null
+        if (heroImageUrl) console.log('[generate] Unsplash hero resolved, keyword:', keywords)
+      }
+
+    } catch (e) {
+      console.log('[generate] image generation failed, continuing without hero:', e)
+      heroImageUrl = null
     }
 
     // Inject the permanent hero URL into the user message.
@@ -283,7 +457,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     const heroImageInjection = heroImageUrl
       ? `\n\nHERO_IMAGE_URL = ${heroImageUrl}`
       : ''
-    const finalUserMessage = userMessage + heroImageInjection
+    const finalUserMessage = userMessage + heroImageInjection + competitiveContext
 
     console.log('[generate] Creating Anthropic stream...')
     const stream = client.messages.stream({
@@ -457,6 +631,10 @@ export default async function handler(req: any, res: any): Promise<void> {
         tier: spec.tier ?? 'SIMPLE',
         activeStandards: spec.activeStandards ?? [],
         nextSteps: spec.nextSteps ?? [],
+        appCategory,
+        competitors,
+        parityFeatures,
+        heroImageUrl: heroImageUrl ?? null,
       },
     }
     const doneJson = JSON.stringify(donePayload)

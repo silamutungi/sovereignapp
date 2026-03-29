@@ -210,6 +210,7 @@ interface AppSpec {
   setupInstructions: string
   tier?: 'SIMPLE' | 'STANDARD' | 'COMPLEX'
   activeStandards?: string[]
+  heroImageUrl?: string | null
 }
 
 // ── callGenerateAPI — SSE-aware fetch helper ──────────────────────────
@@ -700,30 +701,98 @@ function NdevPanel({ locale }: { locale: Locale }) {
             <div className="gen-preview-wrap" style={{ borderColor: spec.primaryColor + '55', position: 'relative', minHeight: '280px', padding: '24px' }}>
               <p className="gen-preview-label">Generated app</p>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                <div style={{ width: 32, height: 32, borderRadius: 6, background: spec.primaryColor, flexShrink: 0, border: '1px solid rgba(0,0,0,0.1)' }} aria-hidden="true" />
-                <div>
-                  <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '18px', fontWeight: 600, color: '#0e0d0b', margin: 0, lineHeight: 1.2 }}>{spec.appName}</p>
-                  <p style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', color: '#6b6862', margin: '3px 0 0' }}>{spec.tagline}</p>
+              {spec.heroImageUrl ? (
+                <div style={{
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                  position: 'relative',
+                  aspectRatio: '16/9',
+                  background: spec.primaryColor + '22'
+                }}>
+                  <img
+                    src={spec.heroImageUrl}
+                    alt={spec.appName}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block'
+                    }}
+                  />
+                  <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.1) 50%, transparent 100%)'
+                  }} />
+                  <div style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    padding: '20px 24px'
+                  }}>
+                    <p style={{
+                      fontFamily: "'Playfair Display', Georgia, serif",
+                      fontSize: '22px',
+                      fontWeight: 600,
+                      color: '#ffffff',
+                      margin: 0,
+                      lineHeight: 1.2,
+                      textShadow: '0 1px 4px rgba(0,0,0,0.4)'
+                    }}>{spec.appName}</p>
+                    <p style={{
+                      fontFamily: 'DM Mono, monospace',
+                      fontSize: '11px',
+                      color: 'rgba(255,255,255,0.85)',
+                      margin: '4px 0 0',
+                      textShadow: '0 1px 3px rgba(0,0,0,0.4)'
+                    }}>{spec.tagline}</p>
+                  </div>
+                  {spec.tier && (
+                    <div style={{
+                      position: 'absolute',
+                      top: 12,
+                      right: 12,
+                      fontFamily: 'DM Mono, monospace',
+                      fontSize: '10px',
+                      letterSpacing: '0.1em',
+                      textTransform: 'uppercase',
+                      color: '#ffffff',
+                      background: 'rgba(0,0,0,0.45)',
+                      padding: '3px 8px',
+                      borderRadius: 100,
+                      backdropFilter: 'blur(4px)'
+                    }}>{spec.tier}</div>
+                  )}
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 6, background: spec.primaryColor, flexShrink: 0, border: '1px solid rgba(0,0,0,0.1)' }} aria-hidden="true" />
+                    <div>
+                      <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '18px', fontWeight: 600, color: '#0e0d0b', margin: 0, lineHeight: 1.2 }}>{spec.appName}</p>
+                      <p style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', color: '#6b6862', margin: '3px 0 0' }}>{spec.tagline}</p>
+                    </div>
+                  </div>
 
-              <div style={{ background: '#0e0d0b', borderRadius: 8, padding: '12px 16px', maxHeight: 160, overflowY: 'auto' }}>
-                <p style={{ fontFamily: 'DM Mono, monospace', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b6862', margin: '0 0 8px' }}>
-                  {(Array.isArray(spec.files) ? spec.files : []).length} files generated
-                </p>
-                {(Array.isArray(spec.files) ? spec.files : []).map(f => (
-                  <p key={f.path} style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', color: '#c8c4bc', margin: '2px 0', lineHeight: 1.4 }}>{f.path}</p>
-                ))}
-              </div>
+                  <div style={{ background: '#0e0d0b', borderRadius: 8, padding: '12px 16px', maxHeight: 160, overflowY: 'auto' }}>
+                    <p style={{ fontFamily: 'DM Mono, monospace', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b6862', margin: '0 0 8px' }}>
+                      {(Array.isArray(spec.files) ? spec.files : []).length} files generated
+                    </p>
+                    {(Array.isArray(spec.files) ? spec.files : []).map(f => (
+                      <p key={f.path} style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', color: '#c8c4bc', margin: '2px 0', lineHeight: 1.4 }}>{f.path}</p>
+                    ))}
+                  </div>
 
-              {spec.tier && (
-                <div style={{ marginTop: '12px', display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'DM Mono, monospace', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: spec.primaryColor, border: `1px solid ${spec.primaryColor}55`, padding: '2px 8px', borderRadius: 100 }}>{spec.tier}</span>
-                  {(Array.isArray(spec.activeStandards) ? spec.activeStandards : []).slice(0, 3).map(s => (
-                    <span key={s} style={{ fontFamily: 'DM Mono, monospace', fontSize: '10px', color: '#6b6862' }}>{s}</span>
-                  ))}
-                </div>
+                  {spec.tier && (
+                    <div style={{ marginTop: '12px', display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'DM Mono, monospace', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: spec.primaryColor, border: `1px solid ${spec.primaryColor}55`, padding: '2px 8px', borderRadius: 100 }}>{spec.tier}</span>
+                      {(Array.isArray(spec.activeStandards) ? spec.activeStandards : []).slice(0, 3).map(s => (
+                        <span key={s} style={{ fontFamily: 'DM Mono, monospace', fontSize: '10px', color: '#6b6862' }}>{s}</span>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
 
               {isRegenerating && (
