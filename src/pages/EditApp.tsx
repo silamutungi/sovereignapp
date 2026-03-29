@@ -29,6 +29,8 @@ interface Message {
   text: string
   pills?: string[]
   isDeploying?: boolean
+  commitSha?: string
+  deployUrl?: string
 }
 
 interface BrainHint {
@@ -170,6 +172,12 @@ export default function EditApp() {
   const [scanning, setScanning] = useState(false)
   const [scanOpen, setScanOpen] = useState(false)
 
+  // Version history
+  const [showHistory, setShowHistory] = useState(false)
+  const [selectedVersion, setSelectedVersion] = useState<Message | null>(null)
+  const [historyPreviewUrl, setHistoryPreviewUrl] = useState<string | null>(null)
+  const [reverting, setReverting] = useState(false)
+
   // Brand/themes
   const [brandColor, setBrandColor] = useState('#8ab800')
   const [headingFont, setHeadingFont] = useState<'serif' | 'sans' | 'mono'>('serif')
@@ -228,11 +236,13 @@ export default function EditApp() {
       .order('created_at', { ascending: true })
       .limit(100)
     if (error || !data) return []
-    return (data as Array<{ role: string; content: string; metadata: { pills?: string[] } }>).map((m) => ({
+    return (data as Array<{ role: string; content: string; metadata: { pills?: string[]; commitSha?: string; deployUrl?: string } }>).map((m) => ({
       id: ++counter.current,
       role: m.role as 'user' | 'sovereign',
       text: m.content,
       pills: m.metadata?.pills,
+      commitSha: m.metadata?.commitSha,
+      deployUrl: m.metadata?.deployUrl,
     }))
   }
 
@@ -321,7 +331,7 @@ export default function EditApp() {
 
   // ── Poll build status ────────────────────────────────────────────────────────
 
-  function startPolling() {
+  function startPolling(pendingCommitSha: string | null = null, pendingDeployUrl: string | null = null) {
     if (pollRef.current) clearInterval(pollRef.current)
     let attempts = 0
     pollRef.current = setInterval(async () => {
@@ -339,7 +349,7 @@ export default function EditApp() {
           clearInterval(pollRef.current!)
           pollRef.current = null
           setDeploying(false)
-          const finalUrl = data.deployUrl ?? build?.deploy_url ?? ''
+          const finalUrl = data.deployUrl ?? pendingDeployUrl ?? build?.deploy_url ?? ''
           if (data.deployUrl) setBuild((b) => b ? { ...b, deploy_url: data.deployUrl! } : b)
           // Cache-busting iframe reload — stay on timestamped URL permanently
           if (finalUrl) {
@@ -355,13 +365,18 @@ export default function EditApp() {
           // Update deploying message with actual elapsed time
           const elapsed = Math.round((Date.now() - deployStartTimeRef.current) / 1000)
           const doneText = `Done. Deployed in ${elapsed}s.`
+          const changePills = undefined
           setMessages((prev) => {
             let lastIdx = -1
             prev.forEach((m, i) => { if (m.isDeploying) lastIdx = i })
             if (lastIdx === -1) return prev
             return prev.map((m, i) => i === lastIdx ? { ...m, text: doneText, isDeploying: false } : m)
           })
-          saveMessage('sovereign', doneText)
+          saveMessage('sovereign', doneText, {
+            commitSha: pendingCommitSha ?? null,
+            deployUrl: finalUrl || null,
+            pills: changePills,
+          })
           setLastDeployedAt(Date.now())
           // Post-deploy checks
           void fetchBrainHint()
@@ -416,7 +431,7 @@ export default function EditApp() {
           editRequest: text.slice(0, 1000),
         }),
       })
-      const data = await res.json() as { ok?: boolean; error?: string }
+      const data = await res.json() as { ok?: boolean; error?: string; commitSha?: string; deployUrl?: string }
       if (!res.ok || !data.ok) {
         const errText = data.error ?? 'Something went wrong. Please try again.'
         pushMsg({ role: 'sovereign', text: errText })
@@ -424,11 +439,13 @@ export default function EditApp() {
       } else {
         const newCount = editCount + 1
         setEditCount(newCount)
+        const pendingCommitSha = data.commitSha ?? null
+        const pendingDeployUrl = data.deployUrl ?? null
         // Don't save the "deploying" message — save final "Done. Deployed in Xs." in startPolling
-        pushMsg({ role: 'sovereign', text: 'Done — deploying your change now.', isDeploying: true })
+        pushMsg({ role: 'sovereign', text: 'Done — deploying your change now.', isDeploying: true, commitSha: pendingCommitSha ?? undefined, deployUrl: pendingDeployUrl ?? undefined })
         deployStartTimeRef.current = Date.now()
         setDeploying(true)
-        startPolling()
+        startPolling(pendingCommitSha, pendingDeployUrl)
       }
     } catch {
       const errText = 'Network error. Please check your connection.'
@@ -866,6 +883,7 @@ export default function EditApp() {
               flexDirection: 'column',
               overflow: 'hidden',
               transition: 'background .15s',
+              position: 'relative',
             }}>
 
             {/* ── Workspace knowledge bar ──────────────────────────────────── */}
@@ -920,13 +938,41 @@ export default function EditApp() {
               >
                 Brand
               </button>
+              {/* Version history button */}
+              <button
+                onClick={() => { setShowHistory(true); setSelectedVersion(null); setHistoryPreviewUrl(null) }}
+                title="Version history"
+                aria-label="Version history"
+                style={{
+                  marginLeft: 'auto',
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  background: panelTheme === 'dark' ? '#2a2925' : '#e8e4da',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  transition: 'background .15s',
+                  color: panelTheme === 'dark' ? '#5a5850' : '#8ab800',
+                  padding: 0,
+                }}
+              >
+                {/* Clock icon */}
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                  <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2"/>
+                  <path d="M6 3v3l2 1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
               {/* Theme toggle pill */}
               <button
                 onClick={() => setPanelTheme((p) => p === 'dark' ? 'light' : 'dark')}
                 title={panelTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                 aria-label={panelTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                 style={{
-                  marginLeft: 'auto',
+                  marginLeft: 4,
                   width: 28,
                   height: 28,
                   borderRadius: '50%',
@@ -1178,6 +1224,96 @@ export default function EditApp() {
               </>
             )}
 
+            {/* ── Version history panel (slides over chat) ─────────────────── */}
+            {showHistory && (
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                background: t.panelBg,
+                display: 'flex',
+                flexDirection: 'column',
+                zIndex: 20,
+                animation: 'fadeIn .15s ease',
+              }}>
+                {/* History header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: `1px solid ${t.border}`, flexShrink: 0 }}>
+                  <button
+                    onClick={() => { setShowHistory(false); setSelectedVersion(null); setHistoryPreviewUrl(null) }}
+                    style={{ background: 'none', border: 'none', color: t.textSecondary, font: '11px/1 DM Mono, Courier New, monospace', cursor: 'pointer', padding: 0 }}
+                    aria-label="Back to chat"
+                  >
+                    ←
+                  </button>
+                  <span style={{ font: '11px/1 DM Mono, Courier New, monospace', color: t.textPrimary }}>Version history</span>
+                </div>
+
+                {/* Timeline list */}
+                <div className="ea-scroll" style={{ flex: 1, overflowY: 'auto', padding: '8px 0', minHeight: 0 }}>
+                  {messages.filter((m) => m.role === 'sovereign' && m.commitSha).length === 0 ? (
+                    <p style={{ font: '11px/1.6 DM Mono, Courier New, monospace', color: t.textDim, padding: '16px', margin: 0 }}>
+                      No saved versions yet. Versions are created with each edit.
+                    </p>
+                  ) : (
+                    [...messages].reverse().filter((m) => m.role === 'sovereign' && m.commitSha).map((m, idx) => {
+                      const isCurrentVersion = idx === 0
+                      const isSelected = selectedVersion?.id === m.id
+                      return (
+                        <button
+                          key={m.id}
+                          onClick={() => {
+                            setSelectedVersion(m)
+                            setHistoryPreviewUrl(m.deployUrl ?? null)
+                          }}
+                          style={{
+                            width: '100%',
+                            background: isSelected ? (panelTheme === 'dark' ? '#1a1210' : '#f8f4ec') : 'none',
+                            border: 'none',
+                            borderLeft: isSelected ? '2px solid #7c3aed' : '2px solid transparent',
+                            cursor: 'pointer',
+                            padding: '10px 16px',
+                            textAlign: 'left',
+                            transition: 'background .12s, border-color .12s',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 4,
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ font: '11px/1.4 DM Mono, Courier New, monospace', color: t.textPrimary, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {m.text.length > 40 ? m.text.slice(0, 40) + '…' : m.text}
+                            </span>
+                            {isCurrentVersion && (
+                              <span style={{ font: '9px/1 DM Mono, Courier New, monospace', color: '#6ab870', background: '#0e1a0e', border: '1px solid #1e3a1e', borderRadius: 3, padding: '2px 6px', flexShrink: 0 }}>
+                                current
+                              </span>
+                            )}
+                          </div>
+                          <span style={{ font: '10px/1 DM Mono, Courier New, monospace', color: t.textDim }}>
+                            {m.commitSha!.slice(0, 7)}
+                          </span>
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+
+                {/* Revert hint when a non-current version is selected */}
+                {selectedVersion && (() => {
+                  const versionsWithSha = [...messages].reverse().filter((m) => m.role === 'sovereign' && m.commitSha)
+                  const isCurrentVersion = versionsWithSha[0]?.id === selectedVersion.id
+                  if (isCurrentVersion) return null
+                  return (
+                    <div style={{ margin: '0 12px 12px', padding: '10px 12px', background: '#0c1a2e', border: '1px solid #1a3d5c', borderRadius: 6, flexShrink: 0 }}>
+                      <p style={{ font: '9px/1 DM Mono, Courier New, monospace', color: '#4a9edd', margin: '0 0 6px', letterSpacing: '0.08em' }}>↗ RESTORE NOTE</p>
+                      <p style={{ font: '11px/1.6 DM Mono, Courier New, monospace', color: '#b8d4ec', margin: 0 }}>
+                        Restoring will undo all edits after this point. Nothing is lost — you can reapply from history anytime.
+                      </p>
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
+
             {/* ── Brand tab ────────────────────────────────────────────────── */}
             {leftTab === 'brand' && (
               <div className="ea-scroll" style={{ flex: 1, overflowY: 'auto', padding: '16px', minHeight: 0 }}>
@@ -1371,8 +1507,8 @@ export default function EditApp() {
                     </div>
                   )}
                   <iframe
-                    key={previewKey}
-                    src={iframeSrc || previewUrl}
+                    key={showHistory && historyPreviewUrl ? `history-${selectedVersion?.id}` : previewKey}
+                    src={showHistory && historyPreviewUrl ? historyPreviewUrl : (iframeSrc || previewUrl)}
                     title={`${build!.app_name} preview`}
                     style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
                     onLoad={() => setIframeLoaded(true)}
@@ -1439,6 +1575,63 @@ export default function EditApp() {
                 </div>
               )}
             </div>
+
+            {/* Version revert action bar */}
+            {showHistory && selectedVersion && (() => {
+              const versionsWithSha = [...messages].reverse().filter((m) => m.role === 'sovereign' && m.commitSha)
+              const isCurrentVersion = versionsWithSha[0]?.id === selectedVersion.id
+              if (isCurrentVersion) return null
+              return (
+                <div style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  background: '#111009',
+                  borderTop: '1px solid #2a2925',
+                  padding: '10px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  zIndex: 20,
+                }}>
+                  <button
+                    onClick={() => { setShowHistory(false); setSelectedVersion(null); setHistoryPreviewUrl(null) }}
+                    style={{ background: 'none', border: '1px solid #2a2925', color: '#5a5850', font: '11px/1 DM Mono, Courier New, monospace', padding: '8px 14px', cursor: 'pointer', borderRadius: 3 }}
+                  >
+                    Keep current
+                  </button>
+                  <button
+                    disabled={reverting}
+                    onClick={async () => {
+                      if (!buildId || !selectedVersion.commitSha || reverting) return
+                      setReverting(true)
+                      try {
+                        const r = await fetch('/api/revert', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ buildId, commitSha: selectedVersion.commitSha }),
+                        })
+                        if (r.ok) {
+                          setShowHistory(false)
+                          setSelectedVersion(null)
+                          setHistoryPreviewUrl(null)
+                          setDeploying(true)
+                          deployStartTimeRef.current = Date.now()
+                          pushMsg({ role: 'sovereign', text: `Reverting to version ${selectedVersion.commitSha!.slice(0, 7)}…`, isDeploying: true })
+                          startPolling(null, selectedVersion.deployUrl ?? null)
+                        }
+                      } catch { /* non-fatal */ } finally {
+                        setReverting(false)
+                      }
+                    }}
+                    style={{ flex: 1, background: '#7c3aed', border: 'none', color: '#ffffff', font: '11px/1 DM Mono, Courier New, monospace', padding: '8px 14px', cursor: reverting ? 'default' : 'pointer', borderRadius: 3, opacity: reverting ? 0.6 : 1, transition: 'opacity .15s' }}
+                  >
+                    {reverting ? 'Restoring…' : 'Restore this version →'}
+                  </button>
+                </div>
+              )
+            })()}
 
             {/* Live/deploying status pill — persistent floating indicator */}
             <div style={{

@@ -96,7 +96,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     console.log('[edit] fetching build...', new Date().toISOString())
     const { data: build, error: buildError } = await supabase
       .from('builds')
-      .select('github_token, email, vercel_project_id')
+      .select('github_token, email, vercel_project_id, deploy_url')
       .eq('id', buildId)
       .is('deleted_at', null)
       .single()
@@ -143,7 +143,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     async function atomicCommit(
       files: Array<{ path: string; content: string }>,
       commitMessage: string,
-    ): Promise<boolean> {
+    ): Promise<string | null> {
       try {
         // Find the default branch (Sovereign always creates `main`)
         let headSha = ''
@@ -160,14 +160,14 @@ export default async function handler(req: any, res: any): Promise<void> {
             break
           }
         }
-        if (!headSha) { console.error('[edit] atomicCommit: could not resolve HEAD'); return false }
+        if (!headSha) { console.error('[edit] atomicCommit: could not resolve HEAD'); return null }
 
         // Get the tree SHA from the current commit
         const commitRes = await fetch(
           `https://api.github.com/repos/${repoPath}/git/commits/${headSha}`,
           { headers: ghHeaders },
         )
-        if (!commitRes.ok) return false
+        if (!commitRes.ok) return null
         const commitData = await commitRes.json() as { tree: { sha: string } }
 
         // Create a new tree with all changed files
@@ -187,7 +187,7 @@ export default async function handler(req: any, res: any): Promise<void> {
             }),
           },
         )
-        if (!treeRes.ok) { console.error('[edit] atomicCommit: tree create failed', treeRes.status); return false }
+        if (!treeRes.ok) { console.error('[edit] atomicCommit: tree create failed', treeRes.status); return null }
         const treeData = await treeRes.json() as { sha: string }
 
         // Create the commit
@@ -203,7 +203,7 @@ export default async function handler(req: any, res: any): Promise<void> {
             }),
           },
         )
-        if (!newCommitRes.ok) { console.error('[edit] atomicCommit: commit create failed', newCommitRes.status); return false }
+        if (!newCommitRes.ok) { console.error('[edit] atomicCommit: commit create failed', newCommitRes.status); return null }
         const newCommitData = await newCommitRes.json() as { sha: string }
 
         // Advance the branch ref
@@ -215,10 +215,10 @@ export default async function handler(req: any, res: any): Promise<void> {
             body: JSON.stringify({ sha: newCommitData.sha }),
           },
         )
-        return updateRefRes.ok
+        return updateRefRes.ok ? newCommitData.sha : null
       } catch (e) {
         console.error('[edit] atomicCommit threw:', e)
-        return false
+        return null
       }
     }
 
@@ -251,6 +251,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     // ── Detect edit mode ─────────────────────────────────────────────────────
     const isNewPage = NEW_PAGE_PATTERN.test(editRequest)
     let brainFollowup: string | null = null
+    let commitSha: string | null = null
 
     // ════════════════════════════════════════════════════════════════════════
     // NEW_PAGE PATH
@@ -374,16 +375,17 @@ Rules for the new page:
       console.log('[edit] atomic commit — files:', filesToCommit.map((f) => f.path).join(', '))
       await setBuildStatus('building', 'Pushing new page…')
 
-      const committed = await atomicCommit(filesToCommit, `feat: add ${pageName} page with route and nav`)
+      const atomicSha = await atomicCommit(filesToCommit, `feat: add ${pageName} page with route and nav`)
 
-      if (!committed) {
+      if (!atomicSha) {
         console.error('[edit] atomic commit failed')
         await setBuildStatus('error', null, 'Could not push new page to GitHub')
         res.status(500).json({ error: 'Could not push the new page' })
         return
       }
 
-      console.log('[edit] atomic commit succeeded', new Date().toISOString())
+      commitSha = atomicSha
+      console.log('[edit] atomic commit succeeded', commitSha.slice(0, 7), new Date().toISOString())
 
     // ════════════════════════════════════════════════════════════════════════
     // FILE_EDIT PATH (existing single-file logic)
@@ -580,7 +582,8 @@ Apply the change. Keep everything else identical. Return the complete updated in
       }
 
       const pushData = await pushRes.json() as { commit?: { sha: string } }
-      console.log('[edit] pushed to github, commit sha:', pushData.commit?.sha ?? 'unknown', new Date().toISOString())
+      commitSha = pushData.commit?.sha ?? null
+      console.log('[edit] pushed to github, commit sha:', commitSha ?? 'unknown', new Date().toISOString())
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -648,6 +651,8 @@ Apply the change. Keep everything else identical. Return the complete updated in
     res.status(200).json({
       ok: true,
       message: 'Edit deployed',
+      commitSha: commitSha ?? null,
+      deployUrl: build.deploy_url ?? null,
       ...(brainFollowup ? { brain_followup: brainFollowup } : {}),
     })
 
