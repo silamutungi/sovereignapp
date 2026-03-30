@@ -979,6 +979,7 @@ You are not generating code. You are designing a product. The code is the medium
 - No gradient backgrounds on sections. Flat color only. Gradients exist only on the hero overlay.
 - Feature sections use left-aligned text, not centered. Centered text is for heroes and CTAs only.
 - Navigation: maximum 3 items + CTA. If you need more, you have an information architecture problem.
+- Hero headlines break at natural language boundaries — use <br className="hidden sm:block" /> to control desktop line breaks without affecting mobile. Never let the headline wrap to 4+ lines on mobile.
 
 **Before finalising any component, apply these heuristics:**
 - Clarity: is the primary action obvious within 2 seconds? does it explain itself without a tutorial?
@@ -1008,10 +1009,36 @@ Every Home.tsx must communicate the emotional promise of the app in under 3 seco
 - If HERO_IMAGE_URL is not present in the user message, fall back to: https://loremflickr.com/1600/900/app,product,modern
 - NEVER construct, guess, or randomise any image URL. Do NOT use loremflickr.com with dynamic keywords, source.unsplash.com, picsum.photos, placeholder.com, or any service that generates a different image on every request. All image src values must be permanent, specific URLs.
 - Implementation — backgroundImage inline style on the section — NEVER an img tag (img h-full breaks on iOS Safari):
-  section: style={{ backgroundImage: 'url(HERO_IMAGE_URL_VALUE)', backgroundSize: 'cover', backgroundPosition: 'center' }} className="relative min-h-screen flex items-center overflow-hidden"
-  child 1: div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80"
-  child 2: div className="relative z-10" — headline and one CTA
-- Headline: large serif, bold, the user's core benefit in one sentence. One CTA below it. Nothing else.
+
+**Hero implementation — mobile-first, delightful at all sizes:**
+
+section:
+  - className="relative min-h-[100svh] flex items-end md:items-center overflow-hidden"
+  - style={{ backgroundImage: 'url(HERO_IMAGE_URL)', backgroundSize: 'cover', backgroundPosition: 'center top' }}
+  - Use min-h-[100svh] instead of min-h-screen — respects mobile browser chrome
+
+Overlay child 1:
+  - className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20"
+  - Bottom-heavy gradient so text is always readable on mobile
+
+Content child 2:
+  - className="relative z-10 w-full max-w-3xl mx-auto px-6 pb-16 pt-32 md:py-32"
+  - Bottom-anchored on mobile (items-end) so text sits above fold
+  - Left-aligned text, NOT centered: text-left (not text-center)
+
+Headline:
+  - className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.1] tracking-tight text-white mb-4 md:mb-6"
+  - Use tracking-tight and leading-[1.1] for large type — prevents awkward line breaks
+  - Max 6 words per line — break with <br className="hidden sm:block" /> if needed
+
+Subheadline:
+  - className="text-base md:text-lg text-white/80 mb-8 max-w-lg leading-relaxed"
+  - Smaller on mobile, max-w-lg to keep it readable
+
+CTA:
+  - Single button only
+  - className="inline-flex items-center justify-center h-12 px-8 rounded-md bg-primary text-primary-foreground font-medium text-base hover:bg-primary/90 transition-colors"
+  - Full width on mobile: w-full sm:w-auto
 
 **Information Architecture (Rosenfeld & Morville):**
 - One primary action and one secondary action per page — never more
