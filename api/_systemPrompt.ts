@@ -760,32 +760,40 @@ You are generating a complete React + Vite + TypeScript + Tailwind CSS + Supabas
 
 ### PHASE 1 SCAFFOLD — generate exactly these files, no more
 
-CRITICAL OUTPUT ORDER: Generate the files array FIRST. Generate supabaseSchema LAST. Never write supabaseSchema before all 18 files are complete. The tool schema fills in property order — files is the first property, supabaseSchema is last.
+CRITICAL OUTPUT ORDER: Generate the files array FIRST. Generate supabaseSchema LAST. Never write supabaseSchema before all files are complete. The tool schema fills in property order — files is the first property, supabaseSchema is last.
 
-This is Phase 1 generation. Output only the 19 files listed below. Do not add extra pages or feature-specific components — the goal is a deployable, working app under 60 seconds.
+This is Phase 1 generation. Output only the 26 files listed below. Do not add extra pages or feature-specific components — the goal is a deployable, working app under 60 seconds.
 
-Required files (exactly these 19, in this order):
+Required files (exactly these 26, in this order):
 1. package.json
 2. index.html
 3. vite.config.ts
 4. tailwind.config.js
 5. postcss.config.js
 6. tsconfig.json
-7. src/vite-env.d.ts
-8. src/index.css
-9. src/main.tsx
-10. src/App.tsx
-11. src/lib/supabase.ts
-12. src/types/index.ts
-13. src/pages/Home.tsx
-14. src/pages/Login.tsx
-15. src/pages/Signup.tsx
-16. src/pages/Dashboard.tsx
-17. src/components/Navbar.tsx
-18. src/components/ProtectedRoute.tsx
-19. src/components/Footer.tsx
+7. tsconfig.node.json
+8. components.json
+9. src/vite-env.d.ts
+10. src/index.css
+11. src/main.tsx
+12. src/App.tsx
+13. src/lib/supabase.ts
+14. src/lib/utils.ts
+15. src/types/index.ts
+16. src/pages/Home.tsx
+17. src/pages/Login.tsx
+18. src/pages/Signup.tsx
+19. src/pages/Dashboard.tsx
+20. src/components/Navbar.tsx
+21. src/components/ProtectedRoute.tsx
+22. src/components/Footer.tsx
+23. src/components/ui/button.tsx
+24. src/components/ui/input.tsx
+25. src/components/ui/label.tsx
+26. src/components/ui/card.tsx
+27. src/components/ui/badge.tsx
 
-Do not exceed 19 files. Privacy and Terms pages are linked from the footer as placeholders — do not generate them. The dashboard must be real and functional for the core use case.
+Do not exceed 27 files. Privacy and Terms pages are linked from the footer as placeholders — do not generate them. The dashboard must be real and functional for the core use case.
 
 ### FILE VERBOSITY RULES — keep files concise
 
@@ -812,7 +820,7 @@ This applies to every file — pages, components, hooks. Never use the React. na
 Never import a file that is not generated. Every import statement must reference a path that exists in the files array. Dead imports cause immediate \`tsc\` failure.
 
 **package.json must list every package imported in any src/ file:**
-Missing packages cause Vercel build to exit with MODULE_NOT_FOUND. Stick to the approved dependency list: react, react-dom, react-router-dom, @supabase/supabase-js. Do not import packages outside this list unless you add them to package.json.
+Missing packages cause Vercel build to exit with MODULE_NOT_FOUND. Approved dependency list: react, react-dom, react-router-dom, @supabase/supabase-js, class-variance-authority, clsx, tailwind-merge, lucide-react, @radix-ui/react-slot, @radix-ui/react-label. Do not import packages outside this list unless you add them to package.json.
 
 **React Router v6 syntax only — never v5:**
   WRONG: import { useHistory, Switch } from 'react-router-dom'
@@ -852,26 +860,32 @@ All inline style objects must only contain valid CSS properties accepted by Reac
 
 ### EXACT FILE CONTRACTS
 
-package.json — React 18, react-router-dom 6, @supabase/supabase-js 2, Vite 5, Tailwind 3, TypeScript 5. Never include an engines field — Vercel does not support it and it causes build failures.
+package.json — dependencies: react@^18.2.0, react-dom@^18.2.0, react-router-dom@^6, @supabase/supabase-js@^2, class-variance-authority@^0.7.0, clsx@^2.0.0, tailwind-merge@^2.0.0, lucide-react@^0.400.0, @radix-ui/react-slot@^1.0.2. devDependencies: typescript@^5, vite@^5, @vitejs/plugin-react@^4, tailwindcss@^3, autoprefixer@^10, postcss@^8, @types/react@^18, @types/react-dom@^18. Never include an engines field — Vercel does not support it and it causes build failures.
 
-index.html — minimal Vite entry, loads Playfair Display + DM Mono from Google Fonts (font-display: swap), no other content.
+index.html — minimal Vite entry, loads Geist Sans and Geist Mono from jsdelivr CDN, no other content.
 
 vite.config.ts — @vitejs/plugin-react, outDir: dist.
 
-tailwind.config.js — content: ["./index.html","./src/**/*.{ts,tsx}"]. Extend theme: fontFamily.sans=["Geist","system-ui","sans-serif"], fontFamily.mono=["Geist Mono","monospace"]. Colors: extend with CSS custom properties via var(). Do NOT hardcode paper/ink/acid green — those are retired.
+tailwind.config.js — content: ["./index.html","./src/**/*.{ts,tsx}"]. Extend theme: fontFamily.sans=["Geist","system-ui","sans-serif"], fontFamily.mono=["Geist Mono","monospace"]. Colors extend with shadcn/ui CSS variable pattern: background:'hsl(var(--background))', foreground:'hsl(var(--foreground))', primary:{DEFAULT:'hsl(var(--primary))',foreground:'hsl(var(--primary-foreground))'}, secondary:{DEFAULT:'hsl(var(--secondary))',foreground:'hsl(var(--secondary-foreground))'}, muted:{DEFAULT:'hsl(var(--muted))',foreground:'hsl(var(--muted-foreground))'}, accent:{DEFAULT:'hsl(var(--accent))',foreground:'hsl(var(--accent-foreground))'}, destructive:{DEFAULT:'hsl(var(--destructive))',foreground:'hsl(var(--destructive-foreground))'}, border:'hsl(var(--border))', input:'hsl(var(--input))', ring:'hsl(var(--ring))'. borderRadius extend: lg:'var(--radius)', md:'calc(var(--radius) - 2px)', sm:'calc(var(--radius) - 4px)'. Do NOT hardcode paper/ink/acid green — those are retired.
 
 postcss.config.js — tailwindcss + autoprefixer.
 
 tsconfig.json — strict:true, jsx:react-jsx, moduleResolution:bundler, target:ES2020.
 
+tsconfig.node.json — { "compilerOptions": { "composite": true, "module": "ESNext", "moduleResolution": "bundler", "allowSyntheticDefaultImports": true } }
+
+components.json — shadcn/ui configuration. Exact content: { "$schema": "https://ui.shadcn.com/schema.json", "style": "default", "rsc": false, "tsx": true, "tailwind": { "config": "tailwind.config.js", "css": "src/index.css", "baseColor": "neutral", "cssVariables": true }, "aliases": { "components": "src/components", "utils": "src/lib/utils" } }
+
 src/vite-env.d.ts — exactly one line: /// <reference types="vite/client" />
 This file is REQUIRED. Without it tsc fails with "Property 'env' does not exist on type 'ImportMeta'" on every import.meta.env.VITE_* reference.
 
-src/index.css — @tailwind base; @tailwind components; @tailwind utilities; only.
+src/index.css — @tailwind base; @tailwind components; @tailwind utilities; followed by full shadcn/ui CSS variable block in :root and .dark. The primaryColor from the tool maps to --primary in HSL (convert hex to HSL). Default neutral/white theme: :root { --background:0 0% 100%; --foreground:0 0% 9%; --card:0 0% 100%; --card-foreground:0 0% 9%; --popover:0 0% 100%; --popover-foreground:0 0% 9%; --primary:[derived HSL from primaryColor]; --primary-foreground:0 0% 100%; --secondary:0 0% 96%; --secondary-foreground:0 0% 9%; --muted:0 0% 96%; --muted-foreground:0 0% 45%; --accent:0 0% 96%; --accent-foreground:0 0% 9%; --destructive:0 84% 60%; --destructive-foreground:0 0% 100%; --border:0 0% 90%; --input:0 0% 90%; --ring:[same as --primary]; --radius:0.5rem; } .dark { --background:0 0% 4%; --foreground:0 0% 96%; --card:0 0% 6%; --card-foreground:0 0% 96%; --popover:0 0% 6%; --popover-foreground:0 0% 96%; --primary:[derived HSL, lightened for dark]; --primary-foreground:0 0% 9%; --secondary:0 0% 15%; --secondary-foreground:0 0% 96%; --muted:0 0% 15%; --muted-foreground:0 0% 64%; --accent:0 0% 15%; --accent-foreground:0 0% 96%; --destructive:0 62% 30%; --destructive-foreground:0 0% 96%; --border:0 0% 15%; --input:0 0% 15%; --ring:[same as --primary]; }
 
 src/main.tsx — StrictMode, BrowserRouter, import App, import ./index.css.
 
 src/lib/supabase.ts — createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY).
+
+src/lib/utils.ts — shadcn/ui utility. Exact content: import { type ClassValue, clsx } from 'clsx'; import { twMerge } from 'tailwind-merge'; export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)) }
 
 src/types/index.ts — TypeScript interfaces for every data model. No \`any\`. Export all.
 
@@ -890,6 +904,57 @@ src/pages/Login.tsx — Supabase email/password login. Redirect to /dashboard on
 src/pages/Signup.tsx — Supabase email/password signup. Redirect to /dashboard on success. Link to /login.
 
 src/pages/Dashboard.tsx — Main authenticated page with real user data from Supabase. Loading, error, and empty states all handled.
+
+src/components/ui/button.tsx — shadcn/ui Button. Exact content:
+import * as React from 'react'
+import { Slot } from '@radix-ui/react-slot'
+import { cva, type VariantProps } from 'class-variance-authority'
+import { cn } from '../../lib/utils'
+const buttonVariants = cva('inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 min-h-[44px]', { variants: { variant: { default: 'bg-primary text-primary-foreground hover:bg-primary/90', destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90', outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground', secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80', ghost: 'hover:bg-accent hover:text-accent-foreground', link: 'text-primary underline-offset-4 hover:underline' }, size: { default: 'h-10 px-4 py-2', sm: 'h-9 rounded-md px-3', lg: 'h-11 rounded-md px-8', icon: 'h-10 w-10' } }, defaultVariants: { variant: 'default', size: 'default' } })
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> { asChild?: boolean }
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({ className, variant, size, asChild = false, ...props }, ref) => { const Comp = asChild ? Slot : 'button'; return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} /> })
+Button.displayName = 'Button'
+export { Button, buttonVariants }
+
+src/components/ui/input.tsx — shadcn/ui Input. Exact content:
+import * as React from 'react'
+import { cn } from '../../lib/utils'
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
+const Input = React.forwardRef<HTMLInputElement, InputProps>(({ className, type, ...props }, ref) => { return <input type={type} className={cn('flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[44px]', className)} ref={ref} {...props} /> })
+Input.displayName = 'Input'
+export { Input }
+
+src/components/ui/label.tsx — shadcn/ui Label. Exact content:
+import * as React from 'react'
+import * as LabelPrimitive from '@radix-ui/react-label'
+import { cva, type VariantProps } from 'class-variance-authority'
+import { cn } from '../../lib/utils'
+const labelVariants = cva('text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70')
+const Label = React.forwardRef<React.ElementRef<typeof LabelPrimitive.Root>, React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root> & VariantProps<typeof labelVariants>>(({ className, ...props }, ref) => (<LabelPrimitive.Root ref={ref} className={cn(labelVariants(), className)} {...props} />))
+Label.displayName = LabelPrimitive.Root.displayName
+export { Label }
+
+src/components/ui/card.tsx — shadcn/ui Card. Exact content:
+import * as React from 'react'
+import { cn } from '../../lib/utils'
+const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (<div ref={ref} className={cn('rounded-lg border border-border bg-card text-card-foreground', className)} {...props} />))
+Card.displayName = 'Card'
+const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (<div ref={ref} className={cn('flex flex-col space-y-1.5 p-6', className)} {...props} />))
+CardHeader.displayName = 'CardHeader'
+const CardTitle = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLHeadingElement>>(({ className, ...props }, ref) => (<h3 ref={ref} className={cn('text-2xl font-semibold leading-none tracking-tight', className)} {...props} />))
+CardTitle.displayName = 'CardTitle'
+const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (<div ref={ref} className={cn('p-6 pt-0', className)} {...props} />))
+CardContent.displayName = 'CardContent'
+export { Card, CardHeader, CardTitle, CardContent }
+
+src/components/ui/badge.tsx — shadcn/ui Badge. Exact content:
+import * as React from 'react'
+import { cva, type VariantProps } from 'class-variance-authority'
+import { cn } from '../../lib/utils'
+const badgeVariants = cva('inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2', { variants: { variant: { default: 'border-transparent bg-primary text-primary-foreground hover:bg-primary/80', secondary: 'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80', destructive: 'border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/90', outline: 'text-foreground' } }, defaultVariants: { variant: 'default' } })
+export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {}
+function Badge({ className, variant, ...props }: BadgeProps) { return <div className={cn(badgeVariants({ variant }), className)} {...props} /> }
+export { Badge, badgeVariants }
 
 ### VISUAL DESIGN — JONY IVE STANDARD
 See: docs/jony_ive_apple_design_learnings_for_sovereign.md
@@ -977,6 +1042,17 @@ Every Home.tsx must communicate the emotional promise of the app in under 3 seco
 - Loading states: spinner on every async op. Error states: red border + error message. Empty states: helpful copy + CTA.
 - No lorem ipsum. No TODO. No placeholder components. Every component ships complete.
 - WCAG AA contrast: apply brightness formula for button text color based on primaryColor.
+
+**SHADCN/UI COMPONENT RULES:**
+- Use shadcn/ui Button for ALL buttons: import { Button } from '../components/ui/button'
+- Use shadcn/ui Input for ALL text inputs: import { Input } from '../components/ui/input'
+- Use shadcn/ui Label for ALL form labels: import { Label } from '../components/ui/label'
+- Use shadcn/ui Card, CardContent, CardHeader, CardTitle for ALL cards
+- Use shadcn/ui Badge for ALL status indicators and tags
+- NEVER write raw <button>, <input>, or <label> elements — always use shadcn/ui primitives
+- The cn() utility from src/lib/utils.ts must be used for ALL className composition
+- shadcn/ui components live in src/components/ui/ — they are generated inline, NOT installed via CLI
+- @radix-ui/react-label is required in package.json for Label — it is already in the dependency list
 
 ### SUPABASE SCHEMA — required SQL structure
 
