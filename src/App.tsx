@@ -267,7 +267,7 @@ function FigmaImport() {
             marginTop: 10
           }}>
             This file will be written to src/styles/tokens.css
-            in your repo when you run npx sovereign-app@latest
+            in your repo when you run npx visila-app@latest
           </p>
         </div>
       )}
@@ -276,7 +276,7 @@ function FigmaImport() {
 }
 
 // ── DevPanel ─────────────────────────────────────────────────────────────────
-const CMD = 'npx sovereign-app@latest'
+const CMD = 'npx visila-app@latest'
 const STACKS = ['React + Vite', 'TypeScript', 'Tailwind', 'Supabase', 'Vercel', 'GitHub']
 
 function DevPanel({ locale }: { locale: Locale }) {

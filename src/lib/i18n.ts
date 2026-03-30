@@ -61,7 +61,7 @@ const strings: Record<Locale, Record<string, string>> = {
     // ── How it works — Door 2 ────────────────────────────────────────────
     'how.dev.s1.icon': '$',
     'how.dev.s1.h': 'Run one command',
-    'how.dev.s1.b': 'npx sovereign-app@latest — answer three prompts, or pass flags. Works with your existing Anthropic key.',
+    'how.dev.s1.b': 'npx visila-app@latest — answer three prompts, or pass flags. Works with your existing Anthropic key.',
     'how.dev.s2.icon': '✦',
     'how.dev.s2.h': '19 files, zero opinions',
     'how.dev.s2.b': 'React + Vite + TypeScript + Tailwind + Supabase. RLS on every table. Rate limiting on every route. CSP headers in vercel.json. No Sovereign dependency in the output.',
@@ -80,7 +80,7 @@ const strings: Record<Locale, Record<string, string>> = {
     'byok.dev.eye': 'Bring your own stack.',
     'byok.dev.h': 'Your Anthropic key. Your Supabase org. Your Vercel team.',
     'byok.dev.b': 'Pass --anthropic-key, --supabase-token, and --vercel-token and Sovereign never stores a credential. Run it fully offline against a local Supabase instance. Every generated file is standard React — no Sovereign import, no Sovereign dependency, no phone-home.',
-    'byok.dev.code': 'npx sovereign-app@latest --anthropic-key sk-... --local',
+    'byok.dev.code': 'npx visila-app@latest --anthropic-key sk-... --local',
     'byok.dev.link': 'Read the security model →',
 
     // ── Social proof stats (capability claims) ────────────────────────────
