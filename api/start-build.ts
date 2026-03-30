@@ -86,6 +86,9 @@ export default async function handler(req: any, res: any): Promise<void> {
       appCategory,
       competitors,
       parityFeatures,
+      // CLI-only fields: when both tokens are present, skip OAuth and go straight to 'queued'
+      github_token: githubToken,
+      vercel_token: vercelToken,
     } = body as Record<string, any> ?? {}
     if (!rawEmail || !appName) {
       res.status(400).json({ error: '`email` and `appName` are required' })
@@ -142,8 +145,11 @@ export default async function handler(req: any, res: any): Promise<void> {
         app_category: appCategory ?? null,
         competitors: competitors ?? null,
         parity_features: parityFeatures ?? null,
-        status: 'pending_github',
-        step: 'Waiting for GitHub connection…',
+        // CLI flow: tokens supplied directly → skip OAuth, go straight to queued
+        ...(githubToken ? { github_token: githubToken } : {}),
+        ...(vercelToken ? { vercel_token: vercelToken } : {}),
+        status: (githubToken && vercelToken) ? 'queued' : 'pending_github',
+        step: (githubToken && vercelToken) ? 'Queued for build…' : 'Waiting for GitHub connection…',
       }),
     })
 
