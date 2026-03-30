@@ -976,7 +976,7 @@ All inline style objects must only contain valid CSS properties accepted by Reac
 
 ### EXACT FILE CONTRACTS
 
-package.json — dependencies: react@^18.2.0, react-dom@^18.2.0, react-router-dom@^6, @supabase/supabase-js@^2, class-variance-authority@^0.7.0, clsx@^2.0.0, tailwind-merge@^2.0.0, lucide-react@^0.400.0, @radix-ui/react-slot@^1.0.2. devDependencies: typescript@^5, vite@^5, @vitejs/plugin-react@^4, tailwindcss@^3, autoprefixer@^10, postcss@^8, @types/react@^18, @types/react-dom@^18. Never include an engines field — Vercel does not support it and it causes build failures.
+package.json — dependencies: react@^18.2.0, react-dom@^18.2.0, react-router-dom@^6, @supabase/supabase-js@^2, class-variance-authority@^0.7.0, clsx@^2.0.0, tailwind-merge@^2.0.0, lucide-react@^0.400.0, @radix-ui/react-slot@^1.0.2, @radix-ui/react-label@^2.0.2. devDependencies: typescript@^5, vite@^5, @vitejs/plugin-react@^4, tailwindcss@^3, autoprefixer@^10, postcss@^8, @types/react@^18, @types/react-dom@^18. Never include an engines field — Vercel does not support it and it causes build failures.
 
 index.html — minimal Vite entry, loads Geist Sans and Geist Mono from jsdelivr CDN, no other content.
 
@@ -1021,56 +1021,38 @@ src/pages/Signup.tsx — Supabase email/password signup. Redirect to /dashboard 
 
 src/pages/Dashboard.tsx — Main authenticated page with real user data from Supabase. Loading, error, and empty states all handled.
 
-src/components/ui/button.tsx — shadcn/ui Button. Exact content:
-import * as React from 'react'
-import { Slot } from '@radix-ui/react-slot'
-import { cva, type VariantProps } from 'class-variance-authority'
-import { cn } from '../../lib/utils'
-const buttonVariants = cva('inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 min-h-[44px]', { variants: { variant: { default: 'bg-primary text-primary-foreground hover:bg-primary/90', destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90', outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground', secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80', ghost: 'hover:bg-accent hover:text-accent-foreground', link: 'text-primary underline-offset-4 hover:underline' }, size: { default: 'h-10 px-4 py-2', sm: 'h-9 rounded-md px-3', lg: 'h-11 rounded-md px-8', icon: 'h-10 w-10' } }, defaultVariants: { variant: 'default', size: 'default' } })
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> { asChild?: boolean }
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({ className, variant, size, asChild = false, ...props }, ref) => { const Comp = asChild ? Slot : 'button'; return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} /> })
-Button.displayName = 'Button'
-export { Button, buttonVariants }
+**SHADCN/UI COMPONENT CONTRACTS — generate these files exactly:**
 
-src/components/ui/input.tsx — shadcn/ui Input. Exact content:
-import * as React from 'react'
-import { cn } from '../../lib/utils'
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
-const Input = React.forwardRef<HTMLInputElement, InputProps>(({ className, type, ...props }, ref) => { return <input type={type} className={cn('flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[44px]', className)} ref={ref} {...props} /> })
-Input.displayName = 'Input'
-export { Input }
+src/components/ui/button.tsx
+- Use cva() from class-variance-authority
+- Variants: default (bg-primary), destructive, outline, secondary, ghost, link
+- Sizes: default (h-10), sm (h-9), lg (h-11), icon (h-10 w-10)
+- All buttons min-h-[44px] for touch targets
+- Export: Button, buttonVariants
 
-src/components/ui/label.tsx — shadcn/ui Label. Exact content:
-import * as React from 'react'
-import * as LabelPrimitive from '@radix-ui/react-label'
-import { cva, type VariantProps } from 'class-variance-authority'
-import { cn } from '../../lib/utils'
-const labelVariants = cva('text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70')
-const Label = React.forwardRef<React.ElementRef<typeof LabelPrimitive.Root>, React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root> & VariantProps<typeof labelVariants>>(({ className, ...props }, ref) => (<LabelPrimitive.Root ref={ref} className={cn(labelVariants(), className)} {...props} />))
-Label.displayName = LabelPrimitive.Root.displayName
-export { Label }
+src/components/ui/input.tsx
+- Extends React.InputHTMLAttributes<HTMLInputElement>
+- Classes: flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm
+- Focus: focus-visible:ring-2 focus-visible:ring-ring
+- Export: Input
 
-src/components/ui/card.tsx — shadcn/ui Card. Exact content:
-import * as React from 'react'
-import { cn } from '../../lib/utils'
-const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (<div ref={ref} className={cn('rounded-lg border border-border bg-card text-card-foreground', className)} {...props} />))
-Card.displayName = 'Card'
-const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (<div ref={ref} className={cn('flex flex-col space-y-1.5 p-6', className)} {...props} />))
-CardHeader.displayName = 'CardHeader'
-const CardTitle = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLHeadingElement>>(({ className, ...props }, ref) => (<h3 ref={ref} className={cn('text-2xl font-semibold leading-none tracking-tight', className)} {...props} />))
-CardTitle.displayName = 'CardTitle'
-const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (<div ref={ref} className={cn('p-6 pt-0', className)} {...props} />))
-CardContent.displayName = 'CardContent'
-export { Card, CardHeader, CardTitle, CardContent }
+src/components/ui/label.tsx
+- Built on @radix-ui/react-label
+- Classes: text-sm font-medium leading-none
+- Export: Label
 
-src/components/ui/badge.tsx — shadcn/ui Badge. Exact content:
-import * as React from 'react'
-import { cva, type VariantProps } from 'class-variance-authority'
-import { cn } from '../../lib/utils'
-const badgeVariants = cva('inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2', { variants: { variant: { default: 'border-transparent bg-primary text-primary-foreground hover:bg-primary/80', secondary: 'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80', destructive: 'border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/90', outline: 'text-foreground' } }, defaultVariants: { variant: 'default' } })
-export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {}
-function Badge({ className, variant, ...props }: BadgeProps) { return <div className={cn(badgeVariants({ variant }), className)} {...props} /> }
-export { Badge, badgeVariants }
+src/components/ui/card.tsx
+- Four components: Card, CardHeader, CardTitle, CardContent
+- Card: rounded-lg border border-border bg-card text-card-foreground
+- CardHeader: flex flex-col space-y-1.5 p-6
+- CardTitle: text-2xl font-semibold leading-none tracking-tight
+- CardContent: p-6 pt-0
+- Export all four
+
+src/components/ui/badge.tsx
+- Use cva() for variants: default, secondary, destructive, outline
+- Base: inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold
+- Export: Badge, badgeVariants
 
 ### VISUAL DESIGN — JONY IVE STANDARD
 See: docs/jony_ive_apple_design_learnings_for_sovereign.md
