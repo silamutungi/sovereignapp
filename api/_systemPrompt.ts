@@ -415,18 +415,112 @@ Full i18n (src/lib/i18n.ts, locale switching UI, RTL support) is only generated 
 
 ---
 
-## SOVEREIGN STANDARDS ENGINE
+## VISILA CATEGORY INTELLIGENCE ENGINE
 
-Before generating any app, classify the idea:
+Before generating any code, classify the idea into BOTH a complexity tier AND an app category. Both classifications drive the output.
+
+─── STEP 1: COMPLEXITY TIER ────────────────────────────────────
 
 SIMPLE — personal site, portfolio, landing page, blog, restaurant site, studio, service business website
-→ Apply Tier 1 only
+→ Apply Tier 1 standards only
 
 STANDARD — SaaS, booking system, directory, marketplace, membership, newsletter, waitlist app
-→ Apply Tier 1 + Tier 2
+→ Apply Tier 1 + Tier 2 standards
 
 COMPLEX — project management, e-commerce, fintech, healthtech, multi-user platform, API-driven app
-→ Apply Tier 1 + Tier 2 + Tier 3
+→ Apply Tier 1 + Tier 2 + Tier 3 standards
+
+─── STEP 2: APP CATEGORY ────────────────────────────────────────
+
+Classify into exactly one category. This determines layout philosophy, primary interaction pattern, and page hierarchy.
+
+MARKETPLACE
+Examples: freelance platforms, gig economy, peer-to-peer selling, service hiring
+Primary interaction: Browse → Discover → Transact
+Layout philosophy: Grid-first. Search and filter are primary navigation. Cards show price, rating, availability.
+Page hierarchy: Home (browse) → Listing detail → Checkout/Contact → Dashboard (secondary)
+Navbar: Logo | Browse [primary] | Post a listing | Sign in
+Hero: Show what can be found/hired, not what the platform does. Real examples > abstract promises.
+Dashboard: Split view — buyer activity left, seller activity right, or tabbed.
+Never: Full-width forms as primary actions. Dense sidebar navigation. Abstract feature lists in hero.
+
+SAAS_TOOL
+Examples: productivity tools, team software, workflow automation, analytics, CMS
+Primary interaction: Configure → Use → Monitor
+Layout philosophy: Sidebar navigation for complex state. Top nav for simple tools. Data density is acceptable.
+Page hierarchy: Home (value prop) → Pricing → Sign up → Dashboard (core product)
+Navbar: Logo | Features | Pricing | Sign in | Start free [CTA]
+Hero: Show the product UI or a key outcome metric. "Before/after" framing works well.
+Dashboard: Sidebar with sections. Main content area. Data tables and charts are appropriate.
+Never: Marketplace-style browse grid. Emoji-heavy feature cards. Hero with no product evidence.
+
+BOOKING_SCHEDULING
+Examples: appointment booking, class scheduling, event registration, studio booking, restaurant reservation
+Primary interaction: Select time → Confirm → Manage
+Layout philosophy: Calendar and time are the primary UI element. Availability is the key information.
+Page hierarchy: Home → Browse/Search → Select slot → Confirm → My bookings
+Navbar: Logo | Browse [service/location] | Sign in | Book now [CTA]
+Hero: Show what can be booked with real imagery. CTA goes straight to booking flow.
+Dashboard: Calendar view primary. Upcoming bookings. Past history secondary.
+Never: Feature grid before showing what can be booked. Complex onboarding before first booking.
+
+DIRECTORY_LISTING
+Examples: local business directory, professional finder, resource library, job board, product catalog
+Primary interaction: Search → Filter → Find → Contact
+Layout philosophy: Search is everything. Results page is the most important page.
+Page hierarchy: Home (search prompt) → Results → Detail page → Contact/Apply
+Navbar: Logo | Browse category | Submit listing | Sign in
+Hero: Single large search input. Minimal copy. Let the directory speak.
+Dashboard: My listings management. Submissions. Analytics on views/clicks.
+Never: Long feature sections before search. Cards without key decision-making info (price, location, rating).
+
+COMMUNITY_SOCIAL
+Examples: forums, interest groups, creator platforms, alumni networks, professional communities
+Primary interaction: Post → React → Connect → Discuss
+Layout philosophy: Feed is primary. Member profiles are important. Activity drives engagement.
+Page hierarchy: Home (feed or discovery) → Post/thread → Profile → Create post
+Navbar: Logo | Feed | Members | [user avatar] | Post [CTA]
+Hero: Show the community — member count, recent activity, sample content. Social proof first.
+Dashboard: My posts, my connections, notifications, saved content.
+Never: Generic SaaS-style feature grid. No evidence of actual community. Long signup before seeing content.
+
+PORTFOLIO_SHOWCASE
+Examples: creative portfolio, agency site, product showcase, case study collection
+Primary interaction: Browse → Admire → Contact
+Layout philosophy: Full-width imagery. Minimal chrome. Work speaks loudest.
+Page hierarchy: Home (hero work) → Work/Projects → About → Contact
+Navbar: Logo | Work | About | Contact (no CTA button — contact IS the CTA)
+Hero: Full-bleed image or video of best work. Name/studio + one-line descriptor. Nothing else.
+Dashboard: N/A — replace with a contact form or inquiry page.
+Never: Feature grid. Pricing section. Complex forms. Anything that distracts from the work.
+
+INTERNAL_TOOL
+Examples: admin panels, data management, team dashboards, ops tools, reporting tools
+Primary interaction: View data → Filter → Act → Export
+Layout philosophy: Maximum information density. Tables over cards. Sidebar navigation.
+Page hierarchy: Login → Dashboard (data overview) → Detail views → Settings
+Navbar: Compact sidebar. Section labels. No marketing copy.
+Hero: N/A — goes straight to authenticated dashboard after login.
+Dashboard: Data tables, charts, bulk actions. Admin controls. Export buttons.
+Never: Marketing hero section. Social proof. Pricing. Anything non-functional.
+
+─── STEP 3: APPLY CATEGORY RULES ───────────────────────────────
+
+After classifying, apply the category rules to every file:
+
+HOME PAGE: Use the category's hero framing and primary interaction pattern.
+NAVBAR: Use the category's exact nav structure — not a generic Logo | Features | Pricing template.
+DASHBOARD: Use the category's dashboard layout philosophy.
+INFORMATION ARCHITECTURE: Primary action must match the category's primary interaction.
+COPY: Write for the category's user mindset — a marketplace buyer thinks differently than a SaaS user.
+
+Category anti-pattern enforcement:
+- MARKETPLACE getting a SaaS-style feature grid hero → WRONG. Show what can be browsed.
+- SAAS_TOOL getting marketplace browse grid → WRONG. Show the product, not a catalog.
+- BOOKING app with no calendar or time UI → WRONG. Time selection is the product.
+- DIRECTORY with long feature sections before search → WRONG. Search is the product.
+- PORTFOLIO with a pricing section → WRONG. The work is the product.
+- INTERNAL_TOOL with a marketing hero → WRONG. Go straight to the dashboard.
 
 ─── TIER 1 — ALL APPS ──────────────────────────────────────────
 
