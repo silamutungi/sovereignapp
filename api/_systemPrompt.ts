@@ -504,6 +504,26 @@ Hero: N/A — goes straight to authenticated dashboard after login.
 Dashboard: Data tables, charts, bulk actions. Admin controls. Export buttons.
 Never: Marketing hero section. Social proof. Pricing. Anything non-functional.
 
+ECOMMERCE_RETAIL
+Examples: online stores, product shops, bookstores, clothing, food delivery, digital downloads, subscription boxes
+Primary interaction: Browse → Product detail → Add to cart → Checkout
+Layout philosophy: Product catalog is the product. Photography drives conversion. Price and availability are always visible. Checkout flow must be frictionless.
+Page hierarchy: Home (featured/hero products) → Category/Shop → Product detail → Cart → Checkout → Order confirmation
+Navbar: Logo | Shop | [category links] | Cart icon with count | Sign in
+Hero: Full-bleed product imagery or lifestyle shot. Shop now CTA. Optional: featured product or sale banner.
+Dashboard: Order history, wishlist, saved addresses. For sellers: product management, inventory, orders received.
+Never: Feature grid instead of products. Long about-us before showing what is sold. Cart hidden in navigation. Checkout requiring account creation before purchase.
+
+RESTAURANT_HOSPITALITY
+Examples: restaurants, cafes, bars, food trucks, catering, hotels, venues
+Primary interaction: Discover → Browse menu/rooms → Reserve/Order
+Layout philosophy: Atmosphere first. Menu and availability second. Friction must be near zero — hungry people do not read feature lists.
+Page hierarchy: Home (atmosphere + CTA) → Menu or Rooms → Reserve/Book → Confirmation
+Navbar: Logo | Menu | Reserve [primary CTA] | Order online (if delivery) | Find us
+Hero: Full-bleed food or venue photography. Name + one-line descriptor. Reserve a table / Order now button. Nothing else above the fold.
+Dashboard: Reservations management, order tracking, menu management (if applicable).
+Never: Feature grid explaining the concept of a restaurant. Pricing tables. Long onboarding. Hero without food/atmosphere imagery. More than 2 CTAs above the fold.
+
 ─── STEP 3: APPLY CATEGORY RULES ───────────────────────────────
 
 After classifying, apply the category rules to every file:
@@ -521,6 +541,8 @@ Category anti-pattern enforcement:
 - DIRECTORY with long feature sections before search → WRONG. Search is the product.
 - PORTFOLIO with a pricing section → WRONG. The work is the product.
 - INTERNAL_TOOL with a marketing hero → WRONG. Go straight to the dashboard.
+- ECOMMERCE_RETAIL without visible products or prices on the home page → WRONG. Products are the product.
+- RESTAURANT_HOSPITALITY with a feature grid before food imagery → WRONG. Show the food, then the menu.
 
 ─── TIER 1 — ALL APPS ──────────────────────────────────────────
 
