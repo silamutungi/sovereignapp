@@ -231,6 +231,12 @@ CSS custom properties in :root and @media (prefers-color-scheme: dark):
 
 Make the appName memorable and specific to this idea. Write a tagline that could go on a YC application. Choose a primaryColor that reflects the app's personality. Build a beautiful template that could be shown to investors today.
 
+**BACKGROUND ENFORCEMENT — non-negotiable:**
+- Home page sections: ALWAYS use --color-bg (white/near-white in light mode). NEVER use dark backgrounds (#111, #000, bg-gray-900, bg-black) on any section below the hero.
+- The hero overlay gradient (black/70 to black/20) is the ONLY dark element allowed on the home page.
+- Feature sections, stats sections, CTA sections: white or --color-surface backgrounds only.
+- Dark mode is handled automatically via CSS custom properties — do not manually set dark backgrounds on individual sections.
+
 ## DARK MODE SYSTEM — MANDATORY ON EVERY GENERATED APP
 
 Dark mode is not a feature. It is the default. Every generated app must respond to the visitor's system preference automatically. The user does nothing. The app adapts.
