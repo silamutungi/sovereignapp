@@ -52,6 +52,95 @@ function sleep(ms: number): Promise<void> {
 
 const NET = 10_000 // 10s per individual network call
 
+// ── Auto-provisioning ─────────────────────────────────────────────────────────
+
+async function provisionSupabase(
+  supabaseToken: string,
+  appName: string,
+  schema: string,
+  vercelProjectId: string,
+  vercelToken: string,
+): Promise<{ projectUrl: string; anonKey: string }> {
+
+  // 1. Create Supabase project
+  const createRes = await fetch('https://api.supabase.com/v1/projects', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${supabaseToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name: appName.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 40),
+      db_pass: crypto.randomUUID().replace(/-/g, '').slice(0, 20) + 'Aa1!',
+      region: 'us-east-1',
+      plan: 'free',
+    }),
+  })
+  if (!createRes.ok) {
+    const err = await createRes.json() as { message?: string }
+    throw new Error(`Supabase project creation failed: ${err.message ?? createRes.status}`)
+  }
+  const project = await createRes.json() as { id: string; api_url: string }
+  const projectId = project.id
+
+  // 2. Wait for project to be ready (poll up to 3 minutes)
+  // NOTE: maxDuration must be >= 240s for this to succeed on long provisions.
+  let ready = false
+  for (let i = 0; i < 36; i++) {
+    await new Promise(r => setTimeout(r, 5000))
+    const statusRes = await fetch(`https://api.supabase.com/v1/projects/${projectId}`, {
+      headers: { 'Authorization': `Bearer ${supabaseToken}` },
+    })
+    const status = await statusRes.json() as { status?: string }
+    if (status.status === 'ACTIVE_HEALTHY') { ready = true; break }
+  }
+  if (!ready) throw new Error('Supabase project did not become ready in time')
+
+  // 3. Get API keys
+  const keysRes = await fetch(`https://api.supabase.com/v1/projects/${projectId}/api-keys`, {
+    headers: { 'Authorization': `Bearer ${supabaseToken}` },
+  })
+  const keys = await keysRes.json() as Array<{ name: string; api_key: string }>
+  const anonKey = keys.find(k => k.name === 'anon')?.api_key ?? ''
+  const projectUrl = `https://${projectId}.supabase.co`
+
+  // 4. Run SQL schema
+  if (schema) {
+    const sqlRes = await fetch(`https://api.supabase.com/v1/projects/${projectId}/database/query`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${supabaseToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query: schema }),
+    })
+    if (!sqlRes.ok) {
+      const err = await sqlRes.json() as { message?: string }
+      throw new Error(`Schema migration failed: ${err.message ?? sqlRes.status}`)
+    }
+  }
+
+  // 5. Inject env vars into Vercel project (no-op if vercelProjectId is empty)
+  if (vercelProjectId && vercelToken) {
+    const envVars = [
+      { key: 'VITE_SUPABASE_URL', value: projectUrl, type: 'plain', target: ['production', 'preview', 'development'] },
+      { key: 'VITE_SUPABASE_ANON_KEY', value: anonKey, type: 'plain', target: ['production', 'preview', 'development'] },
+    ]
+    for (const env of envVars) {
+      await fetch(`https://api.vercel.com/v10/projects/${vercelProjectId}/env`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${vercelToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(env),
+      })
+    }
+  }
+
+  return { projectUrl, anonKey }
+}
+
 // ── Supabase helpers ──────────────────────────────────────────────────────────
 
 interface AppFileEntry {
@@ -82,6 +171,8 @@ interface BuildRecord {
   launch_gate_passed: boolean | null
   audit_score: number | null
   audit_flags: string | null
+  supabase_url: string | null
+  supabase_anon_key: string | null
 }
 
 async function getBuild(
@@ -953,6 +1044,36 @@ export default async function handler(req: any, res: any): Promise<void> {
       await Promise.race([
         // ── Provisioning work ──────────────────────────────────────────────
         (async () => {
+          // Auto-provision Supabase if token available and not already done.
+          // Uses build.vercel_project_id for env var injection — available from
+          // checkpoint on retry. On a fresh build the Vercel project doesn't exist
+          // yet, so env injection is skipped here (vercelProjectId is empty string)
+          // and the user can re-trigger after the Vercel step completes.
+          if (build.supabase_token && !doneSteps.has('supabase_provisioned')) {
+            await step('Provisioning your database...')
+            try {
+              const { projectUrl, anonKey } = await provisionSupabase(
+                build.supabase_token,
+                build.app_name ?? repoName,
+                build.supabase_schema ?? '',
+                build.vercel_project_id ?? '',
+                process.env.SOVEREIGN_VERCEL_TOKEN ?? '',
+              )
+              await updateBuild(supabaseUrl, serviceKey, buildId, {
+                supabase_url: projectUrl,
+                supabase_anon_key: anonKey,
+              })
+              doneSteps.add('supabase_provisioned')
+              await updateBuild(supabaseUrl, serviceKey, buildId, { completed_steps: [...doneSteps] })
+              console.log('[run-build] Supabase auto-provisioned:', projectUrl)
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : 'Supabase provisioning failed'
+              console.error('[run-build] Auto-provisioning error (non-fatal):', msg)
+              // Non-fatal — continue with build, user can connect manually from dashboard
+              await step('Database setup skipped — connect manually from dashboard')
+            }
+          }
+
           await step('Reading your idea…')
 
           // ── Step 1: Create GitHub repo (no file push yet) ─────────────
