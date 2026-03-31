@@ -126,7 +126,7 @@ Every generated app must include a vercel.json file. If a vercel.json already ex
           { "key": "X-Content-Type-Options", "value": "nosniff" },
           { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
           { "key": "Permissions-Policy", "value": "camera=(), geolocation=()" },
-          { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co" }
+          { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co" }
         ]
       }
     ]
@@ -191,7 +191,7 @@ Every generated app uses these fonts:
 - Mono: Geist Mono — used for code, data, and technical UI only.
 - Headings (h1–h3): Geist Sans, bold weights (700, 800). NOT serif. Clean and direct.
 - Load via: https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/style.css and https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-mono/style.css
-- CSP: style-src must include https://cdn.jsdelivr.net
+- CSP: style-src and font-src must include https://cdn.jsdelivr.net
 
 Import in HTML (replace Google Fonts links):
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/style.css">
@@ -816,8 +816,8 @@ A Vite project on Vercel requires: package.json, index.html, vite.config.js, .gi
 **Never use url.parse()**
 Use new URL() and searchParams.get() instead. url.parse() is deprecated with security implications (DEP0169).
 
-**CSP must include Google Fonts domains**
-style-src must include https://fonts.googleapis.com and style-src-elem must include https://fonts.googleapis.com. font-src must include https://fonts.gstatic.com. Otherwise Google Fonts are blocked by CSP.
+**CSP must include Google Fonts and jsDelivr domains**
+style-src must include https://fonts.googleapis.com and https://cdn.jsdelivr.net. style-src-elem must include https://fonts.googleapis.com and https://cdn.jsdelivr.net. font-src must include https://fonts.gstatic.com and https://cdn.jsdelivr.net. Otherwise Google Fonts and Geist fonts (loaded via jsDelivr CDN) are blocked by CSP.
 
 **iframe sandbox: never combine allow-scripts with allow-same-origin**
 Use sandbox="allow-scripts" only for preview iframes. Combining allow-scripts with allow-same-origin allows complete sandbox escape.
@@ -957,6 +957,10 @@ Files without a default export break every import X from './X' statement.
 
 **noUnusedLocals and noUnusedParameters are true — every declared variable must be used:**
 Do not declare variables, parameters, or imports you do not use. Remove unused function parameters or prefix with _ (e.g. _event).
+
+**lucide-react imports — only import icons that are actually used in JSX:**
+Every icon imported from lucide-react must appear in JSX. noUnusedLocals is true — an imported icon that is never rendered will fail the build with TS6133.
+Before finalising any file, scan every lucide-react import and confirm each icon appears at least once in the return statement.
 
 **Never use curly/smart quotes inside string literals — they break tsc:**
 String literals in TypeScript must use straight ASCII quotes only. Curly quotes (\u2018 \u2019 \u201C \u201D) and similar Unicode punctuation inside a single-quoted or double-quoted string terminate the string early and cause cascading parse errors that fail the entire build.
