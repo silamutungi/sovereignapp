@@ -69,7 +69,7 @@ export async function sendMagicLink(email: string): Promise<void> {
     body: JSON.stringify({
       from: 'Visila <noreply@visila.com>',
       to: [email],
-      subject: 'Your Sovereign dashboard link',
+      subject: 'Your Visila dashboard link',
       html: `<!DOCTYPE html>
 <html>
 <head>
@@ -82,7 +82,7 @@ export async function sendMagicLink(email: string): Promise<void> {
       <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
         <tr><td style="padding-bottom:32px;">
           <span style="font-family:Georgia,serif;font-size:22px;color:#f2efe8;font-weight:400;">
-            Sovereign<span style="color:#8ab800">.</span>
+            Visila<span style="color:#FF1F6E">.</span>
           </span>
         </td></tr>
         <tr><td style="padding-bottom:24px;">
@@ -92,12 +92,12 @@ export async function sendMagicLink(email: string): Promise<void> {
         </td></tr>
         <tr><td style="padding-bottom:32px;">
           <p style="margin:0;font-size:15px;color:#c8c4bc;line-height:1.6;">
-            Click below to access your Sovereign dashboard and manage all your apps.
+            Click below to access your Visila dashboard and manage all your apps.
           </p>
         </td></tr>
         <tr><td style="padding-bottom:32px;">
           <a href="${dashboardUrl}"
-            style="display:inline-block;background:#8ab800;color:#0e0d0b;padding:16px 32px;font-size:14px;font-weight:500;text-decoration:none;font-family:'Courier New',monospace;">
+            style="display:inline-block;background:#FF1F6E;color:#0e0d0b;padding:16px 32px;font-size:14px;font-weight:500;text-decoration:none;font-family:'Courier New',monospace;">
             Open my dashboard →
           </a>
         </td></tr>

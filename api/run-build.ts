@@ -1140,7 +1140,7 @@ export default async function handler(req: any, res: any): Promise<void> {
             try {
               const ssoTeamQ = vcTeamId ? `?teamId=${encodeURIComponent(vcTeamId)}` : ''
               const ssoRes = await fetchWithTimeout(
-                `https://api.vercel.com/v9/projects/${encodeURIComponent(vcProjectId)}${ssoTeamQ}`,
+                `https://api.vercel.com/v1/projects/${encodeURIComponent(vcProjectId)}/protection-bypass${ssoTeamQ}`,
                 {
                   method: 'PATCH',
                   headers: {
@@ -1152,7 +1152,7 @@ export default async function handler(req: any, res: any): Promise<void> {
                 NET,
               )
               if (ssoRes.ok) {
-                console.log('[run-build] Vercel: SSO protection disabled for project', vcProjectId)
+                console.log(`[run-build] SSO protection disabled for ${vcProjectId}`)
               } else {
                 const ssoBody = await ssoRes.text().catch(() => '')
                 console.error('[run-build] Vercel: SSO disable failed (non-fatal) —', ssoRes.status, ssoBody)

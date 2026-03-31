@@ -1133,3 +1133,24 @@ Learned: 2026-03-28.
 **Build-status.ts now returns staging and claimed_at**
 Added staging and claimed_at to the Supabase select query and the response JSON. Required for the EditApp top bar to show the "Claim →" button correctly (only when staging=true AND claimed_at is null).
 Learned: 2026-03-28.
+
+**SSO protection must be disabled immediately after Vercel project creation — correct endpoint is v1/projects/{id}/protection-bypass**
+Wrong assumption: `PATCH /v9/projects/{id}` with `{ ssoProtection: null }` is the correct endpoint to disable SSO protection.
+Correct behaviour: the endpoint that actually controls protection bypass is `PATCH /v1/projects/{projectId}/protection-bypass`. Using the v9 projects endpoint does not reliably disable SSO and preview iframes remain blank.
+Fix: in `run-build.ts`, the SSO disable call immediately after `createVercelProject` uses `https://api.vercel.com/v1/projects/${projectId}/protection-bypass`. Call is non-fatal — build proceeds regardless of outcome. Must run before the first deploy is triggered.
+Learned: 2026-03-30.
+
+**vercel.json must be present in the initial scaffold commit — missing it makes the dashboard preview blank**
+Wrong assumption: vercel.json can be injected later or is optional for iframe previews.
+Correct behaviour: without vercel.json at repo root in the first commit, Vercel applies its default security headers including `X-Frame-Options: deny`. The dashboard preview iframe is blank with no visible error.
+Fix: vercel.json is non-negotiable in the scaffold. Required content:
+```json
+{
+  "headers": [{ "source": "/(.*)", "headers": [
+    { "key": "X-Frame-Options", "value": "ALLOWALL" },
+    { "key": "Content-Security-Policy", "value": "frame-ancestors *" }
+  ]}]
+}
+```
+Never remove vercel.json from the scaffold. Never skip it. It must be in the initial commit alongside the other 5 programmatic files.
+Learned: 2026-03-30.
