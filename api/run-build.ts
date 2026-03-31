@@ -17,9 +17,9 @@
 //
 // ── Timeout budget ────────────────────────────────────────────────────────────
 // Hobby plan: 10s hard limit (won't work — use Pro).
-// Pro plan: maxDuration up to 60s.
+// Pro plan: maxDuration up to 300s (required for Supabase auto-provisioning).
 // Each external fetch: 10s timeout via AbortController.
-// Overall provisioning: 50s deadline (leaves 10s margin for final DB write).
+// Overall provisioning: 250s deadline (leaves 50s margin within the 300s budget).
 //
 // ── Deployment approach ───────────────────────────────────────────────────────
 // Integration OAuth tokens can create Vercel projects but cannot call
@@ -31,7 +31,7 @@ import { checkRateLimit } from './_rateLimit.js'
 import { scoreApp } from './_scoreApp.js'
 import { runDesignAudit } from './audit-generated-app.js'
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 // ── Fetch with timeout ────────────────────────────────────────────────────────
 
