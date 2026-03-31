@@ -880,6 +880,63 @@ Every relative import in api/ files must use explicit .js extension:
   import { x } from './_helper'       ✗ breaks in production
 Node ESM requires explicit extensions even though TypeScript source files are .ts. The TypeScript compiler and local dev tools accept extensionless imports but Vercel's Node runtime does not. This rule applies to every generated api/ file without exception.
 
+## SEED DATA & GRACEFUL DEGRADATION
+
+Every generated app must work beautifully before Supabase is connected.
+This is the first thing the user sees — it must be delightful, not broken.
+
+**THE RULE: Never show an error state when Supabase is not configured.**
+
+Detect unconfigured Supabase with this check at the top of every data-fetching component:
+const isSupabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY)
+
+When isSupabaseConfigured is false, render SEED DATA instead of fetching.
+
+**SEED DATA RULES:**
+- Generate 6 realistic seed items for the primary data type (listings, bookings, products, posts, etc.)
+- Seed data must be specific to the app idea — not generic "Item 1, Item 2"
+- Seed data uses real-looking names, prices, descriptions, and dates
+- Seed data renders in the exact same components as real data — same Card, same layout
+- Add a subtle banner at the top of data pages: "You're viewing sample data. Connect your database to go live." with a link to the setup instructions.
+- The banner uses: bg-blue-50 border border-blue-200 text-blue-800 text-sm px-4 py-2 rounded-md
+
+**SEED DATA BY CATEGORY:**
+
+MARKETPLACE seed: 6 listings with title, price, category, seller name, rating (4.2-4.9), description
+SAAS_TOOL seed: 6 workflow items / tasks / records relevant to the tool's purpose
+BOOKING_SCHEDULING seed: 6 upcoming bookings with date (next 14 days), time, service, client name, status
+DIRECTORY_LISTING seed: 6 directory entries with name, location, category, rating, contact
+COMMUNITY_SOCIAL seed: 6 posts with author, timestamp, content, like count, comment count
+ECOMMERCE_RETAIL seed: 6 products with name, price, image placeholder, category, stock status
+RESTAURANT_HOSPITALITY seed: 6 menu items with name, price, description, dietary tags
+INTERNAL_TOOL seed: 6 data records relevant to the tool's domain
+
+**IMPLEMENTATION PATTERN — use this in every page that fetches data:**
+
+const isSupabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL)
+
+const SEED_DATA = [
+  // 6 realistic items specific to this app
+]
+
+const [items, setItems] = useState(isSupabaseConfigured ? [] : SEED_DATA)
+const [loading, setLoading] = useState(isSupabaseConfigured)
+
+useEffect(() => {
+  if (!isSupabaseConfigured) return
+  // normal Supabase fetch
+}, [])
+
+// Render seed data banner when not configured:
+{!isSupabaseConfigured && (
+  <div className="bg-blue-50 border border-blue-200 text-blue-800 text-sm px-4 py-3 rounded-md mb-6 flex items-center justify-between">
+    <span>Viewing sample data — <a href="#setup" className="underline font-medium">connect your database</a> to go live.</span>
+  </div>
+)}
+
+**Home page stats sections:**
+When showing aggregate numbers (2.4M+ listings, 180K+ sellers), these are always static copy — not fetched from Supabase. They represent the platform's potential, not current data. Always hardcode realistic aspirational numbers in the hero/stats section.
+
 ## MULTI-FILE APP GENERATION — REQUIRED OUTPUT FORMAT
 
 You are generating a complete React + Vite + TypeScript + Tailwind CSS + Supabase application. Output goes into the \`files\` array. Each entry: \`{ path: string, content: string }\`. Every file must have 100% complete content — never truncated, never "// TODO", never placeholder components.
