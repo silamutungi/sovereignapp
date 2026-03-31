@@ -190,12 +190,16 @@ Every generated app uses these fonts:
 - Primary: Geist Sans — clean, modern, neutral. Used for all body text, UI elements, labels, buttons, inputs.
 - Mono: Geist Mono — used for code, data, and technical UI only.
 - Headings (h1–h3): Geist Sans, bold weights (700, 800). NOT serif. Clean and direct.
-- Load via: https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/style.css and https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-mono/style.css
-- CSP: style-src and font-src must include https://cdn.jsdelivr.net
+- Load via Google Fonts (the geist npm package has no style.css — jsDelivr does not work for this):
+  https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap
+  https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&display=swap
+- CSP: style-src must include https://fonts.googleapis.com; font-src must include https://fonts.gstatic.com (already required for Google Fonts)
 
-Import in HTML (replace Google Fonts links):
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/style.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-mono/style.css">
+Import in HTML:
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&display=swap">
 
 ## VISILA STANDARD — COLOR SYSTEM
 
@@ -816,8 +820,8 @@ A Vite project on Vercel requires: package.json, index.html, vite.config.js, .gi
 **Never use url.parse()**
 Use new URL() and searchParams.get() instead. url.parse() is deprecated with security implications (DEP0169).
 
-**CSP must include Google Fonts and jsDelivr domains**
-style-src must include https://fonts.googleapis.com and https://cdn.jsdelivr.net. style-src-elem must include https://fonts.googleapis.com and https://cdn.jsdelivr.net. font-src must include https://fonts.gstatic.com and https://cdn.jsdelivr.net. Otherwise Google Fonts and Geist fonts (loaded via jsDelivr CDN) are blocked by CSP.
+**CSP must include Google Fonts domains**
+style-src must include https://fonts.googleapis.com. style-src-elem must include https://fonts.googleapis.com. font-src must include https://fonts.gstatic.com. Geist fonts are loaded from Google Fonts — do NOT use jsDelivr for Geist font loading (the geist npm package has no style.css and all jsDelivr stylesheet URLs for it return 404).
 
 **iframe sandbox: never combine allow-scripts with allow-same-origin**
 Use sandbox="allow-scripts" only for preview iframes. Combining allow-scripts with allow-same-origin allows complete sandbox escape.
@@ -982,7 +986,7 @@ All inline style objects must only contain valid CSS properties accepted by Reac
 
 package.json — dependencies: react@^18.2.0, react-dom@^18.2.0, react-router-dom@^6, @supabase/supabase-js@^2, class-variance-authority@^0.7.0, clsx@^2.0.0, tailwind-merge@^2.0.0, lucide-react@^0.400.0, @radix-ui/react-slot@^1.0.2, @radix-ui/react-label@^2.0.2. devDependencies: typescript@^5, vite@^5, @vitejs/plugin-react@^4, tailwindcss@^3, autoprefixer@^10, postcss@^8, @types/react@^18, @types/react-dom@^18. Never include an engines field — Vercel does not support it and it causes build failures.
 
-index.html — minimal Vite entry, loads Geist Sans and Geist Mono from jsdelivr CDN, no other content.
+index.html — minimal Vite entry, loads Geist Sans and Geist Mono from Google Fonts (preconnect + two stylesheet links), no other content.
 
 vite.config.ts — @vitejs/plugin-react, outDir: dist.
 
