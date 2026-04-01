@@ -1,6 +1,6 @@
 // api/_scoreApp.ts — In-memory app confidence scorer
 //
-// Runs all 10 Sovereign Standards dimensions against the generated file content
+// Runs all 10 Visila Standards dimensions against the generated file content
 // (AppFileEntry[]) without reading from the filesystem. Designed to run inside
 // a Vercel serverless function after generation and before final status update.
 //

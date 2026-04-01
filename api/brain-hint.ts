@@ -121,7 +121,7 @@ export default async function handler(req: any, res: any): Promise<void> {
 
 Their app: ${app_type ?? 'web app'}
 Total edits so far: ${count}
-Recent sovereign messages (what's been built): ${featureList}
+Recent visila messages (what's been built): ${featureList}
 
 Give one specific, actionable next step that builds on what they just did. Think like a YC partner — focus on getting users, reducing churn, or increasing conversion. Be specific to what they just changed, not generic.
 

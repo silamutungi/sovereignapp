@@ -245,7 +245,7 @@ If not flagged, reason should be empty string.`,
       const modParsed = JSON.parse(modMatch[0]) as { flagged: boolean; reason: string }
       if (modParsed.flagged === true) {
         console.log('[generate] moderation flagged:', modParsed.reason)
-        await sendEvent({ type: 'error', error: "We can't build that. Sovereign is for legitimate businesses only." })
+        await sendEvent({ type: 'error', error: "We can't build that. Visila is for legitimate businesses only." })
         endStream()
         return
       }

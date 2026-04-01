@@ -23,7 +23,7 @@ export const MODEL_FAST = 'claude-haiku-4-5-20251001'
 // - No secrets exposed in responses
 // - JSON parse failure returns safe fallback — never throws to client
 
-const SYSTEM_PROMPT = `You are an app brief extractor for Sovereign, a platform that builds and deploys real apps. Extract the core app intent from the user's input into a structured brief. Return JSON only — no markdown, no preamble, no backticks.
+const SYSTEM_PROMPT = `You are an app brief extractor for Visila, a platform that builds and deploys real apps. Extract the core app intent from the user's input into a structured brief. Return JSON only — no markdown, no preamble, no backticks.
 
 Required format:
 {

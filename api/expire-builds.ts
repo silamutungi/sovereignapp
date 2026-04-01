@@ -35,7 +35,7 @@ function expiryWarningHtml(appName: string, deployUrl: string, ideaEncoded: stri
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;">
           <tr>
             <td style="padding:0 0 36px 0;text-align:center;">
-              <span style="font-size:13px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#c8f060;">SOVEREIGN</span>
+              <span style="font-size:13px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#c8f060;">VISILA</span>
             </td>
           </tr>
           <tr>
@@ -78,7 +78,7 @@ function expiryWarningHtml(appName: string, deployUrl: string, ideaEncoded: stri
           </tr>
           <tr>
             <td style="text-align:center;">
-              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862;">© 2026 Sovereign &nbsp;·&nbsp; <a href="https://visila.com" style="color:#6b6862;text-decoration:none;">visila.com</a></p>
+              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862;">© 2026 Visila &nbsp;·&nbsp; <a href="https://visila.com" style="color:#6b6862;text-decoration:none;">visila.com</a></p>
             </td>
           </tr>
         </table>
@@ -105,7 +105,7 @@ function expiredHtml(appName: string, ideaEncoded: string): string {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;">
           <tr>
             <td style="padding:0 0 36px 0;text-align:center;">
-              <span style="font-size:13px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#c8f060;">SOVEREIGN</span>
+              <span style="font-size:13px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#c8f060;">VISILA</span>
             </td>
           </tr>
           <tr>
@@ -140,7 +140,7 @@ function expiredHtml(appName: string, ideaEncoded: string): string {
           </tr>
           <tr>
             <td style="text-align:center;">
-              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862;">© 2026 Sovereign &nbsp;·&nbsp; <a href="https://visila.com" style="color:#6b6862;text-decoration:none;">visila.com</a></p>
+              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862;">© 2026 Visila &nbsp;·&nbsp; <a href="https://visila.com" style="color:#6b6862;text-decoration:none;">visila.com</a></p>
             </td>
           </tr>
         </table>

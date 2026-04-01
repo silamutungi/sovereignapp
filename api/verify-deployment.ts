@@ -55,7 +55,7 @@ export default async function handler(req: any, res: any): Promise<void> {
   try {
     const fetchRes = await fetch(url, {
       signal: AbortSignal.timeout(10000),
-      headers: { 'User-Agent': 'Sovereign/1.0 deployment-health-check' },
+      headers: { 'User-Agent': 'Visila/1.0 deployment-health-check' },
     })
 
     if (!fetchRes.ok) {

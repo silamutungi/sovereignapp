@@ -1,6 +1,6 @@
 // src/store/chatStore.tsx
 //
-// Global chat state for Sovereign Chat.
+// Global chat state for Visila Chat.
 //
 // Architecture note: this store is designed so the EditPanel can eventually
 // be merged into the global chat with a config change:

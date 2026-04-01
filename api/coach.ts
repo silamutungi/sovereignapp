@@ -121,7 +121,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       interventions.push({
         type: 'LAUNCH',
         priority: 'high',
-        message: `${build.app_name} scored ${build.confidence_score}/100 on the Sovereign Standards. There are quality issues to fix before sharing widely — open the chat and ask "what should I improve first?"`,
+        message: `${build.app_name} scored ${build.confidence_score}/100 on the Visila Standards. There are quality issues to fix before sharing widely — open the chat and ask "what should I improve first?"`,
         cta: 'View issues',
       })
     } else if (hoursSinceDeploy < 2) {

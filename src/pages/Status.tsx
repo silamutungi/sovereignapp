@@ -1,7 +1,7 @@
-// src/pages/Status.tsx — Sovereign System Status Page
+// src/pages/Status.tsx — Visila System Status Page
 //
 // Route: /status
-// Shows live health of Sovereign and all its dependencies.
+// Shows live health of Visila and all its dependencies.
 // Polls /api/system-status every 60 seconds. No auth required.
 
 import { useEffect, useState } from 'react'
@@ -38,7 +38,7 @@ const INCIDENTS: Incident[] = [
     date: 'March 28, 2026',
     title: 'Preview iframe not loading',
     description:
-      'Vercel SSO protection was enabled by default on all new staging projects, blocking preview iframes in the Sovereign dashboard. SSO protection has been disabled on all projects. Existing builds were backfilled via migration script.',
+      'Vercel SSO protection was enabled by default on all new staging projects, blocking preview iframes in the Visila dashboard. SSO protection has been disabled on all projects. Existing builds were backfilled via migration script.',
     status: 'resolved',
   },
 ]
@@ -92,7 +92,7 @@ const SYSTEM_DESCRIPTIONS: Record<string, string> = {
   'Vercel Deployment':    'Deployments live',
   'Supabase':             'Database connections healthy',
   'Email (Resend)':       'Welcome emails sending',
-  'Sovereign Dashboard':  'Dashboard accessible',
+  'Visila Dashboard':  'Dashboard accessible',
 }
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
@@ -125,9 +125,9 @@ function Nav() {
             textDecoration: 'none',
             letterSpacing: '-0.01em',
           }}
-          aria-label="Sovereign App home"
+          aria-label="Visila home"
         >
-          sovereign
+          visila
         </a>
         <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
           <a

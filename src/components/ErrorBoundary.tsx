@@ -36,7 +36,7 @@ export class ErrorBoundary extends Component<Props, State> {
           textAlign: 'center',
           gap: '1rem',
         }}>
-          <span style={{ fontSize: 13, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#FF1F6E' }}>SOVEREIGN</span>
+          <span style={{ fontSize: 13, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#FF1F6E' }}>VISILA</span>
           <h1 style={{ margin: 0, fontSize: 32, fontWeight: 800 }}>Something went wrong</h1>
           <p style={{ margin: 0, color: '#6b6862', fontSize: 14 }}>{this.state.message}</p>
           <button

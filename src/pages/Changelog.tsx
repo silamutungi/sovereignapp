@@ -1,4 +1,4 @@
-// src/pages/Changelog.tsx — Sovereign Changelog
+// src/pages/Changelog.tsx — Visila Changelog
 //
 // Route: /changelog
 // Hardcoded release history. No API. No auth.
@@ -29,7 +29,7 @@ const ENTRIES: ChangelogEntry[] = [
     tag: 'feature',
     title: 'Claim flow — transfer your app to your own account',
     description:
-      'Staged apps now live on the Sovereign team temporarily. Once you are ready, the Claim button transfers your GitHub repo and Vercel project to your own account. You own everything.',
+      'Staged apps now live on the Visila team temporarily. Once you are ready, the Claim button transfers your GitHub repo and Vercel project to your own account. You own everything.',
   },
   {
     date: 'March 26, 2026',
@@ -41,7 +41,7 @@ const ENTRIES: ChangelogEntry[] = [
   {
     date: 'March 26, 2026',
     tag: 'feature',
-    title: 'Sovereign Coach — always-present AI assistant',
+    title: 'Visila Coach — always-present AI assistant',
     description:
       'Every dashboard now surfaces a coaching banner with time-sensitive recommendations. The coach knows your app age, previous activity, and the accumulated lessons from every previous build. Strategy coaching, not just edit assistance.',
   },
@@ -50,7 +50,7 @@ const ENTRIES: ChangelogEntry[] = [
     tag: 'security',
     title: 'SSO protection disabled on all preview projects',
     description:
-      'Confirmed that all Vercel preview URLs on the sovereign-staging team required login by default. Automated disable runs immediately on project creation. Backfill script applied to all existing builds.',
+      'Confirmed that all Vercel preview URLs on the visila-staging team required login by default. Automated disable runs immediately on project creation. Backfill script applied to all existing builds.',
   },
   {
     date: 'March 23, 2026',
@@ -112,7 +112,7 @@ const ENTRIES: ChangelogEntry[] = [
     date: 'March 20, 2026',
     version: '1.0.0',
     tag: 'feature',
-    title: 'Sovereign App launches',
+    title: 'Visila launches',
     description:
       'Build without permission. Describe your idea, connect GitHub and Vercel, and get a live app with a real URL in minutes. You own the code, the repo, and the deployment. No lock-in.',
   },
@@ -158,9 +158,9 @@ function Nav() {
             textDecoration: 'none',
             letterSpacing: '-0.01em',
           }}
-          aria-label="Sovereign App home"
+          aria-label="Visila home"
         >
-          sovereign
+          visila
         </a>
         <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
           <a

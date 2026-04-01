@@ -321,7 +321,7 @@ function buildAllFiles(
     'Vercel: https://vercel.com/dashboard',
     'Supabase: https://supabase.com/dashboard',
     '',
-    'Sovereign provisioned this. You own it entirely.',
+    'Visila provisioned this. You own it entirely.',
     '',
   ].join('\n')
 
@@ -521,12 +521,12 @@ async function createVercelProject(
   if (!match) return { ok: false, error: `Invalid GitHub repo URL: ${githubRepoUrl}`, isLoginConnection: false }
   const [, githubOrg, githubRepo] = match
 
-  // Staging builds deploy to Sovereign's own Vercel team, not the user's account.
+  // Staging builds deploy to Visila's own Vercel team, not the user's account.
   // The user's vercel_token is only used during the claim flow (transfer).
   const token  = process.env.SOVEREIGN_VERCEL_TOKEN!
   const teamId = process.env.SOVEREIGN_VERCEL_TEAM_ID
   const teamQ  = teamId ? `?teamId=${encodeURIComponent(teamId)}` : ''
-  console.log('[run-build] Vercel: creating project on sovereign staging team, teamId:', teamId ?? 'none')
+  console.log('[run-build] Vercel: creating project on visila staging team, teamId:', teamId ?? 'none')
 
   // ── Create project with retry + exponential backoff ───────────────────────
   // "Login Connection" errors occur when the Vercel team's GitHub app installation
@@ -565,11 +565,11 @@ async function createVercelProject(
     const msg = String((project.error as Record<string, unknown>)?.message ?? JSON.stringify(project))
     lastError = `Failed to create Vercel project (${projStatus}): ${msg}`
 
-    // Login Connection error = GitHub app not installed for this repo on sovereign team.
+    // Login Connection error = GitHub app not installed for this repo on visila team.
     // This is structural, not transient — retrying won't fix it.
     if (msg.toLowerCase().includes('login connection') || msg.toLowerCase().includes('login_connection')) {
       isLoginConnection = true
-      console.error('[run-build] Vercel: Login Connection error — GitHub app not installed for this repo on sovereign team:', msg)
+      console.error('[run-build] Vercel: Login Connection error — GitHub app not installed for this repo on visila team:', msg)
       break
     }
   }
@@ -745,7 +745,7 @@ function buildLaunchEmailHtml(appName: string, liveUrl: string, repoUrl: string)
 <tr><td align="center" style="background-color:#0e0d0b!important;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#0e0d0b!important;">
 <tr><td style="padding:0 0 36px 0;text-align:center;background-color:#0e0d0b!important;">
-  <span style="font-size:13px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#c8f060!important;">SOVEREIGN</span>
+  <span style="font-size:13px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#c8f060!important;">VISILA</span>
 </td></tr>
 <tr><td style="padding:0 0 12px 0;text-align:center;background-color:#0e0d0b!important;">
   <h1 style="margin:0;font-size:48px;font-weight:800;line-height:1;color:#f2efe8!important;letter-spacing:-0.02em;">Your app is live.</h1>
@@ -757,7 +757,7 @@ function buildLaunchEmailHtml(appName: string, liveUrl: string, repoUrl: string)
   <div style="height:1px;background:rgba(200,240,96,0.2);"></div>
 </td></tr>
 <tr><td style="padding:0 0 36px 0;text-align:center;background-color:#0e0d0b!important;">
-  <p style="margin:0;font-size:15px;line-height:1.75;color:#f2efe8!important;">Sovereign has stepped back. This is yours now.<br/>Your code. Your infrastructure. Your future.</p>
+  <p style="margin:0;font-size:15px;line-height:1.75;color:#f2efe8!important;">Visila has stepped back. This is yours now.<br/>Your code. Your infrastructure. Your future.</p>
 </td></tr>
 <tr><td style="padding:0 0 40px 0;text-align:center;background-color:#0e0d0b!important;">
   <a href="${liveUrl}" style="display:inline-block;background:#c8f060;color:#0e0d0b!important;-webkit-text-fill-color:#0e0d0b;font-size:14px;font-weight:700;text-decoration:none;padding:14px 28px;border-radius:6px;margin:0 6px 12px;">View Live App →</a>
@@ -767,7 +767,7 @@ function buildLaunchEmailHtml(appName: string, liveUrl: string, repoUrl: string)
   <div style="height:1px;background:rgba(200,240,96,0.2);"></div>
 </td></tr>
 <tr><td style="text-align:center;background-color:#0e0d0b!important;">
-  <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862!important;">© 2026 Sovereign · <a href="https://visila.com" style="color:#6b6862!important;text-decoration:none;">visila.com</a> · Built without permission</p>
+  <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862!important;">© 2026 Visila · <a href="https://visila.com" style="color:#6b6862!important;text-decoration:none;">visila.com</a> · Built without permission</p>
 </td></tr>
 </table></td></tr>
 </table>
@@ -796,7 +796,7 @@ async function injectVercelEnvVars(
     console.error('[run-build] injectVercelEnvVars: empty values for keys:', emptyKeys, '— generated app will have no Supabase credentials')
   }
   if (!teamId) {
-    console.error('[run-build] injectVercelEnvVars: SOVEREIGN_VERCEL_TEAM_ID is not set — env var injection will fail (project belongs to staging team, teamId is required)')
+    console.error('[run-build] injectVercelEnvVars: SOVEREIGN_VERCEL_TEAM_ID is not set — env var injection will fail (project belongs to visila staging team, teamId is required)')
   }
 
   const payload = vars.map(({ key, value }) => ({
@@ -924,7 +924,7 @@ async function injectVercelEnvVars(
 }
 
 // Prepend a build_id column to every CREATE TABLE statement in a SQL schema
-// so that all tables in sovereign-hosted databases are scoped per build.
+// so that all tables in visila-hosted databases are scoped per build.
 function addBuildIdToSchema(schema: string, buildId: string): string {
   return schema.replace(
     /(CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[^\s(]+\s*\()/gi,
@@ -1071,7 +1071,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     }
     if (!process.env.SOVEREIGN_VERCEL_TOKEN) {
       console.error('[run-build] SOVEREIGN_VERCEL_TOKEN not set — cannot deploy staging app')
-      res.status(500).json({ error: 'Sovereign Vercel token not configured' })
+      res.status(500).json({ error: 'Visila Vercel token not configured' })
       return
     }
 
@@ -1244,10 +1244,10 @@ export default async function handler(req: any, res: any): Promise<void> {
           if (sbChoice === 'own') {
             // Full own-Supabase provisioning deferred to claim flow — too slow for build pipeline
             // Creating a new Supabase project via Management API takes 2-4 minutes which exceeds
-            // Vercel's function timeout. For now, use Sovereign's Supabase with row-level isolation
+            // Vercel's function timeout. For now, use Visila's Supabase with row-level isolation
             // (same as the 'sovereign' path) and mark supabase_mode='sovereign_temporary' so the
             // claim flow can migrate the user to their own project later.
-            console.log('[run-build] sbChoice=own — using sovereign_temporary path (own project creation deferred to claim flow)')
+            console.log('[run-build] sbChoice=own — using visila_temporary path (own project creation deferred to claim flow)')
             await step('Connecting your database…')
             await updateBuild(supabaseUrl, serviceKey, buildId, { supabase_mode: 'sovereign_temporary' })
             deploySupabaseUrl = process.env.SUPABASE_URL!
@@ -1270,7 +1270,7 @@ export default async function handler(req: any, res: any): Promise<void> {
               }
             }
           } else {
-            // Sovereign-hosted path — use Sovereign's own Supabase instance,
+            // Visila-hosted path — use Visila's own Supabase instance,
             // scope all generated tables by build_id
             deploySupabaseUrl = process.env.SUPABASE_URL!
             deployAnonKey     = process.env.VITE_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? ''
@@ -1289,7 +1289,7 @@ export default async function handler(req: any, res: any): Promise<void> {
                     body: JSON.stringify({ query: scopedSchema }),
                   },
                   NET,
-                ).catch(err => console.warn('[run-build] sovereign schema exec non-fatal:', err))
+                ).catch(err => console.warn('[run-build] visila schema exec non-fatal:', err))
               } else {
                 console.log('[run-build] SOVEREIGN_SUPABASE_REF or MANAGEMENT_TOKEN not set — schema stored for manual run')
               }
@@ -1381,7 +1381,7 @@ export default async function handler(req: any, res: any): Promise<void> {
             )
           }
 
-          // ── Score the app against 10 Sovereign Standards dimensions ──────
+          // ── Score the app against 10 Visila Standards dimensions ──────
           // Runs in-memory against the generated files — no filesystem needed.
           // Score is stored in builds.confidence_score and used by the coach.
           const scoreResult = scoreApp(build.files ?? [])

@@ -106,7 +106,7 @@ const BrainDashboard: FC = () => {
           Knowledge system
         </p>
         <h1 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '36px', fontWeight: 400, color: '#0e0d0b', margin: '0 0 32px', lineHeight: 1.15 }}>
-          Sovereign Brain
+          Visila Brain
         </h1>
 
         {/* Stats row */}

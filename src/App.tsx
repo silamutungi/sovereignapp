@@ -825,7 +825,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
               transition: 'opacity 0.3s ease'
             }}>{generatingMessage}</p>
 
-            {/* Sovereign tagline */}
+            {/* Visila tagline */}
             <p style={{
               fontFamily: "'Playfair Display', Georgia, serif",
               fontSize: '18px',
@@ -1420,7 +1420,7 @@ function Footer({ locale, setLocale }: { locale: Locale; setLocale: (l: Locale) 
           ))}
         </div>
 
-        {/* Built with Sovereign badge */}
+        {/* Built with Visila badge */}
         <span className="sovereign-badge">
           <span className="badge-icon" aria-hidden="true">✦</span>
           {t(locale, 'badge.label')}

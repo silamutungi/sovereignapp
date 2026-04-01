@@ -35,7 +35,7 @@ const LOG_STEPS: LogStep[] = [
   { matchOn: 'Database ready ✓',              icon: '✅', label: 'Database ready ✓' },
   { matchOn: 'Deploying to Vercel…',          icon: '⚙',  label: 'Deploying to Vercel…' },
   { matchOn: ['Live at', 'Sending your live URL…', 'done'], icon: '✅', label: 'Live on Vercel', urlKey: 'deployUrl' },
-  { matchOn: 'done',                          icon: '✦', label: 'You own everything. Welcome to Sovereign.', terminal: true },
+  { matchOn: 'done',                          icon: '✦', label: 'You own everything. Welcome to Visila.', terminal: true },
 ]
 
 // Returns index of the most advanced step reached given the current step string.
@@ -367,7 +367,7 @@ export default function Building() {
       const redirectUri = `${window.location.origin}/auth/supabase/callback`
       if (!clientId) {
         console.error('[building] VITE_SUPABASE_OAUTH_CLIENT_ID not set')
-        setPollError('Supabase OAuth is not configured. Please contact support or choose "Use Sovereign\'s for now" to continue.')
+        setPollError('Supabase OAuth is not configured. Please contact support or choose "Use Visila\'s for now" to continue.')
         return
       }
       const oauthUrl =
@@ -409,7 +409,7 @@ export default function Building() {
     return (
       <div style={S.page}>
         <div style={S.card}>
-          <p style={S.wordmark}>SOVEREIGN</p>
+          <p style={S.wordmark}>VISILA</p>
           <p style={{ color: '#ff9090', textAlign: 'center', fontSize: '13px' }}>
             No build ID found. <a href="/" style={S.homeLinkA}>Start over →</a>
           </p>
@@ -455,7 +455,7 @@ export default function Building() {
 
       <div style={S.page}>
         <div style={S.card}>
-          <p style={S.wordmark}>SOVEREIGN</p>
+          <p style={S.wordmark}>VISILA</p>
 
           {status?.appName && (
             <h1 style={S.appName}>{status.appName}</h1>
@@ -535,7 +535,7 @@ export default function Building() {
                   textDecorationColor: 'rgba(255,31,110,0.3)',
                 }}
               >
-                Use Sovereign's for now →
+                Use Visila's for now →
               </button>
             </div>
           )}
@@ -667,7 +667,7 @@ export default function Building() {
 
           {(!status || isDone || isFailed) && (
             <p style={S.homeLink}>
-              <a href="/" style={S.homeLinkA}>← Back to Sovereign</a>
+              <a href="/" style={S.homeLinkA}>← Back to Visila</a>
             </p>
           )}
         </div>

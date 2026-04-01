@@ -1,8 +1,8 @@
-// api/audit-generated-app.ts — 35-check Sovereign audit checklist
+// api/audit-generated-app.ts — 35-check Visila audit checklist
 //
 // POST { files: { path: string; content: string }[] }
 //
-// Runs all 35 audit checks from the Sovereign Design System against in-memory
+// Runs all 35 audit checks from the Visila Design System against in-memory
 // file content. Returns pass/fail per check grouped by category, plus a summary.
 // Does not read from the filesystem. Safe to call inside any serverless function.
 //
@@ -439,7 +439,7 @@ async function commitGitHubFile(
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: 'fix: sovereign design audit correction',
+          message: 'fix: visila design audit correction',
           content: Buffer.from(content).toString('base64'),
           sha,
         }),
@@ -515,7 +515,7 @@ export async function runDesignAudit(
     ) {
       html = html.replace(
         '</head>',
-        '  <meta name="description" content="Built with Sovereign App.">\n  </head>',
+        '  <meta name="description" content="Built with Visila.">\n  </head>',
       )
       changed = true
       fixes_applied++

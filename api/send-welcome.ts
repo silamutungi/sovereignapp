@@ -21,7 +21,7 @@ function waitlistHtml(email: string): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="light dark" />
   <meta name="supported-color-schemes" content="light dark" />
-  <title>You're on the Sovereign waitlist</title>
+  <title>You're on the Visila waitlist</title>
   <style>
     :root { color-scheme: light dark; }
     body {
@@ -40,7 +40,7 @@ function waitlistHtml(email: string): string {
           <!-- Wordmark -->
           <tr>
             <td style="padding:0 0 36px 0;text-align:center;background-color:#0e0d0b !important;">
-              <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#c8f060 !important;">SOVEREIGN</span>
+              <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#c8f060 !important;">VISILA</span>
             </td>
           </tr>
 
@@ -75,7 +75,7 @@ function waitlistHtml(email: string): string {
           <!-- CTA button -->
           <tr>
             <td style="padding:0 0 40px 0;text-align:center;background-color:#0e0d0b !important;">
-              <a href="https://visila.com" style="display:inline-block;background:#c8f060;color:#0e0d0b !important;-webkit-text-fill-color:#0e0d0b;font-size:14px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:6px;letter-spacing:0.01em;">Visit Sovereign →</a>
+              <a href="https://visila.com" style="display:inline-block;background:#c8f060;color:#0e0d0b !important;-webkit-text-fill-color:#0e0d0b;font-size:14px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:6px;letter-spacing:0.01em;">Visit Visila →</a>
             </td>
           </tr>
 
@@ -96,7 +96,7 @@ function waitlistHtml(email: string): string {
           <!-- Footer -->
           <tr>
             <td style="text-align:center;background-color:#0e0d0b !important;">
-              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862 !important;">© 2026 Sovereign &nbsp;·&nbsp; <a href="https://visila.com" style="color:#6b6862 !important;text-decoration:none;">visila.com</a> &nbsp;·&nbsp; Built without permission</p>
+              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862 !important;">© 2026 Visila &nbsp;·&nbsp; <a href="https://visila.com" style="color:#6b6862 !important;text-decoration:none;">visila.com</a> &nbsp;·&nbsp; Built without permission</p>
             </td>
           </tr>
 
@@ -136,7 +136,7 @@ function appLaunchHtml(projectName: string, liveUrl: string, repoUrl: string): s
           <!-- Wordmark -->
           <tr>
             <td style="padding:0 0 36px 0;text-align:center;background-color:#0e0d0b !important;">
-              <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#c8f060 !important;">SOVEREIGN</span>
+              <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#c8f060 !important;">VISILA</span>
             </td>
           </tr>
 
@@ -164,7 +164,7 @@ function appLaunchHtml(projectName: string, liveUrl: string, repoUrl: string): s
           <!-- Body copy -->
           <tr>
             <td style="padding:0 0 36px 0;text-align:center;background-color:#0e0d0b !important;">
-              <p style="margin:0;font-size:15px;line-height:1.75;color:#f2efe8 !important;">Sovereign has stepped back. This is yours now.<br/>Your code. Your infrastructure. Your future.</p>
+              <p style="margin:0;font-size:15px;line-height:1.75;color:#f2efe8 !important;">Visila has stepped back. This is yours now.<br/>Your code. Your infrastructure. Your future.</p>
             </td>
           </tr>
 
@@ -221,7 +221,7 @@ function appLaunchHtml(projectName: string, liveUrl: string, repoUrl: string): s
           <!-- Footer -->
           <tr>
             <td style="text-align:center;background-color:#0e0d0b !important;">
-              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862 !important;">© 2026 Sovereign &nbsp;·&nbsp; <a href="https://visila.com" style="color:#6b6862 !important;text-decoration:none;">visila.com</a> &nbsp;·&nbsp; Built without permission</p>
+              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862 !important;">© 2026 Visila &nbsp;·&nbsp; <a href="https://visila.com" style="color:#6b6862 !important;text-decoration:none;">visila.com</a> &nbsp;·&nbsp; Built without permission</p>
             </td>
           </tr>
 

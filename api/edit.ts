@@ -112,7 +112,7 @@ export default async function handler(req: any, res: any): Promise<void> {
 
     // Prefer SOVEREIGN_GITHUB_TOKEN; fall back to stored user token
     const githubToken = process.env.SOVEREIGN_GITHUB_TOKEN ?? build.github_token
-    console.log('[edit] using token:', process.env.SOVEREIGN_GITHUB_TOKEN ? 'sovereign' : 'user', new Date().toISOString())
+    console.log('[edit] using token:', process.env.SOVEREIGN_GITHUB_TOKEN ? 'visila' : 'user', new Date().toISOString())
     if (!githubToken) {
       console.error('[edit] no GitHub token available')
       res.status(500).json({ error: "We couldn't make that change. Please try again in a moment." })
@@ -127,9 +127,9 @@ export default async function handler(req: any, res: any): Promise<void> {
       Accept: 'application/vnd.github.v3+json',
     }
 
-    // ── Plan mode — return summary without executing edit ────────────────────
+    // ── Plan mode — return structured plan without executing edit ─────────────
     if (req.query?.plan === 'true') {
-      // Step 1: Fetch file tree
+      // Step 1: Fetch file tree (src/ only, .tsx/.ts/.css files)
       let planFileTree: string[] = []
       try {
         const treeRes = await fetch(
@@ -139,57 +139,56 @@ export default async function handler(req: any, res: any): Promise<void> {
         if (treeRes.ok) {
           const treeData = await treeRes.json() as { tree: Array<{ path: string; type: string }> }
           planFileTree = treeData.tree
-            .filter((f) => f.type === 'blob' && f.path.startsWith('src/') && (f.path.endsWith('.tsx') || f.path.endsWith('.ts')))
+            .filter((f) => f.type === 'blob' && f.path.startsWith('src/') && (f.path.endsWith('.tsx') || f.path.endsWith('.ts') || f.path.endsWith('.css')))
             .map((f) => f.path)
         }
       } catch { /* non-fatal — planFileTree stays empty */ }
 
-      // Step 2: Identify relevant files via Haiku
-      let planRelevantPaths: string[] = []
-      if (planFileTree.length > 0) {
-        try {
-          const haikuMsg = await anthropic.messages.create({
-            model: MODEL_FAST,
-            max_tokens: 256,
-            messages: [{
-              role: 'user',
-              content: `Here is the file tree of a React + Vite app:\n${planFileTree.join('\n')}\n\nThe user wants to make this change: ${editRequest}\n\nReturn a JSON array of the file paths most likely to need reading or editing to fulfill this instruction. Include the file that owns the relevant component. Max 5 files. Return only JSON, no fences, no explanation.`,
-            }],
-          })
-          const haikuRaw = haikuMsg.content
-            .filter((b) => b.type === 'text')
-            .map((b) => (b as { type: 'text'; text: string }).text)
-            .join('')
-            .trim()
-            .replace(/^```(?:json)?\s*/i, '')
-            .replace(/\s*```\s*$/, '')
-            .trim()
-          const parsed = JSON.parse(haikuRaw) as unknown
-          if (Array.isArray(parsed)) {
-            planRelevantPaths = (parsed as unknown[])
-              .filter((p): p is string => typeof p === 'string' && planFileTree.includes(p))
-              .slice(0, 5)
-          }
-        } catch { /* non-fatal — fileCount will be 0 */ }
+      // Step 2: Single Haiku call — summary, files, changes, risk
+      try {
+        const planMsg = await anthropic.messages.create({
+          model: MODEL_FAST,
+          max_tokens: 512,
+          messages: [{
+            role: 'user',
+            content: `Here is the file tree of a React + Vite app:\n${planFileTree.join('\n')}\n\nThe user wants to make this change: ${editRequest}\n\nReturn a JSON object with:\n{\n  "summary": "One sentence: what will change and what the user will see (never mention file names)",\n  "files": ["src/components/Button.tsx", "src/index.css"],\n  "changes": [\n    { "file": "src/index.css", "what": "Update --color-primary from #FF1F6E to #0047AB" },\n    { "file": "src/components/Button.tsx", "what": "Update bg-[#FF1F6E] class to use CSS variable var(--color-primary)" }\n  ],\n  "risk": "low or medium or high"\n}\n\nRisk rules: "low" if 1 file with cosmetic changes (color, text, spacing), "high" if 4+ files or logic/routing/auth/schema changes, "medium" for everything else.\n\nReturn only valid JSON, no markdown fences.`,
+          }],
+        })
+        const planRaw = planMsg.content
+          .filter((b) => b.type === 'text')
+          .map((b) => (b as { type: 'text'; text: string }).text)
+          .join('')
+          .trim()
+          .replace(/^```(?:json)?\s*/i, '')
+          .replace(/\s*```\s*$/, '')
+          .trim()
+
+        const planData = JSON.parse(planRaw) as {
+          summary?: string
+          files?: string[]
+          changes?: Array<{ file: string; what: string }>
+          risk?: string
+        }
+
+        // Validate and sanitize
+        const summary = typeof planData.summary === 'string' ? planData.summary : 'Apply the requested change.'
+        const files = Array.isArray(planData.files)
+          ? (planData.files as unknown[]).filter((f): f is string => typeof f === 'string').slice(0, 8)
+          : []
+        const changes = Array.isArray(planData.changes)
+          ? (planData.changes as Array<{ file?: string; what?: string }>)
+              .filter((c) => typeof c.file === 'string' && typeof c.what === 'string')
+              .map((c) => ({ file: c.file!, what: c.what! }))
+              .slice(0, 8)
+          : []
+        const risk = ['low', 'medium', 'high'].includes(planData.risk ?? '') ? planData.risk! : 'medium'
+
+        console.log(`[edit] plan mode — risk:${risk} files:${files.length} — ${summary}`)
+        res.status(200).json({ plan: { summary, files, changes, risk } })
+      } catch (planErr) {
+        console.warn('[edit] plan Haiku call failed:', planErr)
+        res.status(200).json({ plan: { summary: 'Apply the requested change.', files: [], changes: [], risk: 'medium' } })
       }
-
-      // Generate plain English summary via Haiku
-      const summaryMsg = await anthropic.messages.create({
-        model: MODEL_FAST,
-        max_tokens: 128,
-        messages: [{
-          role: 'user',
-          content: `A user is editing their web app. Their instruction is: "${editRequest}"\n\nThe files that will change are: ${planRelevantPaths.length > 0 ? planRelevantPaths.join(', ') : 'the main page'}\n\nSummarize in one sentence what files will change and what the user will see. Never mention file names. Example: "I'll remove the image gallery from your homepage and clean up the footer." Return only the sentence.`,
-        }],
-      })
-      const summary = summaryMsg.content
-        .filter((b) => b.type === 'text')
-        .map((b) => (b as { type: 'text'; text: string }).text)
-        .join('')
-        .trim()
-
-      console.log(`[edit] plan mode — ${summary}`)
-      res.status(200).json({ plan: true, summary, fileCount: planRelevantPaths.length })
       return
     }
 
@@ -212,7 +211,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       commitMessage: string,
     ): Promise<string | null> {
       try {
-        // Find the default branch (Sovereign always creates `main`)
+        // Find the default branch (Visila always creates `main`)
         let headSha = ''
         let foundBranch = ''
         for (const branch of ['main', 'master']) {
@@ -362,7 +361,7 @@ export default async function handler(req: any, res: any): Promise<void> {
 
       await setBuildStatus('building', 'Generating new page…')
 
-      const newPagePrompt = `You are Sovereign's world-class engineering agent. Add a new "${pageName}" page to this React app.
+      const newPagePrompt = `You are Visila's world-class engineering agent. Add a new "${pageName}" page to this React app.
 
 User instruction: "${editRequest}"
 
@@ -554,7 +553,7 @@ Rules for the new page:
               .join('\n\n---\n\n')
 
             // ── STEP 4: Generate multi-file edit with Sonnet ───────────────
-            const multiFilePrompt = `You are Sovereign's world-class engineering agent editing a React + Vite + TypeScript web application. You apply design judgment at every level — the Jony Ive standard: calm, precise, trustworthy, quietly powerful.
+            const multiFilePrompt = `You are Visila's world-class engineering agent editing a React + Vite + TypeScript web application. You apply design judgment at every level — the Jony Ive standard: calm, precise, trustworthy, quietly powerful.
 
 User instruction: ${editRequest}
 ${imageGuidance}
@@ -569,6 +568,7 @@ CODE RULES:
 - React Router v6: useNavigate not useHistory, Routes not Switch
 - Tailwind classes only — no inline styles except backgroundImage on hero sections
 - Hero images: backgroundImage inline style on section element, never an img tag
+- IMPORTANT: Never hardcode color hex values inline (e.g. bg-[#0047AB]). Always update the CSS custom property in src/index.css instead (e.g. --color-primary: #0047AB). This ensures color changes propagate consistently across the entire app.
 
 Return a JSON object where:
 - keys are file paths (e.g. "src/pages/Home.tsx")
@@ -644,7 +644,7 @@ Return only valid JSON, no markdown fences. First character must be { and last m
         await setBuildStatus('building', 'Generating your edit…')
 
         const prompt = isReact
-          ? `You are Sovereign's world-class design + engineering agent. You embody the Jony Ive standard: calm, precise, trustworthy, quietly powerful, inevitable to use. A founder is asking you to improve their app. You don't apply changes mechanically — you apply design judgment at every level.
+          ? `You are Visila's world-class design + engineering agent. You embody the Jony Ive standard: calm, precise, trustworthy, quietly powerful, inevitable to use. A founder is asking you to improve their app. You don't apply changes mechanically — you apply design judgment at every level.
 
 Return ONLY the complete updated file. No explanation, no markdown, no code fences. Just the raw TypeScript/JSX.
 
@@ -751,37 +751,56 @@ Apply the change. Keep everything else identical. Return the complete updated in
         }
         console.log('[edit] edit generated, length:', updatedContent.length, new Date().toISOString())
 
-        console.log('[edit] pushing to github...', new Date().toISOString())
-        await setBuildStatus('building', 'Pushing your change…')
+        // Detect identical content — Sonnet returned the file unchanged
+        if (updatedContent === targetFile.content) {
+          console.warn('[edit] single-file: Sonnet returned identical content — no changes made', new Date().toISOString())
+          // commitSha stays null → empty edit guard below will return the helpful message
+        } else {
+          console.log('[edit] pushing to github...', new Date().toISOString())
+          await setBuildStatus('building', 'Pushing your change…')
 
-        const pushRes = await fetch(
-          `https://api.github.com/repos/${repoPath}/contents/${targetFile.path}`,
-          {
-            method: 'PUT',
-            headers: {
-              ...ghHeaders,
-              'Content-Type': 'application/json',
+          const pushRes = await fetch(
+            `https://api.github.com/repos/${repoPath}/contents/${targetFile.path}`,
+            {
+              method: 'PUT',
+              headers: {
+                ...ghHeaders,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                message: `Edit: ${editRequest.slice(0, 50)}`,
+                content: Buffer.from(updatedContent).toString('base64'),
+                sha: targetFile.sha,
+              }),
             },
-            body: JSON.stringify({
-              message: `Edit: ${editRequest.slice(0, 50)}`,
-              content: Buffer.from(updatedContent).toString('base64'),
-              sha: targetFile.sha,
-            }),
-          },
-        )
+          )
 
-        if (!pushRes.ok) {
-          const pushBody = await pushRes.text().catch(() => '')
-          console.error('[edit] GitHub push FAILED:', pushRes.status, pushBody)
-          await setBuildStatus('error', null, 'Could not push change to GitHub')
-          res.status(500).json({ error: 'Could not save the change' })
-          return
+          if (!pushRes.ok) {
+            const pushBody = await pushRes.text().catch(() => '')
+            console.error('[edit] GitHub push FAILED:', pushRes.status, pushBody)
+            await setBuildStatus('error', null, 'Could not push change to GitHub')
+            res.status(500).json({ error: 'Could not save the change' })
+            return
+          }
+
+          const pushData = await pushRes.json() as { commit?: { sha: string } }
+          commitSha = pushData.commit?.sha ?? null
+          console.log('[edit] pushed to github, commit sha:', commitSha ?? 'unknown', new Date().toISOString())
         }
-
-        const pushData = await pushRes.json() as { commit?: { sha: string } }
-        commitSha = pushData.commit?.sha ?? null
-        console.log('[edit] pushed to github, commit sha:', commitSha ?? 'unknown', new Date().toISOString())
       }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // EMPTY EDIT GUARD — never say "Done." when nothing changed
+    // ════════════════════════════════════════════════════════════════════════
+    if (!commitSha) {
+      console.warn('[edit] no commit produced — Sonnet made no changes', new Date().toISOString())
+      await setBuildStatus('complete', null)
+      res.status(200).json({
+        ok: false,
+        message: "I couldn't find what needed changing. Could you be more specific? For example: 'change the Browse listings button to blue'",
+      })
+      return
     }
 
     // ════════════════════════════════════════════════════════════════════════

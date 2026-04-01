@@ -1035,7 +1035,7 @@ html, body { overflow-x: hidden; max-width: 100vw; position: relative; }
 }
 
 .wl::before {
-  content: 'SOVEREIGN';
+  content: 'VISILA';
   position: absolute;
   font-family: var(--font-serif);
   font-size: 160px;

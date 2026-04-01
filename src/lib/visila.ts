@@ -28,7 +28,7 @@ export interface SovereignParams {
   vercelToken: string
   supabaseManagementKey: string
 
-  // Platform key — set as env var RESEND_API_KEY on the Sovereign server
+  // Platform key — set as env var RESEND_API_KEY on the Visila server
   resendKey: string
 }
 
@@ -91,7 +91,7 @@ export async function runSovereign(params: SovereignParams): Promise<SovereignRe
   )
   // Email failure is non-fatal — everything else succeeded
   if (!emailResult.success) {
-    console.warn(`[sovereign] Welcome email failed: ${emailResult.error}`)
+    console.warn(`[visila] Welcome email failed: ${emailResult.error}`)
   }
 
   return {

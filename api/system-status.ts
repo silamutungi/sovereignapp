@@ -1,7 +1,7 @@
 // api/system-status.ts — Vercel Serverless Function
 //
 // GET /api/system-status
-// Returns overall Sovereign health + per-system status.
+// Returns overall Visila health + per-system status.
 // Checks external status pages and internal Supabase state in parallel.
 // Rate limit: 60/hr per IP.
 // Cache: 60 seconds in-memory (per warm instance).
@@ -141,7 +141,7 @@ export default async function handler(req: any, res: any): Promise<void> {
   ])
 
   const dashboard: SystemResult = {
-    name: 'Sovereign Dashboard',
+    name: 'Visila Dashboard',
     status: 'operational',
     message: null,
     checked_at: new Date().toISOString(),

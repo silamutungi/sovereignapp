@@ -1,6 +1,6 @@
 // src/components/VisilaChat.tsx
 //
-// Floating Sovereign Chat — available on every page.
+// Floating Visila Chat — available on every page.
 // Co-founder experience: proactive outreach, action buttons with navigation,
 // expiry awareness, broken build detection, and smart opener.
 
@@ -132,7 +132,7 @@ function checkProactive(builds: FullBuild[], navigate: ReturnType<typeof useNavi
   return msgs
 }
 
-const CHIPS = ['What can I build next?', "Something's broken", 'How does Sovereign work?']
+const CHIPS = ['What can I build next?', "Something's broken", 'How does Visila work?']
 
 // ── Panel ─────────────────────────────────────────────────────────────────────
 
@@ -244,7 +244,7 @@ function ChatPanel() {
           <div className="sc-avatar-lg">S</div>
           <div>
             <div style={{ font: '500 14px/1 DM Mono, Courier New, monospace', color: '#f2efe8' }}>
-              Sovereign
+              Visila
             </div>
             <div style={{ font: '11px/1 DM Mono, Courier New, monospace', color: '#FF1F6E', marginTop: '3px' }}>
               online

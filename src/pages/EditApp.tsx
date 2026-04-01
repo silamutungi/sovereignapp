@@ -1,4 +1,4 @@
-// src/pages/EditApp.tsx — Sovereign Edit Experience
+// src/pages/EditApp.tsx — Visila Edit Experience
 // Route: /app/:buildId/edit
 //
 // Full-viewport two-column layout: 360px brain panel (left) + live preview (right).
@@ -38,6 +38,18 @@ interface BrainHint {
   body: string
   action: string | null
   actionLabel: string | null
+}
+
+interface PlanChange {
+  file: string
+  what: string
+}
+
+interface EditPlan {
+  summary: string
+  files: string[]
+  changes: PlanChange[]
+  risk: 'low' | 'medium' | 'high'
 }
 
 interface SecurityIssue {
@@ -144,8 +156,9 @@ export default function EditApp() {
   const [queueOpen, setQueueOpen] = useState(false)
   const [queueRunning, setQueueRunning] = useState(false)
 
-  // Plan mode — pending instruction awaiting user approval
-  const [planPending, setPlanPending] = useState<string | null>(null)
+  // Plan mode
+  const [planMode, setPlanMode] = useState(false)
+  const [pendingPlan, setPendingPlan] = useState<{ plan: EditPlan; instruction: string } | null>(null)
 
   // Brain hints
   const [hint, setHint] = useState<BrainHint | null>(null)
@@ -416,14 +429,13 @@ export default function EditApp() {
       return
     }
 
-    // Plan mode — trigger for multi-word instructions containing action verbs
-    const ACTION_VERBS = /\b(add|remove|change|delete|update|create|build|replace|redesign|move)\b/i
-    const wordCount = text.trim().split(/\s+/).length
-    if (!opts?.skipPlan && wordCount > 4 && ACTION_VERBS.test(text)) {
+    // Plan mode — fetch structured plan before executing
+    if (!opts?.skipPlan && planMode) {
       setInput('')
       if (inputRef.current) inputRef.current.style.height = 'auto'
       setBusy(true)
       setHint(null)
+      setPendingPlan(null)
       try {
         const planRes = await fetch('/api/edit?plan=true', {
           method: 'POST',
@@ -435,21 +447,15 @@ export default function EditApp() {
             editRequest: text.slice(0, 1000),
           }),
         })
-        const planData = await planRes.json() as { plan?: boolean; summary?: string; fileCount?: number; error?: string }
-        if (planRes.ok && planData.plan && planData.summary) {
-          setPlanPending(text)
-          setHint({
-            type: 'blue',
-            body: planData.summary,
-            action: text,
-            actionLabel: 'Do it →',
-          })
+        const planData = await planRes.json() as { plan?: EditPlan; error?: string }
+        if (planRes.ok && planData.plan) {
+          setPendingPlan({ plan: planData.plan, instruction: text })
         } else {
           // Plan fetch failed — fall through to direct edit
           void submitEdit(text, { skipPlan: true })
         }
       } catch {
-        // Network error on plan — fall through to direct edit
+        console.warn('[edit] plan fetch failed — falling through to direct edit')
         void submitEdit(text, { skipPlan: true })
       } finally {
         setBusy(false)
@@ -463,7 +469,7 @@ export default function EditApp() {
     if (inputRef.current) inputRef.current.style.height = 'auto'
     setBusy(true)
     setHint(null)
-    setPlanPending(null)
+    setPendingPlan(null)
 
     try {
       const res = await fetch('/api/edit', {
@@ -1099,7 +1105,7 @@ export default function EditApp() {
                         </div>
                       ) : (
                         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                          {/* Sovereign avatar */}
+                          {/* Visila avatar */}
                           <div style={{
                             width: 22,
                             height: 22,
@@ -1165,31 +1171,36 @@ export default function EditApp() {
                   )}
 
                   {/* Brain hint — ONE per interaction */}
+                  {/* Plan card — shown when plan mode returns a structured plan */}
+                  {pendingPlan && (
+                    <PlanCard
+                      plan={pendingPlan.plan}
+                      onApply={() => {
+                        const instruction = pendingPlan.instruction
+                        setPendingPlan(null)
+                        void submitEdit(instruction, { skipPlan: true })
+                      }}
+                      onCancel={() => setPendingPlan(null)}
+                    />
+                  )}
+
                   {hint && (
                     <HintCard
                       hint={hint}
                       onAction={(action) => {
-                        const wasPlan = planPending !== null
                         setHint(null)
-                        setPlanPending(null)
                         if (action) {
-                          if (wasPlan) {
-                            // Plan "Do it →" — execute directly, skip plan re-check
-                            void submitEdit(action, { skipPlan: true })
-                          } else {
-                            // Brain hint — populate input for user review
-                            setInput(action)
-                            setTimeout(() => {
-                              if (inputRef.current) {
-                                inputRef.current.focus()
-                                inputRef.current.style.height = 'auto'
-                                inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`
-                              }
-                            }, 0)
-                          }
+                          setInput(action)
+                          setTimeout(() => {
+                            if (inputRef.current) {
+                              inputRef.current.focus()
+                              inputRef.current.style.height = 'auto'
+                              inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`
+                            }
+                          }, 0)
                         }
                       }}
-                      onDismiss={() => { setHint(null); setPlanPending(null) }}
+                      onDismiss={() => setHint(null)}
                     />
                   )}
                 </div>
@@ -1236,7 +1247,7 @@ export default function EditApp() {
                     className="ea-textarea"
                     placeholder="What do you want to change..."
                     value={input}
-                    disabled={busy || deploying || planPending !== null}
+                    disabled={busy || deploying || pendingPlan !== null}
                     onChange={(e) => {
                       setInput(e.target.value)
                       e.target.style.height = 'auto'
@@ -1272,16 +1283,33 @@ export default function EditApp() {
                       <button
                         className="ea-btn-green"
                         onClick={() => void submitEdit(input)}
-                        disabled={!input.trim() || busy || deploying || planPending !== null}
+                        disabled={!input.trim() || busy || deploying || pendingPlan !== null}
                       >
-                        {busy ? '…' : 'Update →'}
+                        {busy ? '…' : planMode ? 'Plan →' : 'Update →'}
                       </button>
                     </div>
                   </div>
-                  {/* Row 2: timing hint */}
-                  <p style={{ font: '10px/1 DM Mono, Courier New, monospace', color: t.textDim, margin: '6px 0 0', textAlign: 'right', transition: 'color .15s' }}>
-                    deploys in ~60s
-                  </p>
+                  {/* Row 2: plan toggle + timing hint */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+                    <button
+                      onClick={() => { setPlanMode((p) => !p); setPendingPlan(null) }}
+                      style={{
+                        font: '10px/1 DM Mono, Courier New, monospace',
+                        color: planMode ? '#FF1F6E' : t.textDim,
+                        background: planMode ? 'rgba(255,31,110,0.12)' : 'none',
+                        border: `1px solid ${planMode ? 'rgba(255,31,110,0.3)' : 'transparent'}`,
+                        borderRadius: 10,
+                        padding: '3px 8px',
+                        cursor: 'pointer',
+                        transition: 'all .15s',
+                      }}
+                    >
+                      Plan first {planMode ? 'ON' : 'OFF'}
+                    </button>
+                    <p style={{ font: '10px/1 DM Mono, Courier New, monospace', color: t.textDim, margin: 0, transition: 'color .15s' }}>
+                      deploys in ~60s
+                    </p>
+                  </div>
                 </div>
               </>
             )}
@@ -1816,6 +1844,108 @@ export default function EditApp() {
 }
 
 // ── Brain Hint Card ────────────────────────────────────────────────────────────
+
+function PlanCard({ plan, onApply, onCancel }: {
+  plan: EditPlan
+  onApply: () => void
+  onCancel: () => void
+}) {
+  const riskConfig = {
+    low:    { color: '#22c55e', dot: '#22c55e', label: 'Low impact' },
+    medium: { color: '#eab308', dot: '#eab308', label: 'Multiple files' },
+    high:   { color: '#ef4444', dot: '#ef4444', label: 'Large change \u00b7 version saved' },
+  }
+  const r = riskConfig[plan.risk] ?? riskConfig.medium
+
+  return (
+    <div className="hint-fade" style={{
+      background: '#161514',
+      border: '1px solid #2a2826',
+      borderRadius: 8,
+      padding: '12px 14px',
+      maxWidth: '92%',
+    }}>
+      {/* Header: summary + risk badge */}
+      <p style={{ font: '9px/1 DM Mono, Courier New, monospace', color: '#8a8680', margin: '0 0 8px', letterSpacing: '0.06em' }}>
+        HERE&apos;S WHAT I&apos;LL CHANGE
+      </p>
+      <p style={{ font: '12px/1.5 DM Mono, Courier New, monospace', color: '#d4d0ca', margin: '0 0 6px' }}>
+        {plan.summary}
+      </p>
+
+      {/* Risk badge */}
+      <span style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        font: '11px/1 DM Mono, Courier New, monospace',
+        color: r.color,
+        background: `${r.color}12`,
+        border: `1px solid ${r.color}30`,
+        borderRadius: 10,
+        padding: '3px 8px',
+        marginBottom: 10,
+      }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: r.dot, flexShrink: 0 }} />
+        {r.label}
+      </span>
+
+      {plan.risk === 'high' && (
+        <p style={{ font: '10px/1.4 DM Mono, Courier New, monospace', color: '#8a8680', margin: '0 0 10px' }}>
+          A restore point has been saved. You can <span style={{ textDecoration: 'underline', cursor: 'pointer' }}>revert from history</span> if something breaks.
+        </p>
+      )}
+
+      {/* File changes list */}
+      {plan.changes.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, margin: '0 0 12px' }}>
+          {plan.changes.map((c, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <span style={{ color: '#FF1F6E', flexShrink: 0, fontSize: 10, lineHeight: '16px' }}>{'\u2022'}</span>
+              <div>
+                <span style={{ font: '10px/1.3 DM Mono, Courier New, monospace', color: '#6b6862' }}>{c.file}</span>
+                <br />
+                <span style={{ font: '11px/1.4 DM Mono, Courier New, monospace', color: '#b0aba3' }}>{c.what}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          onClick={onApply}
+          style={{
+            background: '#FF1F6E',
+            color: '#fff',
+            border: 'none',
+            font: '11px/1 DM Mono, Courier New, monospace',
+            padding: '6px 14px',
+            cursor: 'pointer',
+            borderRadius: 4,
+          }}
+        >
+          Apply &rarr;
+        </button>
+        <button
+          onClick={onCancel}
+          style={{
+            background: 'none',
+            border: '1px solid #2a2826',
+            color: '#6b6862',
+            font: '11px/1 DM Mono, Courier New, monospace',
+            padding: '6px 14px',
+            cursor: 'pointer',
+            borderRadius: 4,
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
 
 function HintCard({ hint, onAction, onDismiss }: {
   hint: BrainHint

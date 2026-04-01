@@ -187,7 +187,7 @@ function claimEmailHtml(appName: string, claimedUrl: string): string {
           <!-- Wordmark -->
           <tr>
             <td style="padding:0 0 36px 0;text-align:center;">
-              <span style="font-size:13px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#c8f060;">SOVEREIGN</span>
+              <span style="font-size:13px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#c8f060;">VISILA</span>
             </td>
           </tr>
 
@@ -251,7 +251,7 @@ function claimEmailHtml(appName: string, claimedUrl: string): string {
           <!-- Footer -->
           <tr>
             <td style="text-align:center;">
-              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862;">© 2026 Sovereign &nbsp;·&nbsp; <a href="https://visila.com" style="color:#6b6862;text-decoration:none;">visila.com</a> &nbsp;·&nbsp; Built without permission</p>
+              <p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862;">© 2026 Visila &nbsp;·&nbsp; <a href="https://visila.com" style="color:#6b6862;text-decoration:none;">visila.com</a> &nbsp;·&nbsp; Built without permission</p>
             </td>
           </tr>
 
@@ -403,7 +403,7 @@ export default async function handler(req: any, res: any): Promise<void> {
   const userGithubLogin = String(ghUser.login)
   console.log('[claim-build] GitHub user:', userGithubLogin)
 
-  // ── Step 2: GitHub transfer (only if repo is on a Sovereign org) ──────────
+  // ── Step 2: GitHub transfer (only if repo is on a Visila org) ──────────
   // If SOVEREIGN_GITHUB_ORG is set AND the repo is on that org, transfer it.
   // If the repo is already on the user's account, skip (nothing to transfer).
   let githubTransferStatus = 'skipped_already_owned'

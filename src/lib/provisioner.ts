@@ -1,6 +1,6 @@
 // src/lib/provisioner.ts
 //
-// The Sovereign provisioning engine.
+// The Visila provisioning engine.
 // All four functions are independently callable and fully typed.
 // All tokens are passed as parameters — never pulled from global state.
 // Used by both the web flow and the CLI.
@@ -216,7 +216,7 @@ createRoot(document.getElementById('root')!).render(
       <p style={{ color: '#6b6862', fontSize: '0.875rem' }}>
         Built with{' '}
         <a href="https://visila.com" style={{ color: 'inherit' }}>
-          Sovereign
+          Visila
         </a>{' '}
         — you own everything.
       </p>
@@ -506,9 +506,9 @@ export async function sendWelcomeEmail(
     `Live URL:  ${liveUrl}`,
     `GitHub:    ${repoUrl}`,
     ``,
-    `Sovereign has stepped back. This is yours now.`,
+    `Visila has stepped back. This is yours now.`,
     ``,
-    `— The Sovereign team`,
+    `— The Visila team`,
     `visila.com`,
   ].join('\n')
 

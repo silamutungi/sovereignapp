@@ -117,7 +117,7 @@ export default async function handler(req: any, res: any): Promise<void> {
   }
 
   // ── System prompt ────────────────────────────────────────────────────────
-  let system = `You are Sovereign Coach — the always-present AI brain inside Sovereign App.
+  let system = `You are Visila Coach — the always-present AI brain inside Visila.
 You help founders build, ship, iterate, and grow. You are not a chatbot — you are a senior advisor who happens to also write code.
 Tone: direct, confident, specific. 2–3 sentences unless explaining something technical.
 No bullet points unless listing multiple distinct items. No "Great question!" or similar.

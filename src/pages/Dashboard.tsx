@@ -1,4 +1,4 @@
-// src/pages/Dashboard.tsx — Sovereign Dashboard (Phase 2)
+// src/pages/Dashboard.tsx — Visila Dashboard (Phase 2)
 //
 // Three states:
 //   A — Email gate      (no token, no session)
@@ -1089,7 +1089,7 @@ function AuthDashboard({ email }: { email: string }) {
         </div>
       </div>
 
-      {/* ── Sovereign Coach ──────────────────────────────────────────────── */}
+      {/* ── Visila Coach ──────────────────────────────────────────────── */}
       {activeIntervention && (
         <div
           style={{
@@ -1668,7 +1668,7 @@ function AppCard({
         {/* Confidence score badge */}
         {build.status === 'complete' && build.confidence_score !== null && (
           <span
-            title={`Sovereign Standards score: ${build.confidence_score}/100`}
+            title={`Visila Standards score: ${build.confidence_score}/100`}
             style={{
               marginLeft: 'auto',
               font: '11px/1 DM Mono, Courier New, monospace',
@@ -1734,8 +1734,8 @@ function AppCard({
       )}
 
       {/* Setup DB chip — only for builds the user must configure themselves.
-          Sovereign-hosted builds (sovereign / sovereign_temporary) already have
-          the schema running on Sovereign's DB — nothing for the user to do. */}
+          Visila-hosted builds (sovereign / sovereign_temporary) already have
+          the schema running on Visila's DB — nothing for the user to do. */}
       {build.supabase_schema && !build.claimed_at && (build.supabase_mode == null || build.supabase_mode === 'own') && (
         <button
           onClick={() => setSetupOpen(true)}
