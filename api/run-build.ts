@@ -821,11 +821,12 @@ async function injectVercelEnvVars(
     const body = await res.text().catch(() => '')
     // Handle ENV_CONFLICT: vars already exist, patch them with correct values
     if (res.status === 400) {
-      let parsed: { error?: { code?: string }; failed?: Array<{ key: string }> } | null = null
+      let parsed: { error?: { code?: string }; failed?: Array<{ error?: { code?: string; envVarKey?: string } }> } | null = null
       try { parsed = JSON.parse(body) } catch { /* not JSON */ }
       if (parsed?.error?.code === 'ENV_CONFLICT') {
-        const conflictingKeys = (parsed.failed ?? []).map(f => f.key)
-        // If no failed array, assume all keys conflicted
+        const conflictingKeys = (parsed.failed ?? []).map(f => f.error?.envVarKey).filter((k): k is string => !!k)
+        console.log('[run-build] ENV_CONFLICT keys to patch:', conflictingKeys)
+        // If no failed array or no envVarKey fields, assume all keys conflicted
         const keysToPatch = conflictingKeys.length > 0 ? conflictingKeys : keys
         console.log('[run-build] injectVercelEnvVars: ENV_CONFLICT for keys:', keysToPatch, '— patching existing vars')
 
