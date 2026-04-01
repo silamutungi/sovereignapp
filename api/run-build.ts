@@ -851,6 +851,7 @@ async function injectVercelEnvVars(
               console.warn('[run-build] injectVercelEnvVars: no value for conflicting key:', keyToPatch)
               continue
             }
+            console.log('[run-build] injectVercelEnvVars: patching', keyToPatch, '— value length:', newValue?.length ?? 0)
             const patchRes = await fetchWithTimeout(
               `https://api.vercel.com/v9/projects/${encodeURIComponent(projectId)}/env/${encodeURIComponent(envVarId)}${teamQ}`,
               {
@@ -866,6 +867,7 @@ async function injectVercelEnvVars(
               },
               NET,
             )
+            console.log('[run-build] injectVercelEnvVars: PATCH response', keyToPatch, patchRes.status)
             if (patchRes.ok) {
               console.log('[run-build] injectVercelEnvVars: patched existing var', keyToPatch)
             } else {
@@ -879,6 +881,7 @@ async function injectVercelEnvVars(
         }
         // Do NOT return — fall through to verify step
       } else {
+        // 400 but not ENV_CONFLICT, or non-400 error — log and bail
         console.error('[run-build] injectVercelEnvVars FAILED:', res.status, body, '— projectId:', projectId, 'teamId:', teamId ?? 'MISSING', 'keys:', keys)
         return
       }
