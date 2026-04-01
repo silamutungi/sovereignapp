@@ -456,13 +456,27 @@ async function pushFilesToGitHub(
   // calls would race and conflict.
   for (const [filePath, content] of Object.entries(files)) {
     console.log('[run-build] GitHub: pushing', filePath)
+
+    // Check if file already exists — GitHub requires sha to update existing files.
+    // This handles retries/partial pushes where some files landed before a failure.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const putBody: Record<string, any> = {
+      message: `Add ${filePath}`,
+      content: toBase64(content),
+    }
+    const existing = await ghFetch(
+      `/repos/${owner}/${projectName}/contents/${filePath}`,
+      token, 'GET',
+    )
+    if (existing.ok && typeof existing.data.sha === 'string') {
+      putBody.sha = existing.data.sha
+      console.log('[run-build] GitHub: file exists, updating with sha', (existing.data.sha as string).slice(0, 7))
+    }
+
     const { ok, data } = await ghFetch(
       `/repos/${owner}/${projectName}/contents/${filePath}`,
       token, 'PUT',
-      {
-        message: `Add ${filePath}`,
-        content: toBase64(content),
-      },
+      putBody,
     )
     if (!ok) {
       return { ok: false, error: `Failed to push ${filePath}: ${String(data.message ?? JSON.stringify(data))}` }
