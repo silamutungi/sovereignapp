@@ -327,17 +327,18 @@ function buildAllFiles(
 
   files['vercel.json'] = JSON.stringify(
     {
-      rewrites: [{ source: '/((?!api/).*)', destination: '/index.html' }],
+      rewrites: [{ source: '/((?!assets/).*)', destination: '/index.html' }],
       headers: [
         {
           source: '/(.*)',
           headers: [
+            { key: 'X-Frame-Options', value: 'ALLOWALL' },
             { key: 'X-Content-Type-Options', value: 'nosniff' },
             { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
             { key: 'Permissions-Policy', value: 'camera=(), geolocation=()' },
             {
               key: 'Content-Security-Policy',
-              value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors 'self' https://visila.com",
+              value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors *",
             },
           ],
         },
@@ -818,10 +819,76 @@ async function injectVercelEnvVars(
   )
   if (!res.ok) {
     const body = await res.text().catch(() => '')
-    console.error('[run-build] injectVercelEnvVars FAILED:', res.status, body, '— projectId:', projectId, 'teamId:', teamId ?? 'MISSING', 'keys:', keys)
-    return
+    // Handle ENV_CONFLICT: vars already exist, patch them with correct values
+    if (res.status === 400) {
+      let parsed: { error?: { code?: string }; failed?: Array<{ key: string }> } | null = null
+      try { parsed = JSON.parse(body) } catch { /* not JSON */ }
+      if (parsed?.error?.code === 'ENV_CONFLICT') {
+        const conflictingKeys = (parsed.failed ?? []).map(f => f.key)
+        // If no failed array, assume all keys conflicted
+        const keysToPatch = conflictingKeys.length > 0 ? conflictingKeys : keys
+        console.log('[run-build] injectVercelEnvVars: ENV_CONFLICT for keys:', keysToPatch, '— patching existing vars')
+
+        // Fetch current env vars to get IDs
+        const listRes = await fetchWithTimeout(
+          `https://api.vercel.com/v9/projects/${encodeURIComponent(projectId)}/env${teamQ}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+          NET,
+        )
+        if (listRes.ok) {
+          const listData = await listRes.json() as { envs?: Array<{ id: string; key: string }> }
+          const existingEnvs = listData.envs ?? []
+
+          for (const keyToPatch of keysToPatch) {
+            const entry = existingEnvs.find(e => e.key === keyToPatch)
+            if (!entry) {
+              console.warn('[run-build] injectVercelEnvVars: could not find envVarId for key:', keyToPatch)
+              continue
+            }
+            const envVarId = entry.id
+            const newValue = vars.find(v => v.key === keyToPatch)?.value
+            if (!newValue) {
+              console.warn('[run-build] injectVercelEnvVars: no value for conflicting key:', keyToPatch)
+              continue
+            }
+            const patchRes = await fetchWithTimeout(
+              `https://api.vercel.com/v9/projects/${encodeURIComponent(projectId)}/env/${encodeURIComponent(envVarId)}${teamQ}`,
+              {
+                method: 'PATCH',
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  value: newValue,
+                  target: ['production', 'preview', 'development'],
+                }),
+              },
+              NET,
+            )
+            if (patchRes.ok) {
+              console.log('[run-build] injectVercelEnvVars: patched existing var', keyToPatch)
+            } else {
+              const patchBody = await patchRes.text().catch(() => '')
+              console.error('[run-build] injectVercelEnvVars: PATCH failed for', keyToPatch, patchRes.status, patchBody)
+            }
+          }
+          console.log('[run-build] injectVercelEnvVars: all vars resolved')
+        } else {
+          console.error('[run-build] injectVercelEnvVars: failed to list env vars for patching:', listRes.status)
+        }
+        // Do NOT return — fall through to verify step
+      } else {
+        console.error('[run-build] injectVercelEnvVars FAILED:', res.status, body, '— projectId:', projectId, 'teamId:', teamId ?? 'MISSING', 'keys:', keys)
+        return
+      }
+    } else {
+      console.error('[run-build] injectVercelEnvVars FAILED:', res.status, body, '— projectId:', projectId, 'teamId:', teamId ?? 'MISSING', 'keys:', keys)
+      return
+    }
+  } else {
+    console.log('[run-build] injectVercelEnvVars OK — injected:', keys.join(', '))
   }
-  console.log('[run-build] injectVercelEnvVars OK — injected:', keys.join(', '))
 
   // Verify the vars actually landed — a 200 from the POST doesn't guarantee
   // the correct teamId was used. A missing teamId causes the project to be
