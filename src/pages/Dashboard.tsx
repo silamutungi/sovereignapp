@@ -71,6 +71,14 @@ function EmailGate({ onVerified }: { onVerified: (email: string) => void }) {
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Email update flow
+  const [showUpdateForm, setShowUpdateForm] = useState(false)
+  const [currentEmail, setCurrentEmail] = useState('')
+  const [newEmail, setNewEmail] = useState('')
+  const [updateLoading, setUpdateLoading] = useState(false)
+  const [updateSent, setUpdateSent] = useState(false)
+  const [updateError, setUpdateError] = useState<string | null>(null)
+
   const handleSubmit = useCallback(
     async (e: FormEvent) => {
       e.preventDefault()
@@ -95,6 +103,37 @@ function EmailGate({ onVerified }: { onVerified: (email: string) => void }) {
       }
     },
     [email],
+  )
+
+  const handleUpdateEmail = useCallback(
+    async (e: FormEvent) => {
+      e.preventDefault()
+      setUpdateError(null)
+      setUpdateLoading(true)
+      try {
+        // Step 1: send a magic link to the CURRENT email to verify ownership
+        // The link will include ?newEmail= so the landing page triggers the update
+        const res = await fetch('/api/auth/magic-link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: currentEmail.trim().toLowerCase(),
+            newEmail: newEmail.trim().toLowerCase(),
+          }),
+        })
+        if (!res.ok) {
+          const data = (await res.json()) as { error?: string }
+          setUpdateError(data.error ?? 'Something went wrong. Please try again.')
+          return
+        }
+        setUpdateSent(true)
+      } catch {
+        setUpdateError('Network error. Please try again.')
+      } finally {
+        setUpdateLoading(false)
+      }
+    },
+    [currentEmail, newEmail],
   )
 
   void onVerified // used by parent when token verifies
@@ -288,6 +327,210 @@ function EmailGate({ onVerified }: { onVerified: (email: string) => void }) {
                 </button>
               </form>
             )}
+
+            {/* Wrong email? — update email flow */}
+            {!sent && !showUpdateForm && (
+              <button
+                onClick={() => {
+                  setShowUpdateForm(true)
+                  setCurrentEmail(email)
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#FF1F6E',
+                  cursor: 'pointer',
+                  font: '12px/1 DM Mono, Courier New, monospace',
+                  padding: 0,
+                  marginTop: '16px',
+                  display: 'block',
+                }}
+              >
+                Wrong email? Update it →
+              </button>
+            )}
+
+            {showUpdateForm && !updateSent && (
+              <div
+                style={{
+                  marginTop: '24px',
+                  padding: '20px',
+                  border: '1px solid #d8d4ca',
+                  background: 'white',
+                }}
+              >
+                <p
+                  style={{
+                    font: '11px/1 DM Mono, Courier New, monospace',
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    color: '#6b6862',
+                    margin: '0 0 16px',
+                  }}
+                >
+                  Update your email
+                </p>
+                <form onSubmit={(e) => { void handleUpdateEmail(e) }} noValidate>
+                  <label
+                    htmlFor="current-email"
+                    style={{
+                      display: 'block',
+                      font: '11px/1 DM Mono, Courier New, monospace',
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                      color: '#6b6862',
+                      margin: '0 0 6px',
+                    }}
+                  >
+                    Current email
+                  </label>
+                  <input
+                    id="current-email"
+                    type="email"
+                    value={currentEmail}
+                    onChange={(e) => setCurrentEmail(e.target.value)}
+                    placeholder="old@email.com"
+                    autoComplete="email"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      font: '13px/1 DM Mono, Courier New, monospace',
+                      border: '1px solid #d8d4ca',
+                      background: '#f2efe8',
+                      color: '#0e0d0b',
+                      display: 'block',
+                      boxSizing: 'border-box',
+                    }}
+                    onFocus={(e) => (e.target.style.borderColor = '#0e0d0b')}
+                    onBlur={(e) => (e.target.style.borderColor = '#d8d4ca')}
+                  />
+                  <label
+                    htmlFor="new-email"
+                    style={{
+                      display: 'block',
+                      font: '11px/1 DM Mono, Courier New, monospace',
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                      color: '#6b6862',
+                      margin: '12px 0 6px',
+                    }}
+                  >
+                    New email
+                  </label>
+                  <input
+                    id="new-email"
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder="new@email.com"
+                    autoComplete="email"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      font: '13px/1 DM Mono, Courier New, monospace',
+                      border: '1px solid #d8d4ca',
+                      background: '#f2efe8',
+                      color: '#0e0d0b',
+                      display: 'block',
+                      boxSizing: 'border-box',
+                    }}
+                    onFocus={(e) => (e.target.style.borderColor = '#0e0d0b')}
+                    onBlur={(e) => (e.target.style.borderColor = '#d8d4ca')}
+                  />
+                  {updateError && (
+                    <p
+                      role="alert"
+                      style={{
+                        font: '12px/1 DM Mono, Courier New, monospace',
+                        color: '#c0392b',
+                        margin: '8px 0 0',
+                      }}
+                    >
+                      {updateError}
+                    </p>
+                  )}
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                    <button
+                      type="submit"
+                      disabled={updateLoading || !currentEmail.trim() || !newEmail.trim()}
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        background: '#0e0d0b',
+                        color: '#f2efe8',
+                        font: '12px/1 DM Mono, Courier New, monospace',
+                        border: 'none',
+                        cursor: updateLoading ? 'default' : 'pointer',
+                        opacity: updateLoading || !currentEmail.trim() || !newEmail.trim() ? 0.6 : 1,
+                      }}
+                    >
+                      {updateLoading ? 'Sending…' : 'Send update link →'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowUpdateForm(false)
+                        setUpdateError(null)
+                      }}
+                      style={{
+                        padding: '12px 16px',
+                        background: 'none',
+                        color: '#6b6862',
+                        font: '12px/1 DM Mono, Courier New, monospace',
+                        border: '1px solid #d8d4ca',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {updateSent && (
+              <div
+                style={{
+                  marginTop: '24px',
+                  padding: '20px',
+                  border: '1px solid #d8d4ca',
+                  background: 'white',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span
+                    style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: '#FF1F6E',
+                      flexShrink: 0,
+                      animation: 'pulse 1.4s infinite',
+                    }}
+                  />
+                  <p
+                    style={{
+                      font: '13px/1.5 DM Mono, Courier New, monospace',
+                      color: '#0e0d0b',
+                      margin: 0,
+                    }}
+                  >
+                    Check your inbox at <strong>{currentEmail}</strong> to confirm the change.
+                  </p>
+                </div>
+                <p
+                  style={{
+                    font: '12px/1.5 DM Mono, Courier New, monospace',
+                    color: '#6b6862',
+                    margin: '8px 0 0',
+                  }}
+                >
+                  Click the link in that email to update to <strong>{newEmail}</strong>.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -299,9 +542,11 @@ function EmailGate({ onVerified }: { onVerified: (email: string) => void }) {
 
 function TokenVerify({
   token,
+  newEmail,
   onSuccess,
 }: {
   token: string
+  newEmail?: string | null
   onSuccess: (email: string) => void
 }) {
   const navigate = useNavigate()
@@ -311,6 +556,30 @@ function TokenVerify({
   useEffect(() => {
     if (didVerify.current) return
     didVerify.current = true
+
+    // If newEmail is present, this is an email update flow
+    if (newEmail) {
+      fetch('/api/auth/update-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, newEmail }),
+      })
+        .then(async (res) => {
+          const data = (await res.json()) as { success?: boolean; error?: string }
+          if (!res.ok || !data.success) {
+            setVerifyError(data.error ?? 'Could not update your email. Please try again.')
+            return
+          }
+          // Clear old session — user must log in again with new email
+          sessionStorage.removeItem('sovereign_user')
+          window.history.replaceState({}, '', '/dashboard')
+          setVerifyError('__update_success__')
+        })
+        .catch(() => {
+          setVerifyError('Network error. Please try again.')
+        })
+      return
+    }
 
     fetch(`/api/auth/verify-token?token=${encodeURIComponent(token)}`)
       .then(async (res) => {
@@ -329,9 +598,67 @@ function TokenVerify({
       .catch(() => {
         setVerifyError('Network error. Please try again.')
       })
-  }, [token, onSuccess])
+  }, [token, newEmail, onSuccess])
 
   if (verifyError) {
+    // Email update success — show confirmation and redirect to login
+    if (verifyError === '__update_success__') {
+      return (
+        <>
+          <style>{`* { box-sizing: border-box; }`}</style>
+          <div
+            style={{
+              minHeight: '100vh',
+              background: '#f2efe8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '40px 24px',
+            }}
+          >
+            <div style={{ maxWidth: '440px', width: '100%' }}>
+              <div style={{ marginBottom: '32px' }}>
+                <VisilaLogo size="sm" />
+              </div>
+              <h2
+                style={{
+                  fontFamily: "'Playfair Display', Georgia, serif",
+                  fontSize: '24px',
+                  fontWeight: 400,
+                  color: '#0e0d0b',
+                  margin: '0 0 12px',
+                }}
+              >
+                Email updated
+              </h2>
+              <p
+                style={{
+                  font: '13px/1.6 DM Mono, Courier New, monospace',
+                  color: '#6b6862',
+                  margin: '0 0 24px',
+                }}
+              >
+                Check your new inbox for a fresh login link.
+              </p>
+              <button
+                onClick={() => navigate('/dashboard')}
+                style={{
+                  padding: '12px 24px',
+                  background: '#0e0d0b',
+                  color: '#f2efe8',
+                  border: 'none',
+                  cursor: 'pointer',
+                  font: '13px/1 DM Mono, Courier New, monospace',
+                }}
+              >
+                Back to login →
+              </button>
+            </div>
+          </div>
+        </>
+      )
+    }
+
     const alreadyUsed = verifyError.includes('already been used')
     const expired = verifyError.includes('expired')
 
@@ -1684,6 +2011,7 @@ function AppCard({
 export default function Dashboard() {
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
+  const newEmail = searchParams.get('newEmail')
 
   // Determine initial state
   const session = getSession()
@@ -1699,7 +2027,7 @@ export default function Dashboard() {
   }, [])
 
   if (state === 'verify' && token) {
-    return <TokenVerify token={token} onSuccess={handleVerifySuccess} />
+    return <TokenVerify token={token} newEmail={newEmail} onSuccess={handleVerifySuccess} />
   }
 
   if (state === 'auth' && authEmail) {

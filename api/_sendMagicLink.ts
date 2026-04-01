@@ -17,18 +17,19 @@ function getSupabase() {
   return createClient(url, key)
 }
 
-function getDashboardUrl(token: string): string {
+function getDashboardUrl(token: string, newEmail?: string): string {
+  const suffix = newEmail ? `&newEmail=${encodeURIComponent(newEmail)}` : ''
   if (process.env.VERCEL_ENV === 'production') {
-    return `https://visila.com/dashboard?token=${token}`
+    return `https://visila.com/dashboard?token=${token}${suffix}`
   }
   const base =
     process.env.VERCEL_ENV === 'preview'
       ? `https://${process.env.VERCEL_URL ?? 'visila.vercel.app'}`
       : `http://localhost:${process.env.PORT ?? 5173}`
-  return `${base}/dashboard?token=${token}`
+  return `${base}/dashboard?token=${token}${suffix}`
 }
 
-export async function sendMagicLink(email: string): Promise<void> {
+export async function sendMagicLink(email: string, newEmail?: string): Promise<void> {
   const token =
     crypto.randomUUID().replace(/-/g, '') +
     crypto.randomUUID().replace(/-/g, '')
@@ -55,10 +56,22 @@ export async function sendMagicLink(email: string): Promise<void> {
 
   console.log('[sendMagicLink] DB insert succeeded, sending email to:', email)
 
-  const dashboardUrl = getDashboardUrl(token)
+  const dashboardUrl = getDashboardUrl(token, newEmail)
 
   const resendKey = process.env.RESEND_API_KEY
   if (!resendKey) throw new Error('RESEND_API_KEY is not set')
+
+  const isUpdateEmail = !!newEmail
+  const subject = isUpdateEmail
+    ? 'Confirm your Visila email change'
+    : 'Your Visila dashboard link'
+  const heading = isUpdateEmail
+    ? 'Confirm your<br>email change.'
+    : "Here's your<br>dashboard link."
+  const body = isUpdateEmail
+    ? `Click below to confirm changing your email to <strong>${newEmail}</strong>.`
+    : 'Click below to access your Visila dashboard and manage all your apps.'
+  const cta = isUpdateEmail ? 'Confirm email change →' : 'Open my dashboard →'
 
   const emailRes = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -67,9 +80,9 @@ export async function sendMagicLink(email: string): Promise<void> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'Visila <noreply@visila.com>',
+      from: 'Visila <hello@visila.com>',
       to: [email],
-      subject: 'Your Visila dashboard link',
+      subject,
       html: `<!DOCTYPE html>
 <html>
 <head>
@@ -87,18 +100,18 @@ export async function sendMagicLink(email: string): Promise<void> {
         </td></tr>
         <tr><td style="padding-bottom:24px;">
           <h1 style="margin:0;font-family:Georgia,serif;font-size:32px;font-weight:400;color:#f2efe8;line-height:1.2;">
-            Here's your<br>dashboard link.
+            ${heading}
           </h1>
         </td></tr>
         <tr><td style="padding-bottom:32px;">
           <p style="margin:0;font-size:15px;color:#c8c4bc;line-height:1.6;">
-            Click below to access your Visila dashboard and manage all your apps.
+            ${body}
           </p>
         </td></tr>
         <tr><td style="padding-bottom:32px;">
           <a href="${dashboardUrl}"
             style="display:inline-block;background:#FF1F6E;color:#0e0d0b;padding:16px 32px;font-size:14px;font-weight:500;text-decoration:none;font-family:'Courier New',monospace;">
-            Open my dashboard →
+            ${cta}
           </a>
         </td></tr>
         <tr><td>

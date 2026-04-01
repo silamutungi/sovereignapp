@@ -35,7 +35,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     return
   }
 
-  const { email } = (req.body ?? {}) as Record<string, unknown>
+  const { email, newEmail } = (req.body ?? {}) as Record<string, unknown>
 
   if (!email || typeof email !== 'string') {
     res.status(400).json({ error: 'Email is required' })
@@ -48,8 +48,15 @@ export default async function handler(req: any, res: any): Promise<void> {
     return
   }
 
+  // Validate newEmail if provided (email update flow)
+  const trimmedNewEmail = typeof newEmail === 'string' ? newEmail.trim().toLowerCase() : undefined
+  if (trimmedNewEmail && !emailRegex.test(trimmedNewEmail)) {
+    res.status(400).json({ error: 'Please enter a valid new email address' })
+    return
+  }
+
   try {
-    await sendMagicLink(email.trim().toLowerCase())
+    await sendMagicLink(email.trim().toLowerCase(), trimmedNewEmail)
     // Always return success — never confirm or deny whether an email exists
     res.status(200).json({ success: true })
   } catch (err) {

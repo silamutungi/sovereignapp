@@ -992,6 +992,22 @@ WHERE table_name = 'builds' AND column_name IN ('staging', 'claimed_at', 'expire
 ```
 Must return 3 rows.
 
+## Admin: Email Update for Locked-Out Users
+
+For users where the current email is also inaccessible (e.g. lost access to the inbox), an admin can update the email directly in the Supabase SQL Editor:
+
+```sql
+-- Step 1: update the email
+UPDATE builds SET email = 'new@email.com' WHERE email = 'old@email.com';
+
+-- Step 2: invalidate all old magic links so they cannot be reused
+UPDATE magic_links SET deleted_at = now() WHERE email = 'old@email.com' AND deleted_at IS NULL;
+
+-- Step 3: ask the user to request a new magic link at /dashboard with their new email
+```
+
+This is a manual admin-only escape hatch. The self-service flow is POST /api/auth/update-email (requires a valid magic link token from the current email).
+
 **Vercel SSO protection is enabled by default on all team projects — breaks all iframe previews**
 Wrong assumption: creating a Vercel project on a team with SSO configured produces a publicly accessible URL.
 Correct behaviour: Vercel enables `ssoProtection` by default on every project in a team that has SSO configured. Every preview URL requires a Vercel login — the iframe in the Visila dashboard shows a blank screen with no obvious error.
@@ -1134,6 +1150,12 @@ Learned: 2026-03-28.
 Added staging and claimed_at to the Supabase select query and the response JSON. Required for the EditApp top bar to show the "Claim →" button correctly (only when staging=true AND claimed_at is null).
 Learned: 2026-03-28.
 
+**Edit engine silent failure — "Done." returned when nothing actually changed**
+Wrong assumption: if the edit pipeline runs without errors, the edit succeeded.
+Correct behaviour: Sonnet can return an empty object `{}` (multi-file path) or identical file content (single-file path). Both produce a commit with 0 files in the diff. The user sees "Done." but nothing changed — no error, no feedback, no clue what went wrong.
+Fix: three guards added to `api/edit.ts`: (1) multi-file path already skips commit when `entries.length === 0`; (2) single-file path now compares `updatedContent === targetFile.content` and skips the push if identical; (3) empty edit guard before Vercel redeploy checks `commitSha === null` and returns `"I couldn't find what needed changing. Could you be more specific?"` instead of `ok: true`. The user is never told "Done." when nothing changed.
+Learned: 2026-03-31.
+
 **SSO protection must be disabled immediately after Vercel project creation — correct endpoint is v1/projects/{id}/protection-bypass**
 Wrong assumption: `PATCH /v9/projects/{id}` with `{ ssoProtection: null }` is the correct endpoint to disable SSO protection.
 Correct behaviour: the endpoint that actually controls protection bypass is `PATCH /v1/projects/{projectId}/protection-bypass`. Using the v9 projects endpoint does not reliably disable SSO and preview iframes remain blank.
@@ -1154,3 +1176,67 @@ Fix: vercel.json is non-negotiable in the scaffold. Required content:
 ```
 Never remove vercel.json from the scaffold. Never skip it. It must be in the initial commit alongside the other 5 programmatic files.
 Learned: 2026-03-30.
+
+**Plan mode: action="plan" uses Haiku only — no file content fetching, no Sonnet, no commits**
+Wrong assumption: the edit engine should execute immediately on every instruction.
+Correct behaviour: when plan mode is ON, POST /api/edit?plan=true sends the file tree + instruction to Haiku and returns a structured plan ({ summary, files, changes, risk }) in under 2 seconds. The plan is display-only — the actual edit engine re-identifies files independently when the user clicks "Apply →". Risk levels: low (1 file, cosmetic), medium (2-3 files or logic change), high (4+ files or routing/auth/schema).
+Rule: never skip the CSS variable rule in plans — always update src/index.css custom properties instead of hardcoding hex values inline. The plan endpoint must never call Sonnet, fetch file contents, or make any commits.
+Learned: 2026-03-31.
+
+---
+
+## Scaffold Quality Standards (from JuaPath Migration Audit, March 2026)
+
+These rules must be enforced in every generated app template and every Visila API file. They are derived from real production failures documented during a full Lovable → self-hosted migration.
+
+### Deployment
+
+- **DEPLOY-1:** vercel.json must include the SPA rewrite rule at project scaffold time:
+  `{"source": "/((?!assets/).*)", "destination": "/index.html"}`
+  Without this, every route except `/` returns 404. This must be present alongside the existing X-Frame-Options headers.
+
+- **DEPLOY-2:** Supabase returns HTTP 200 with an empty array `[]` for failed inserts when `Prefer: count=exact` is not set. Never trust HTTP status to confirm a write succeeded. Always verify with an explicit row count check on the response body.
+
+- **DEPLOY-3:** Batch size ceiling for any Supabase REST API write operation: 200–250 rows per call. Above this, Supabase edge functions time out at 150s, return HTTP 200 before dying, and report success while only 60–80% of rows were inserted.
+
+### React Patterns
+
+- **REACT-1:** Supabase realtime subscriptions must call `.on()` BEFORE `.subscribe()`. The reversed order works on Chrome desktop but silently fails on Safari and all mobile browsers. Test every realtime feature on Safari before shipping.
+
+- **REACT-2:** Realtime hooks that may mount in multiple components simultaneously must use module-level singleton maps — not `useRef`. Pattern: `activeChannels: Map<string, RealtimeChannel>` and `channelRefCounts: Map<string, number>` at module scope with `getOrCreateChannel()` and `releaseChannel()` functions. `useRef` is per-instance and cannot prevent duplicate subscriptions across components.
+
+- **REACT-3:** Never call `navigate()` in the render body. React Router v6 silently drops navigation calls made during render. All `navigate()` calls must be inside `useEffect`, event handlers, or callbacks.
+
+- **REACT-4:** Never put state values in `useCallback` dependency arrays when a `useRef` already tracks that value. Use the ref inside the callback instead. State values in deps cause stale closure capture — the most common source of silent bugs in event-driven and audio/voice features.
+
+### Deno / Edge Functions
+
+- **DENO-1:** Always pad base64url strings before calling `atob()` in Deno edge functions. Unpadded base64url causes `DOMException` that silently falls through to anonymous access:
+```ts
+  const pad = (s: string) => s + '='.repeat((4 - s.length % 4) % 4);
+```
+  Include this utility in every edge function template.
+
+- **DENO-2:** JWT decode failures must fall through to anonymous access — never return 401. Reserve 401 for explicit authentication failures only. Returning 401 on decode failure breaks anonymous users who have valid sessions.
+
+- **DENO-3:** Edge functions that serve anonymous users must be deployed with `--no-verify-jwt` and implement their own auth/rate-limiting logic. Document which functions are open vs protected.
+
+### Database
+
+- **DB-1:** Generate a `schema.md` file at scaffold time listing exact table names, column names, and types for every table. AI agents must read this file before writing any query. Never infer column names — silent empty result sets from wrong column names are invisible for months.
+
+- **DB-2:** Use `uuid` type consistently across all id columns. Mixed `text` and `uuid` types on foreign keys cause silent join failures that require manual casting.
+
+- **DB-3:** SQL editor is for read-only diagnostics only. All data modifications must use the Supabase REST API with the service role key in both `apikey` and `Authorization` headers.
+
+### Content & Taxonomy (for generated apps with content layers)
+
+- **CONTENT-1:** For any app with categories, tags, or taxonomies — scaffold a `src/constants/taxonomy.ts` at build time with the user-defined canonical values. Generated code must import from this file. Free-form string generation produces fragmentation that is weeks of work to retroactively fix.
+
+- **CONTENT-2:** Define any content hierarchy (categories, tiers, regions) in CLAUDE.md before generating any content. Retroactive retagging at scale is not recoverable without weeks of manual work.
+
+**Vercel ENV_CONFLICT detection — check failed[] array, not top-level error.code**
+Wrong assumption: the Vercel API returns `error.code === 'ENV_CONFLICT'` at the top level of the 400 response body.
+Correct behaviour: the top-level `error.code` is always `'BAD_REQUEST'` on 400 responses. The `ENV_CONFLICT` code is nested inside the `failed[]` array at `failed[].error.code`. Each entry also carries `failed[].error.envVarKey` with the conflicting key name.
+Fix: never check `parsed?.error?.code === 'ENV_CONFLICT'`. Always scan `parsed?.failed?.some(f => f?.error?.code === 'ENV_CONFLICT')`. Extract key names with `parsed.failed.map(f => f.error?.envVarKey)`.
+Learned: 2026-03-31.
