@@ -827,7 +827,7 @@ async function injectVercelEnvVars(
         (f: any) => f?.error?.code === 'ENV_CONFLICT'
       )
       if (hasEnvConflict) {
-        const conflictingKeys = (parsed.failed ?? []).map(f => f.error?.envVarKey).filter((k): k is string => !!k)
+        const conflictingKeys = (parsed?.failed ?? []).map((f: any) => f.error?.envVarKey).filter((k: any): k is string => !!k)
         console.log('[run-build] ENV_CONFLICT keys to patch:', conflictingKeys)
         // If no failed array or no envVarKey fields, assume all keys conflicted
         const keysToPatch = conflictingKeys.length > 0 ? conflictingKeys : keys
@@ -999,7 +999,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     }
 
     const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ?? 'unknown'
-    const rl = checkRateLimit(`run-build:${ip}`, 10, 60 * 60 * 1000)
+    const rl = checkRateLimit(`run-build:${ip}`, 10, 5 * 60 * 1000)
     if (!rl.allowed) {
       res.setHeader('Retry-After', String(rl.retryAfter ?? 3600))
       res.status(429).json({ error: `Too many requests. Retry after ${rl.retryAfter ?? 3600}s.` })

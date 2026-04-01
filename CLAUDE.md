@@ -1238,5 +1238,11 @@ These rules must be enforced in every generated app template and every Visila AP
 **Vercel ENV_CONFLICT detection — check failed[] array, not top-level error.code**
 Wrong assumption: the Vercel API returns `error.code === 'ENV_CONFLICT'` at the top level of the 400 response body.
 Correct behaviour: the top-level `error.code` is always `'BAD_REQUEST'` on 400 responses. The `ENV_CONFLICT` code is nested inside the `failed[]` array at `failed[].error.code`. Each entry also carries `failed[].error.envVarKey` with the conflicting key name.
-Fix: never check `parsed?.error?.code === 'ENV_CONFLICT'`. Always scan `parsed?.failed?.some(f => f?.error?.code === 'ENV_CONFLICT')`. Extract key names with `parsed.failed.map(f => f.error?.envVarKey)`.
+Fix: never check `parsed?.error?.code === 'ENV_CONFLICT'`. Always scan `parsed?.failed?.some(f => f?.error?.code === 'ENV_CONFLICT')`. Extract key names with `parsed?.failed?.map(f => f.error?.envVarKey)` — always use `?.` on `parsed` since it is typed as nullable after JSON.parse.
 Learned: 2026-03-31.
+
+**TS18047 — parsed possibly null in ENV_CONFLICT check**
+Location: api/run-build.ts, injectVercelEnvVars.
+Cause: `parsed` typed as `... | null` after JSON.parse. Inside the `if (hasEnvConflict)` block, `parsed.failed` accessed without optional chaining fails TypeScript strict mode (TS18047: parsed is possibly null).
+Fix: `(parsed?.failed ?? []).map((f: any) => f.error?.envVarKey)` — always optional-chain `parsed` even after a truthy guard on a derived value.
+Learned: 2026-04-01.
