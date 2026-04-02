@@ -796,6 +796,7 @@ This is not a landing page generator. Founders receiving Visila-generated apps s
 - npm run build exits 0 ✓
 - No console errors on page load ✓
 - Every page works at 375px mobile ✓
+- Responsive nav on every page: desktop inline links, mobile hamburger + full-screen drawer (Paper bg, Ink links, Flame active) ✓
 - Loading states on every async operation ✓
 - Error states with recovery actions on every async operation ✓
 - Empty states with helpful copy and a primary action ✓
@@ -1264,3 +1265,10 @@ Learned: 2026-04-01.
 - Wired in run-build.ts after design audit, before marking complete
 - Wired in edit.ts after successful response when commitSha is non-null
 Decided: 2026-04-01.
+
+**Closures do not inherit TypeScript type narrowing from early returns (TS18048)**
+Wrong assumption: if a variable is narrowed by `if (!x) return` above a closure, the closure inherits the narrowed type.
+Correct behaviour: TypeScript treats closures as callable at any time — they do not inherit narrowing from the enclosing scope's control flow. `const chef = list.find(...)` stays `T | undefined` inside event handlers and callbacks even after an early-return guard.
+Fix: re-check inside the closure (`if (!chef) return`) or use non-null assertion (`chef!.name`) when the guard is guaranteed. Rule added to TYPESCRIPT BUILD RULES in `_systemPrompt.ts` so generated apps avoid this pattern.
+Triage: → CLAUDE.md ✓ → Generation prompt (_systemPrompt.ts) ✓
+Learned: 2026-04-01.

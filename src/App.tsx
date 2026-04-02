@@ -52,18 +52,68 @@ function LangBar({ locale, setLocale }: { locale: Locale; setLocale: (l: Locale)
 
 // ── Nav ──────────────────────────────────────────────────────────────────────
 function Nav({ locale }: { locale: Locale }) {
+  const [drawerOpen, setDrawerOpen] = useState(false)
+
+  useEffect(() => {
+    if (drawerOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [drawerOpen])
+
   return (
     <header>
       <nav className="nav" aria-label="Main navigation">
         <a href="/" className="logo" aria-label="Visila home">
           <VisilaLogo size="sm" />
         </a>
-        {/* FIX 3 — nav: logo | How it works · Dashboard only */}
-        <div className="nav-r">
+        {/* Desktop links */}
+        <div className="nav-r nav-desktop">
           <a href="#how-it-works" className="nav-link">{t(locale, 'nav.howItWorks')}</a>
           <a href="/dashboard" className="nav-link">{t(locale, 'nav.dashboard')}</a>
         </div>
+        {/* Mobile hamburger */}
+        <button
+          className="nav-hamburger"
+          onClick={() => setDrawerOpen(true)}
+          aria-label="Open menu"
+          aria-expanded={drawerOpen}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
       </nav>
+
+      {/* Mobile drawer overlay */}
+      {drawerOpen && (
+        <div className="nav-drawer-overlay" onClick={() => setDrawerOpen(false)}>
+          <div className="nav-drawer" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="nav-drawer-close"
+              onClick={() => setDrawerOpen(false)}
+              aria-label="Close menu"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+            <div className="nav-drawer-links">
+              <a href="#how-it-works" className="nav-drawer-link" onClick={() => setDrawerOpen(false)}>
+                {t(locale, 'nav.howItWorks')}
+              </a>
+              <a href="/dashboard" className="nav-drawer-link" onClick={() => setDrawerOpen(false)}>
+                {t(locale, 'nav.dashboard')}
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   )
 }

@@ -785,6 +785,7 @@ function AuthDashboard({ email }: { email: string }) {
   const [builds, setBuilds] = useState<Build[]>([])
   const [loading, setLoading] = useState(true)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   useEffect(() => {
     if (!toastMessage) return
@@ -881,11 +882,22 @@ function AuthDashboard({ email }: { email: string }) {
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         @keyframes fadeIn { from{opacity:0;transform:translateX(-50%) translateY(6px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes drawer-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
         * { box-sizing: border-box; }
       `}</style>
 
       {/* ── Top bar ─────────────────────────────────────────────────────── */}
+      <style>{`
+        .dash-nav-desktop { display: flex; }
+        .dash-nav-hamburger { display: none; }
+        @media (max-width: 600px) {
+          .dash-nav-desktop { display: none !important; }
+          .dash-nav-hamburger { display: block !important; }
+          .dash-topbar { padding: 0 16px !important; }
+        }
+      `}</style>
       <div
+        className="dash-topbar"
         style={{
           background: '#0e0d0b',
           padding: '0 32px',
@@ -904,6 +916,7 @@ function AuthDashboard({ email }: { email: string }) {
           </Link>
           <a
             href="/#how-it-works"
+            className="dash-nav-desktop"
             style={{
               font: '11px/1 DM Mono, Courier New, monospace',
               letterSpacing: '0.08em',
@@ -915,6 +928,7 @@ function AuthDashboard({ email }: { email: string }) {
             How it works
           </a>
           <span
+            className="dash-nav-desktop"
             style={{
               font: '11px/1 DM Mono, Courier New, monospace',
               letterSpacing: '0.08em',
@@ -925,7 +939,7 @@ function AuthDashboard({ email }: { email: string }) {
             Dashboard
           </span>
         </div>
-        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+        <div className="dash-nav-desktop" style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
           <span
             style={{
               font: '11px/1 DM Mono, Courier New, monospace',
@@ -948,7 +962,87 @@ function AuthDashboard({ email }: { email: string }) {
             + New app
           </button>
         </div>
+        {/* Mobile hamburger */}
+        <button
+          className="dash-nav-hamburger"
+          onClick={() => setMobileNavOpen(true)}
+          aria-label="Open menu"
+          aria-expanded={mobileNavOpen}
+          style={{ background: 'none', border: 'none', color: '#f2efe8', cursor: 'pointer', padding: '4px', lineHeight: 0 }}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
       </div>
+
+      {/* Mobile drawer */}
+      {mobileNavOpen && (
+        <div
+          onClick={() => setMobileNavOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 200,
+            background: 'rgba(14,13,11,0.4)',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 201,
+              background: '#f2efe8',
+              display: 'flex', flexDirection: 'column',
+              padding: '20px 28px',
+              animation: 'drawer-slide-in 200ms ease',
+            }}
+          >
+            <button
+              onClick={() => setMobileNavOpen(false)}
+              aria-label="Close menu"
+              style={{ alignSelf: 'flex-end', background: 'none', border: 'none', color: '#0e0d0b', cursor: 'pointer', padding: '4px', lineHeight: 0 }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', marginTop: '48px' }}>
+              <a
+                href="/#how-it-works"
+                onClick={() => setMobileNavOpen(false)}
+                style={{
+                  font: '18px/1 DM Mono, Courier New, monospace',
+                  letterSpacing: '0.06em', textTransform: 'uppercase',
+                  color: '#0e0d0b', textDecoration: 'none',
+                }}
+              >
+                How it works
+              </a>
+              <span
+                style={{
+                  font: '18px/1 DM Mono, Courier New, monospace',
+                  letterSpacing: '0.06em', textTransform: 'uppercase',
+                  color: '#FF1F6E',
+                }}
+              >
+                Dashboard
+              </span>
+              <button
+                onClick={() => { setMobileNavOpen(false); navigate('/') }}
+                style={{
+                  background: '#FF1F6E', color: '#0e0d0b', border: 'none',
+                  padding: '12px 20px', cursor: 'pointer',
+                  font: '500 14px/1 DM Mono, Courier New, monospace',
+                  textAlign: 'left',
+                }}
+              >
+                + New app
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Hero ────────────────────────────────────────────────────────── */}
       <div
