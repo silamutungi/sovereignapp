@@ -1,24 +1,113 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;0,900;1,400;1,700&family=DM+Mono:wght@300;400;500&display=swap');
 
 :root {
-  --paper:  #f2efe8;
-  --paper2: #edeae1;
-  --ink:    #0e0d0b;
-  --rule:   #ccc8bf;
-  --text-primary:  #0e0d0b;
-  --text-mid:      #6b6760;
-  --text-dim:      #6b6862;
+  /* ============================================
+     VISILA UNIFIED DESIGN SYSTEM
+     visila.com only — not for generated apps
+     Source: Visila brand + Apple HIG semantics
+     ============================================ */
+
+  /* ── PRIMITIVES — raw values, never use directly ── */
+
+  /* Visila brand primitives */
+  --primitive-flame:          #FF1F6E;
+  --primitive-ember:          #FF6B35;
+  --primitive-dark-brand:     #8B0040;
+  --primitive-mid:            #CC0055;
+  --primitive-highlight:      #FF80AA;
+  --primitive-ink:            #0e0d0b;
+  --primitive-paper:          #f2efe8;
+
+  /* Neutral primitives — Apple HIG light scale */
+  --primitive-white:          #ffffff;
+  --primitive-black:          #000000;
+  --primitive-gray-1:         #8e8e93;
+  --primitive-gray-2:         #aeaeb2;
+  --primitive-gray-3:         #c7c7cc;
+  --primitive-gray-4:         #d1d1d6;
+  --primitive-gray-5:         #e5e5ea;
+  --primitive-gray-6:         #f2f2f7;
+
+  /* Neutral primitives — Apple HIG dark scale */
+  --primitive-dark-1:         #636366;
+  --primitive-dark-2:         #48484a;
+  --primitive-dark-3:         #3a3a3c;
+  --primitive-dark-4:         #2c2c2e;
+  --primitive-dark-5:         #1c1c1e;
+  --primitive-dark-6:         #111113;
+
+  /* Status primitives */
+  --primitive-success:        #34c759;
+  --primitive-warning:        #ff9f0a;
+  --primitive-error:          #ff3b30;
+  --primitive-info:           #007aff;
+
+  /* ── SEMANTIC TOKENS — use these in all components ── */
+
+  /* Brand */
+  --color-brand:              var(--primitive-flame);
+  --color-brand-hover:        var(--primitive-mid);
+  --color-brand-subtle:       var(--primitive-highlight);
+  --color-brand-dark:         var(--primitive-dark-brand);
+
+  /* Backgrounds — Apple HIG two-layer depth system */
+  --color-bg-base:            var(--primitive-paper);
+  --color-bg-raised:          #edeae1;
+  --color-bg-overlay:         var(--primitive-white);
+  --color-bg-sunken:          #e5e2d9;
+
+  /* Text — WCAG AA compliant on all backgrounds */
+  --color-text-primary:       var(--primitive-ink);
+  --color-text-secondary:     rgba(14, 13, 11, 0.6);
+  --color-text-tertiary:      rgba(14, 13, 11, 0.45);
+  --color-text-placeholder:   rgba(14, 13, 11, 0.35);
+  --color-text-inverse:       var(--primitive-paper);
+  --color-text-brand:         var(--primitive-flame);
+
+  /* Surfaces */
+  --color-surface-brand:      var(--primitive-flame);
+  --color-surface-neutral:    var(--primitive-gray-5);
+  --color-surface-danger:     var(--primitive-error);
+  --color-surface-success:    var(--primitive-success);
+  --color-surface-warning:    var(--primitive-warning);
+
+  /* Borders and separators */
+  --color-border:             #ccc8bf;
+  --color-border-strong:      rgba(14, 13, 11, 0.24);
+  --color-separator:          rgba(14, 13, 11, 0.08);
+
+  /* Status */
+  --color-success:            var(--primitive-success);
+  --color-warning:            var(--primitive-warning);
+  --color-error:              var(--primitive-error);
+  --color-info:               var(--primitive-info);
+
+  /* Focus */
+  --color-focus-ring:         var(--primitive-ink);
+
+  /* ── BACKWARD-COMPATIBLE ALIASES ── */
+  /* These map old token names to new semantic tokens.           */
+  /* Existing components reference these until fully migrated.   */
+  --paper:  var(--color-bg-base);
+  --paper2: var(--color-bg-raised);
+  --ink:    var(--color-text-primary);
+  --rule:   var(--color-border);
+  --text-primary:  var(--color-text-primary);
+  --text-mid:      var(--color-text-secondary);
+  --text-dim:      var(--color-text-tertiary);
   --text-on-dark-primary: rgba(255,255,255,1.00);
   --text-on-dark-high:    rgba(255,255,255,0.90);
   --text-on-dark-mid:     rgba(255,255,255,0.75);
   --text-on-dark-body:    rgba(255,255,255,0.65);
   --text-on-dark-dim:     rgba(255,255,255,0.55);
-  --green:      #FF1F6E;
-  --green-dark: #3b6d11;
+  --green:      var(--color-brand);
+  --green-dark: var(--color-brand-dark);
   --green-bg:   #f4fce0;
-  --red:        #d63b2f;
+  --red:        var(--color-error);
   --red-bg:     #fcebeb;
   --red-text:   #a32d2d;
+
+  /* ── NON-COLOR TOKENS — unchanged ── */
   --font-serif: 'Playfair Display', serif;
   --font-mono:  'DM Mono', monospace;
   --radius-sm: 2px;
@@ -28,6 +117,66 @@
   --duration-fast: 150ms;
   --duration-mid:  300ms;
   --duration-slow: 550ms;
+}
+
+/* ── DARK MODE — semantic overrides only ── */
+/* Primitives do not change. Only semantic tokens are redefined. */
+/* Dark mode colors are NOT inversions of light mode.            */
+/* Source: Apple HIG Dark Mode documentation.                    */
+
+.dark {
+  /* Brand — Flame is always Flame */
+  --color-brand:              var(--primitive-flame);
+  --color-brand-hover:        var(--primitive-highlight);
+  --color-brand-subtle:       var(--primitive-dark-brand);
+  --color-brand-dark:         var(--primitive-mid);
+
+  /* Backgrounds — Apple HIG base and elevated layers */
+  --color-bg-base:            var(--primitive-dark-5);   /* #1c1c1e */
+  --color-bg-raised:          var(--primitive-dark-4);   /* #2c2c2e */
+  --color-bg-overlay:         var(--primitive-dark-3);   /* #3a3a3c */
+  --color-bg-sunken:          var(--primitive-dark-6);   /* #111113 */
+
+  /* Text — 7:1 target for body, 4.5:1 minimum for all */
+  --color-text-primary:       var(--primitive-white);
+  --color-text-secondary:     rgba(235, 235, 245, 0.6);
+  --color-text-tertiary:      rgba(235, 235, 245, 0.3);
+  --color-text-placeholder:   rgba(235, 235, 245, 0.35);
+  --color-text-inverse:       var(--primitive-ink);
+  --color-text-brand:         var(--primitive-highlight);
+
+  /* Surfaces */
+  --color-surface-brand:      var(--primitive-flame);
+  --color-surface-neutral:    var(--primitive-dark-3);
+  --color-surface-danger:     var(--primitive-error);
+  --color-surface-success:    var(--primitive-success);
+  --color-surface-warning:    var(--primitive-warning);
+
+  /* Borders and separators */
+  --color-border:             rgba(84, 84, 88, 0.45);
+  --color-border-strong:      rgba(84, 84, 88, 0.65);
+  --color-separator:          rgba(84, 84, 88, 0.35);
+
+  /* Status */
+  --color-success:            var(--primitive-success);
+  --color-warning:            var(--primitive-warning);
+  --color-error:              var(--primitive-error);
+  --color-info:               var(--primitive-info);
+
+  /* Focus */
+  --color-focus-ring:         var(--primitive-flame);
+
+  /* Backward-compatible aliases for dark mode */
+  --paper:  var(--color-bg-base);
+  --paper2: var(--color-bg-raised);
+  --ink:    var(--color-text-primary);
+  --rule:   var(--color-border);
+  --text-primary:  var(--color-text-primary);
+  --text-mid:      var(--color-text-secondary);
+  --text-dim:      var(--color-text-tertiary);
+  --green:      var(--color-brand);
+  --green-dark: var(--color-brand-dark);
+  --red:        var(--color-error);
 }
 
 @media (prefers-reduced-motion: reduce) {

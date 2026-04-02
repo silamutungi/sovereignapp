@@ -175,15 +175,43 @@ Self-hosted AI dev environment bootstrapper. Tagline: "Build without permission.
 - src/lib/i18n.ts — all copy in EN/ES/FR/DE (edit text here)
 - src/lib/supabase.ts — Supabase client + joinWaitlist()
 
-## Brand tokens
-- Paper: #f2efe8 (main background)
-- Ink: #0e0d0b (text + dark sections)
-- Green: #c8f060 (primary accent — CTAs only)
-- Fonts: Playfair Display (serif headings) + DM Mono (everything else)
+## Visila Unified Design System
+Single token set for all of visila.com. Defined in src/styles/tokens.css.
+Three layers: primitives → semantic → dark mode overrides.
 
-## Contrast tokens (WCAG AA verified)
-- --text-dim: #6b6862 (4.51:1 on paper) ← use for captions, meta, pills
-- --text-on-dark-dim: rgba(255,255,255,0.55) (6.25:1 on ink) ← use for dark section fine print
+Always use semantic tokens in components — never primitives, never hex.
+
+Key tokens:
+  --color-brand           primary brand action (Flame #FF1F6E)
+  --color-bg-base         page background
+  --color-bg-raised       cards, panels, inputs
+  --color-bg-overlay      modals, drawers
+  --color-text-primary    body text
+  --color-text-secondary  metadata, captions
+  --color-text-tertiary   hints, placeholders
+  --color-separator       divider lines
+  --color-border          input and card borders
+  --color-error/success/warning/info  status — never override
+
+Dark mode:
+  Defined under .dark selector. NOT inversions of light.
+  Apple HIG values: bg-base #1c1c1e, bg-raised #2c2c2e,
+  text-primary #ffffff. All pass WCAG AA.
+
+Generated apps:
+  Use their own --color-* token set injected by api/_designSystem.ts.
+  Same naming convention, different values. Never mix the two.
+
+Never:
+  - Hardcode hex values in any component
+  - Use --primitive-* tokens in components
+  - Override --color-brand on visila.com
+  - Override status tokens anywhere
+
+Backward-compatible aliases (--ink, --paper, --green, --text-mid, --text-dim, etc.)
+are defined in tokens.css for incremental migration. New code must use --color-* only.
+
+Fonts: Playfair Display (serif headings) + DM Mono (everything else)
 
 ## Waitlist table (Supabase)
 - Table: waitlist

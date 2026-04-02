@@ -1140,13 +1140,13 @@ function NdevPanel({ locale }: { locale: Locale }) {
 
             {stage === 'connect' && rateLimited && (
               <div className="gen-connect" role="alert">
-                <p className="gen-connect-lbl" style={{ color: 'var(--ink)', fontWeight: 500 }}>
+                <p className="gen-connect-lbl" style={{ color: 'var(--color-text-primary)', fontWeight: 500 }}>
                   You've used your 3 free builds. Upgrade to Builder to keep building.
                 </p>
                 <a
                   href="/#pricing"
                   className="gobtn"
-                  style={{ display: 'block', textAlign: 'center', textDecoration: 'none', background: 'var(--green)', color: 'var(--ink)', marginTop: '12px' }}
+                  style={{ display: 'block', textAlign: 'center', textDecoration: 'none', background: 'var(--color-brand)', color: 'var(--color-text-primary)', marginTop: '12px' }}
                   onClick={(e) => {
                     e.preventDefault()
                     document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })
@@ -1215,7 +1215,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
                     Connect Database
                   </div>
                 </div>
-                <p style={{ fontSize: '11px', color: 'var(--text-dim)', textAlign: 'center', marginTop: '10px' }}>
+                <p style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', textAlign: 'center', marginTop: '10px' }}>
                   GitHub → Vercel → Database in sequence
                 </p>
               </div>

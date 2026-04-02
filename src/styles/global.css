@@ -12,8 +12,8 @@ html {
 }
 body {
   font-family: var(--font-mono);
-  background: var(--paper);
-  color: var(--text-primary);
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
   max-width: 100vw;
   overflow-x: hidden;
@@ -29,9 +29,9 @@ body {
 .skip-link {
   position: absolute; left: -9999px; top: 8px;
   font-family: var(--font-mono); font-size: 12px;
-  background: var(--ink); color: var(--paper);
+  background: var(--color-text-primary); color: var(--color-text-inverse);
   padding: 8px 16px; border-radius: var(--radius-sm);
   text-decoration: none; z-index: 999;
 }
 .skip-link:focus { left: 8px; }
-:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: var(--radius-sm); }
+:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 3px; border-radius: var(--radius-sm); }
