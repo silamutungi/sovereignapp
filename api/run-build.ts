@@ -1496,9 +1496,12 @@ export default async function handler(req: any, res: any): Promise<void> {
           }).catch((err: unknown) => console.error('[run-build] Brain audit fire-and-forget failed:', err))
 
           // ── Mark build complete ──────────────────────────────────────────
+          // Always re-write deploy_url alongside status so retries never leave
+          // a stale 'error' status next to a valid URL (or vice versa).
           await updateBuild(supabaseUrl, serviceKey, buildId, {
             status: 'complete',
             step: 'done',
+            deploy_url: deployResult.deployUrl,
           })
           console.log('[run-build] done')
         })(),
