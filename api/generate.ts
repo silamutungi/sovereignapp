@@ -9,6 +9,7 @@ import { checkRateLimit } from './_rateLimit.js'
 import { generateDesignSystem, mapCategory } from './_designSystem.js'
 import { ACCESSIBILITY_RULES } from './lib/accessibility-rules.js'
 import { buildContentLayer } from './lib/content-strategy.js'
+import { UX_KNOWLEDGE_LAYER } from './lib/ux-knowledge.js'
 import { SYSTEM_PROMPT } from './_systemPrompt.js'
 import { resolveHeroImage } from './lib/images.js'
 
@@ -433,7 +434,11 @@ Return only the image prompt text, nothing else. Max 100 words.`
       : ''
 
     const contentLayer = buildContentLayer(appCategory, userMessage.slice(0, 500))
-    const finalUserMessage = userMessage + heroImageInjection + designSystemInjection + competitiveContext + contentLayer + ACCESSIBILITY_RULES
+    // TODO Phase 2: replace UX_KNOWLEDGE_LAYER with dynamic RAG retrieval
+    // from Supabase vector store — query by build.idea + build.app_type
+    // to inject the most relevant chunks from the 6 UX books at build time.
+    // Static layer remains as fallback when RAG returns < 3 results.
+    const finalUserMessage = userMessage + heroImageInjection + designSystemInjection + competitiveContext + contentLayer + UX_KNOWLEDGE_LAYER + ACCESSIBILITY_RULES
 
     console.log('[generate] Creating Anthropic stream...')
     const stream = client.messages.stream({
