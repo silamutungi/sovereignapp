@@ -1283,3 +1283,29 @@ Correct behaviour: TypeScript treats closures as callable at any time — they d
 Fix: re-check inside the closure (`if (!chef) return`) or use non-null assertion (`chef!.name`) when the guard is guaranteed. Rule added to TYPESCRIPT BUILD RULES in `_systemPrompt.ts` so generated apps avoid this pattern.
 Triage: → CLAUDE.md ✓ → Generation prompt (_systemPrompt.ts) ✓
 Learned: 2026-04-01.
+
+**GitHub push idempotency — pushFilesToGitHub must GET before PUT**
+Wrong assumption: PUT /repos/{owner}/{repo}/contents/{path} works for both creating and updating files.
+Correct behaviour: GitHub Contents API returns 422 if you PUT a file that already exists without providing its current `sha`. This caused ChefNear's silent failure — 5 scaffold files pushed, then 422 on package.json on retry.
+Fix: before every PUT, fetch the current sha via GET /repos/{owner}/{repo}/contents/{path}. If the file exists, include `sha` in the PUT body. If GET returns 404, omit `sha` (new file). This makes pushFilesToGitHub fully idempotent — retries and re-runs never fail.
+Learned: 2026-04-01.
+
+**Always run `npx tsc --noEmit` after every api/ change before pushing**
+Wrong assumption: `npm run build` catches all TypeScript errors in api/ files.
+Correct behaviour: `npm run build` only type-checks src/ (Vite's tsconfig.app.json). api/ files are compiled by Vercel at deploy time with a separate tsconfig. Errors like TS18047 (possibly null) in api/ files pass `npm run build` locally but fail on Vercel, causing 500s on every serverless function.
+Fix: run `npx tsc --noEmit` after every api/ change — it checks the full project including api/. Add this as a habit alongside `npm run build`.
+Learned: 2026-04-01.
+
+**RLS on all generated Supabase tables — safety net in provisionSupabase()**
+Wrong assumption: including `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` after each CREATE TABLE in the generated schema SQL is sufficient.
+Correct behaviour: Claude sometimes omits the ALTER TABLE statement, leaving tables publicly accessible. Supabase sends security alert emails to the project owner for any table without RLS.
+Fix: every CREATE TABLE in generated schema SQL must be followed immediately by `ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY;` and a permissive read policy: `CREATE POLICY "public_read" ON {table_name} FOR SELECT USING (true);`. Safety net: provisionSupabase() runs a `DO $$ ... END $$` loop after the schema SQL to enable RLS on any table that slipped through. Belt-and-suspenders — the loop catches what Claude misses.
+Learned: 2026-04-01.
+
+**Responsive nav is a hard requirement — applies to visila.com AND generated apps**
+Every page must have a working nav at 375px — no exceptions.
+Mobile pattern: hamburger (Menu icon) + full-screen drawer. Drawer: Paper (#f2efe8) bg, Ink (#0e0d0b) links, Flame (#FF1F6E) active state. Closes on tap/click outside or on link click. Body scroll locked when drawer is open.
+Desktop nav is unchanged — mobile pattern is additive only.
+Verify at 375px before every commit touching nav.
+This applies to both visila.com pages (src/App.tsx, src/pages/Dashboard.tsx) and the generation prompt for generated apps (_systemPrompt.ts).
+Learned: 2026-04-01.
