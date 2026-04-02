@@ -879,12 +879,12 @@ Fix: `import { type KeyboardEvent, type FormEvent, type RefObject } from 'react'
 Lesson: whenever we add a rule to the generation prompt, audit Visila's own codebase for the same pattern.
 Learned: 2026-03-24.
 
-**source.unsplash.com is deprecated — use loremflickr.com with server-side prefetch**
-Wrong assumption: `source.unsplash.com/{keywords}` and `images.unsplash.com/photo-{id}` URLs are reliable for generated apps.
-Correct behaviour: `source.unsplash.com` returns 503. `images.unsplash.com/photo-{id}` IDs are effectively random — Claude guesses them and they 404. Neither works reliably.
-Fix: use `https://loremflickr.com/1600/900/{keyword1},{keyword2},{keyword3}` for keyword-based images. Server-side prefetch with `fetch(url, { redirect: 'follow' })` to resolve the redirect to a guaranteed-working CDN URL, then pass that exact URL to Claude. Never let Claude guess image URLs.
-Rule: all image guidance in edit.ts and _systemPrompt.ts must use loremflickr.com. Never reference source.unsplash.com or images.unsplash.com/photo-{id}.
-Learned: 2026-03-26.
+**Hero images use Unsplash Search API — permanent responsive URLs**
+Wrong assumption: `source.unsplash.com/{keywords}` and `loremflickr.com` URLs are reliable for generated apps.
+Correct behaviour: `source.unsplash.com` returns 503. `loremflickr.com` returns random redirect URLs that change on every page load — not permanent. Both produce inconsistent hero images.
+Fix: `api/_unsplash.ts` exports `fetchUnsplashHeroImage(prompt)` which calls the Unsplash Search API and returns a permanent URL with responsive params (`&w=1920&h=1080&fit=crop&crop=center&q=80&auto=format`). Used in both `api/generate.ts` (Path C) and `api/edit.ts` (image prefetch). Requires `UNSPLASH_ACCESS_KEY` env var.
+Rule: never use loremflickr.com, source.unsplash.com, or images.unsplash.com/photo-{id}. All hero images come from the Unsplash Search API via `fetchUnsplashHeroImage()`. If no Unsplash key is set, fall back to solid dark background (`var(--color-ink)`), never a random image service.
+Learned: 2026-03-26. Updated: 2026-04-01.
 
 **iOS Safari h-full bug — use backgroundImage inline style, never `<img>` for hero backgrounds**
 Wrong assumption: `<img className="absolute inset-0 w-full h-full object-cover">` works for full-bleed hero backgrounds.

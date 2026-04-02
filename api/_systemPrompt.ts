@@ -1053,6 +1053,18 @@ Without it tsc fails with "Property 'env' does not exist on type 'ImportMeta'" o
 **Inline style objects must only contain valid CSS properties (React.CSSProperties):**
 All inline style objects must only contain valid CSS properties accepted by React.CSSProperties. Mental check before writing any style prop: would this property exist in document.body.style? If not, do not use it as an inline style. Common violations: focusRingColor, focusRingWidth, focusRingOffsetWidth, focusRingOffsetColor — these are Tailwind class names, not CSS properties, and will cause TypeScript to fail with "Object literal may only specify known properties."
 
+**Closures do not inherit type narrowing from early returns (TS18048):**
+When a variable like \`const chef = list.find(...)\` has type \`T | undefined\`, an early \`if (!chef) return ...\` narrows the variable in the outer scope — but closures (event handlers, callbacks) defined after the return do NOT inherit that narrowing. TypeScript treats the closure as callable at any time, so it still sees \`T | undefined\`.
+  WRONG:
+    const chef = chefs.find(c => c.id === id) // Chef | undefined
+    if (!chef) return <NotFound />
+    function handleBook(e: FormEvent) { console.log(chef.name) } // TS18048: chef possibly undefined
+  RIGHT — re-check inside the closure:
+    function handleBook(e: FormEvent) { if (!chef) return; console.log(chef.name) }
+  RIGHT — non-null assertion when the guard is guaranteed:
+    function handleBook(e: FormEvent) { console.log(chef!.name) }
+This applies to every .find(), optional chain, or union type used inside a closure after an early return.
+
 ### EXACT FILE CONTRACTS
 
 package.json — dependencies: react@^18.2.0, react-dom@^18.2.0, react-router-dom@^6, @supabase/supabase-js@^2, class-variance-authority@^0.7.0, clsx@^2.0.0, tailwind-merge@^2.0.0, lucide-react@^0.400.0, @radix-ui/react-slot@^1.0.2, @radix-ui/react-label@^2.0.2. devDependencies: typescript@^5, vite@^5, @vitejs/plugin-react@^4, tailwindcss@^3, autoprefixer@^10, postcss@^8, @types/react@^18, @types/react-dom@^18. Never include an engines field — Vercel does not support it and it causes build failures.
@@ -1182,21 +1194,23 @@ Exactly ONE image per app: the hero background. Zero elsewhere.
 
 **Hero section — mandatory, exactly one per Home page:**
 Every Home.tsx must communicate the emotional promise of the app in under 3 seconds:
-- The user message contains HERO_IMAGE_URL — a permanent, pre-fetched Unsplash photo URL. Use it exactly as-is as the backgroundImage value.
-- If HERO_IMAGE_URL is not present in the user message, fall back to: https://loremflickr.com/1600/900/app,product,modern
-- NEVER construct, guess, or randomise any image URL. Do NOT use loremflickr.com with dynamic keywords, source.unsplash.com, picsum.photos, placeholder.com, or any service that generates a different image on every request. All image src values must be permanent, specific URLs.
+- The user message contains HERO_IMAGE_URL — a permanent, pre-fetched Unsplash photo URL with responsive params built in. Use it exactly as-is as the backgroundImage value.
+- If HERO_IMAGE_URL is not present in the user message, fall back to a solid dark background: background-color: var(--color-ink, #0e0d0b). Do NOT use any random image service.
+- NEVER construct, guess, or randomise any image URL. Do NOT use loremflickr.com, source.unsplash.com, picsum.photos, placeholder.com, or any service that generates a different image on every request. All image src values must be permanent, specific URLs.
 - Implementation — backgroundImage inline style on the section — NEVER an img tag (img h-full breaks on iOS Safari):
 
 **Hero implementation — mobile-first, delightful at all sizes:**
 
 section:
   - className="relative min-h-[100svh] flex items-end md:items-center overflow-hidden"
-  - style={{ backgroundImage: 'url(HERO_IMAGE_URL)', backgroundSize: 'cover', backgroundPosition: 'center top' }}
+  - style={{ backgroundImage: 'url(HERO_IMAGE_URL)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}
   - Use min-h-[100svh] instead of min-h-screen — respects mobile browser chrome
+  - NEVER use fixed pixel width or height on the hero container — it must be responsive
+  - The hero must look beautiful at 375px, 768px, and 1280px
 
 Overlay child 1:
-  - className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20"
-  - Bottom-heavy gradient so text is always readable on mobile
+  - className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.60) 60%, rgba(0,0,0,0.75) 100%)' }}
+  - Bottom-heavy gradient ensures text is always legible on mobile regardless of image content
 
 Content child 2:
   - className="relative z-10 w-full max-w-3xl mx-auto px-6 pb-16 pt-32 md:py-32"

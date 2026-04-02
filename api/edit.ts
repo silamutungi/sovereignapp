@@ -19,6 +19,7 @@
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { checkRateLimit } from './_rateLimit.js'
+import { fetchUnsplashHeroImage } from './_unsplash.js'
 
 export const MODEL_GENERATION = 'claude-sonnet-4-6'
 export const MODEL_FAST = 'claude-haiku-4-5-20251001'
@@ -472,13 +473,10 @@ Rules for the new page:
             .split(/\s+/)
             .filter((w) => w.length > 2 && !stopWords.has(w))
             .slice(0, 5)
-            .join(',')
+            .join(' ')
           if (keywords) {
-            const imgRes = await fetch(`https://loremflickr.com/1600/900/${encodeURIComponent(keywords)}`, { redirect: 'follow' })
-            if (imgRes.ok) {
-              resolvedImageUrl = imgRes.url
-              console.log('[edit] resolved image URL:', resolvedImageUrl)
-            }
+            resolvedImageUrl = await fetchUnsplashHeroImage(keywords)
+            if (resolvedImageUrl) console.log('[edit] resolved Unsplash image URL')
           }
         } catch (e) {
           console.warn('[edit] image prefetch failed (non-fatal):', e)
@@ -486,8 +484,8 @@ Rules for the new page:
       }
 
       const imageGuidance = resolvedImageUrl
-        ? `\nIMAGES: Use this exact pre-fetched image URL (guaranteed to work): ${resolvedImageUrl}\nDo NOT use any other image URL — this one is already verified to load correctly.`
-        : `\nIMAGES: Use https://loremflickr.com/1600/900/{keyword1},{keyword2},{keyword3} with keywords from the description. Never use source.unsplash.com, placeholder.com, or images.unsplash.com/photo-{id}.`
+        ? `\nIMAGES: Use this exact pre-fetched Unsplash image URL (permanent, responsive): ${resolvedImageUrl}\nDo NOT use any other image URL — this one is already verified to load correctly. Implement as backgroundImage on the section element, never as an img tag.`
+        : `\nIMAGES: Do not add any image URLs. If a hero image is needed, use a solid background color: background-color: var(--color-ink). Never use source.unsplash.com, placeholder.com, picsum.photos, or loremflickr.com.`
 
       // ── STEP 1: Fetch full file tree from GitHub ───────────────────────────
       let fileTree: string[] = []

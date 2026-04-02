@@ -10,6 +10,7 @@ import { createClient } from '@supabase/supabase-js'
 import { randomUUID } from 'crypto'
 import { checkRateLimit } from './_rateLimit.js'
 import { SYSTEM_PROMPT } from './_systemPrompt.js'
+import { fetchUnsplashHeroImage } from './_unsplash.js'
 
 // Model constants — change here to swap models across the file
 // MODEL_GENERATION: multi-file React app codegen (18+ files, structured tool call)
@@ -489,19 +490,11 @@ Return only the image prompt text, nothing else. Max 100 words.`
         }
 
       } else if (unsplashKey) {
-        // Path C — Unsplash fallback
-        console.log('[generate] image: using unsplash fallback')
-        const keywords = imagePrompt
-          ? imagePrompt.split(' ').slice(0, 2).join(' ')
-          : userMessage.slice(0, 30)
-        const query = encodeURIComponent(keywords)
-        const uRes = await fetch(
-          `https://api.unsplash.com/search/photos?query=${query}&per_page=3&orientation=landscape`,
-          { headers: { Authorization: `Client-ID ${unsplashKey}` } }
-        )
-        const uData = await uRes.json() as { results?: Array<{ urls?: { regular?: string } }> }
-        heroImageUrl = uData.results?.[0]?.urls?.regular ?? null
-        if (heroImageUrl) console.log('[generate] Unsplash hero resolved, keyword:', keywords)
+        // Path C — Unsplash search (permanent responsive URL)
+        console.log('[generate] image: using unsplash search')
+        const searchPrompt = imagePrompt ?? userMessage.slice(0, 60)
+        heroImageUrl = await fetchUnsplashHeroImage(searchPrompt)
+        if (heroImageUrl) console.log('[generate] Unsplash hero resolved')
       }
 
     } catch (e) {
