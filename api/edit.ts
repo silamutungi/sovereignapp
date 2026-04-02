@@ -19,7 +19,7 @@
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { checkRateLimit } from './_rateLimit.js'
-import { fetchUnsplashHeroImage } from './_unsplash.js'
+import { resolveHeroImage } from './lib/images.js'
 
 export const MODEL_GENERATION = 'claude-sonnet-4-6'
 export const MODEL_FAST = 'claude-haiku-4-5-20251001'
@@ -461,6 +461,7 @@ Rules for the new page:
       console.log('[edit] FILE_EDIT path — fetching file tree...', new Date().toISOString())
 
       // ── Image pre-fetch (shared by both multi-file and fallback paths) ─────
+      // Priority: Gemini → OpenAI → Unsplash → Pexels → null
       let resolvedImageUrl: string | null = null
       const imageKeywords = editRequest.toLowerCase().match(
         /\b(image|photo|picture|hero|banner|background|portrait|scene|shot)\b/i
@@ -475,8 +476,8 @@ Rules for the new page:
             .slice(0, 5)
             .join(' ')
           if (keywords) {
-            resolvedImageUrl = await fetchUnsplashHeroImage(keywords)
-            if (resolvedImageUrl) console.log('[edit] resolved Unsplash image URL')
+            resolvedImageUrl = await resolveHeroImage(keywords)
+            if (resolvedImageUrl) console.log('[edit] resolved hero image')
           }
         } catch (e) {
           console.warn('[edit] image prefetch failed (non-fatal):', e)
@@ -484,7 +485,7 @@ Rules for the new page:
       }
 
       const imageGuidance = resolvedImageUrl
-        ? `\nIMAGES: Use this exact pre-fetched Unsplash image URL (permanent, responsive): ${resolvedImageUrl}\nDo NOT use any other image URL — this one is already verified to load correctly. Implement as backgroundImage on the section element, never as an img tag.`
+        ? `\nIMAGES: Use this exact pre-fetched image URL (permanent, responsive): ${resolvedImageUrl}\nDo NOT use any other image URL — this one is already verified to load correctly. Implement as backgroundImage on the section element, never as an img tag.`
         : `\nIMAGES: Do not add any image URLs. If a hero image is needed, use a solid background color: background-color: var(--color-ink). Never use source.unsplash.com, placeholder.com, picsum.photos, or loremflickr.com.`
 
       // ── STEP 1: Fetch full file tree from GitHub ───────────────────────────

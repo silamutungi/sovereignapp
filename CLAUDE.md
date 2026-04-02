@@ -879,11 +879,17 @@ Fix: `import { type KeyboardEvent, type FormEvent, type RefObject } from 'react'
 Lesson: whenever we add a rule to the generation prompt, audit Visila's own codebase for the same pattern.
 Learned: 2026-03-24.
 
-**Hero images use Unsplash Search API — permanent responsive URLs**
-Wrong assumption: `source.unsplash.com/{keywords}` and `loremflickr.com` URLs are reliable for generated apps.
-Correct behaviour: `source.unsplash.com` returns 503. `loremflickr.com` returns random redirect URLs that change on every page load — not permanent. Both produce inconsistent hero images.
-Fix: `api/_unsplash.ts` exports `fetchUnsplashHeroImage(prompt)` which calls the Unsplash Search API and returns a permanent URL with responsive params (`&w=1920&h=1080&fit=crop&crop=center&q=80&auto=format`). Used in both `api/generate.ts` (Path C) and `api/edit.ts` (image prefetch). Requires `UNSPLASH_ACCESS_KEY` env var.
-Rule: never use loremflickr.com, source.unsplash.com, or images.unsplash.com/photo-{id}. All hero images come from the Unsplash Search API via `fetchUnsplashHeroImage()`. If no Unsplash key is set, fall back to solid dark background (`var(--color-ink)`), never a random image service.
+**Hero Image Pipeline — api/lib/images.ts**
+Resolver: `resolveHeroImage(prompt)` in `api/lib/images.ts`.
+Priority: Gemini → OpenAI → Unsplash → Pexels → null.
+Fallback when null: `var(--color-ink)` solid background, no image.
+All hero images are CSS `backgroundImage` — never `<img>` tags.
+Always include gradient overlay for text legibility.
+Never use loremflickr.com, source.unsplash.com/random, or picsum.photos.
+Unsplash: raw URL + `&w=1920&h=1080&fit=crop&crop=center&q=80&auto=format`.
+Pexels: `photo.src.original` (permanent, high resolution).
+Gemini/OpenAI: base64 → uploaded to Supabase Storage `hero-images` bucket.
+Both `api/generate.ts` and `api/edit.ts` call `resolveHeroImage()` — single source of truth.
 Learned: 2026-03-26. Updated: 2026-04-01.
 
 **iOS Safari h-full bug — use backgroundImage inline style, never `<img>` for hero backgrounds**

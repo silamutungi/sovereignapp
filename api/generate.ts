@@ -5,12 +5,9 @@
 // Returns: AppSpec JSON
 //
 import Anthropic from '@anthropic-ai/sdk'
-import { GoogleGenAI } from '@google/genai'
-import { createClient } from '@supabase/supabase-js'
-import { randomUUID } from 'crypto'
 import { checkRateLimit } from './_rateLimit.js'
 import { SYSTEM_PROMPT } from './_systemPrompt.js'
-import { fetchUnsplashHeroImage } from './_unsplash.js'
+import { resolveHeroImage } from './lib/images.js'
 
 // Model constants — change here to swap models across the file
 // MODEL_GENERATION: multi-file React app codegen (18+ files, structured tool call)
@@ -369,12 +366,9 @@ If not flagged, reason should be empty string.`,
       competitiveContext = `\n\nAPP CATEGORY: ${appCategory}\nBuild the standard features expected for this category.`
     }
 
-    // Requires 'hero-images' bucket in Supabase storage (public)
-    // GEMINI_API_KEY or OPENAI_API_KEY for AI generation
-    // Falls back to Unsplash (UNSPLASH_ACCESS_KEY) if neither present
-
-    const buildId = randomUUID()
-    let heroImageUrl: string | null = null
+    // ── Hero image resolution ─────────────────────────────────────────────────
+    // Priority: Gemini → OpenAI → Unsplash → Pexels → null
+    // All logic lives in api/lib/images.ts
 
     // Step 1 — Generate image prompt via Haiku
     let imagePrompt: string | null = null
@@ -402,105 +396,8 @@ Return only the image prompt text, nothing else. Max 100 words.`
       console.log('[generate] image prompt generation failed:', e)
     }
 
-    // Step 2 — AI image generation (BYOK) with Unsplash fallback
-    try {
-      const geminiKey = process.env.GEMINI_API_KEY
-      const openaiKey = process.env.OPENAI_API_KEY
-      const unsplashKey = process.env.UNSPLASH_ACCESS_KEY
-
-      if (imagePrompt && geminiKey) {
-        // Path A — Nano Banana via @google/genai SDK
-        console.log('[generate] image: using nano banana')
-        const genAI = new GoogleGenAI({ apiKey: geminiKey })
-        const imgResponse = await genAI.models.generateContent({
-          model: 'gemini-3.1-flash-image-preview',
-          contents: imagePrompt,
-          config: {
-            responseModalities: ['TEXT', 'IMAGE'],
-            imageConfig: {
-              aspectRatio: '16:9',
-              imageSize: '1K'
-            }
-          }
-        })
-
-        let b64: string | undefined
-        let mimeType: string = 'image/png'
-        for (const part of imgResponse.candidates?.[0]?.content?.parts ?? []) {
-          if (part.inlineData?.data) {
-            b64 = part.inlineData.data
-            mimeType = part.inlineData.mimeType ?? 'image/png'
-            break
-          }
-        }
-
-        const finishReason = imgResponse.candidates?.[0]?.finishReason
-        if (finishReason && finishReason !== 'STOP') {
-          console.log('[generate] nano banana safety filter triggered:', finishReason)
-          // b64 will be undefined — falls through to Unsplash naturally
-        }
-        if (imgResponse.promptFeedback?.blockReason) {
-          console.log('[generate] nano banana prompt blocked:', imgResponse.promptFeedback.blockReason)
-        }
-
-        console.log('[generate] nano banana image part found:', !!b64)
-
-        if (b64) {
-          const imageBuffer = Buffer.from(b64, 'base64')
-          const fileName = `${buildId}-hero.png`
-          const supabaseAdmin = createClient(
-            process.env.SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!
-          )
-          await supabaseAdmin.storage.from('hero-images').upload(
-            fileName, imageBuffer, { contentType: mimeType, upsert: true }
-          )
-          const { data: urlData } = supabaseAdmin.storage
-            .from('hero-images').getPublicUrl(fileName)
-          heroImageUrl = urlData.publicUrl
-          console.log('[generate] hero image uploaded:', heroImageUrl)
-        } else {
-          console.log('[generate] nano banana returned no image')
-        }
-
-      } else if (imagePrompt && openaiKey) {
-        // Path B — GPT-image-1
-        console.log('[generate] image: using openai')
-        const oaiRes = await fetch('https://api.openai.com/v1/images/generations', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: 'gpt-image-1', prompt: imagePrompt, n: 1, size: '1792x1024' })
-        })
-        const oaiData = await oaiRes.json() as { data?: Array<{ b64_json: string }> }
-        const b64 = oaiData.data?.[0]?.b64_json
-        if (b64) {
-          const imageBuffer = Buffer.from(b64, 'base64')
-          const fileName = `${buildId}-hero.png`
-          const supabaseAdmin = createClient(
-            process.env.SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!
-          )
-          await supabaseAdmin.storage.from('hero-images').upload(fileName, imageBuffer, {
-            contentType: 'image/png',
-            upsert: true
-          })
-          const { data: urlData } = supabaseAdmin.storage.from('hero-images').getPublicUrl(fileName)
-          heroImageUrl = urlData.publicUrl
-          console.log('[generate] hero image uploaded (openai):', heroImageUrl)
-        }
-
-      } else if (unsplashKey) {
-        // Path C — Unsplash search (permanent responsive URL)
-        console.log('[generate] image: using unsplash search')
-        const searchPrompt = imagePrompt ?? userMessage.slice(0, 60)
-        heroImageUrl = await fetchUnsplashHeroImage(searchPrompt)
-        if (heroImageUrl) console.log('[generate] Unsplash hero resolved')
-      }
-
-    } catch (e) {
-      console.log('[generate] image generation error:', e instanceof Error ? e.message : String(e))
-      heroImageUrl = null
-    }
+    // Step 2 — Resolve hero image (Gemini → OpenAI → Unsplash → Pexels → null)
+    const heroImageUrl = await resolveHeroImage(imagePrompt ?? userMessage.slice(0, 60))
 
     // Inject the permanent hero URL into the user message.
     // Claude reads HERO_IMAGE_URL and uses it as-is — no URL generation needed.
