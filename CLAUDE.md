@@ -362,9 +362,14 @@ First successful end-to-end build: 2026-03-20.
 
 **Shared server utilities belong in api/, not src/lib/**
 Wrong assumption: A utility used only by API routes (e.g. sendMagicLink) can live in src/lib/.
-Correct behaviour: src/ is compiled by Vite with tsconfig.app.json (no Node types, no process). API utilities must live in api/ with underscore prefix to match the _rateLimit.ts pattern.
-Fix: Created api/_sendMagicLink.ts. Any future server-only utility goes in api/_utilityName.ts, not src/lib/.
-Learned: 2026-03-20.
+Correct behaviour: src/ is compiled by Vite with tsconfig.app.json (no Node types, no process). API utilities must live in api/.
+
+## Utility file locations in api/
+- Shared utilities live in api/lib/ (e.g. api/lib/images.ts)
+- Single-purpose utilities use api/_utilityName.ts prefix (e.g. api/_systemPrompt.ts, api/_rateLimit.ts, api/_sendMagicLink.ts)
+- Do not mix the two patterns in the same logical group
+
+Learned: 2026-03-20. Updated: 2026-04-01.
 
 **@vercel/node types not installed — use any for req/res in API routes**
 Wrong assumption: New API routes can import VercelRequest/VercelResponse from @vercel/node.
