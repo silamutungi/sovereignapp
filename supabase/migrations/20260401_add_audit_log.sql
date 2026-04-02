@@ -23,5 +23,5 @@ CREATE POLICY "users_own_audit_log"
     )
   );
 
-CREATE INDEX audit_log_build_id_idx ON audit_log(build_id);
-CREATE INDEX audit_log_created_at_idx ON audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS audit_log_build_id_idx ON audit_log(build_id);
+CREATE INDEX IF NOT EXISTS audit_log_created_at_idx ON audit_log(created_at DESC);
