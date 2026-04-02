@@ -5,6 +5,7 @@
 // Mobile (<768px): single column with Chat/Preview tab toggle at top.
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { Clock, Moon, Sun } from 'lucide-react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import BrainAlertCard from '../components/BrainAlertCard'
@@ -1047,11 +1048,7 @@ export default function EditApp() {
                   padding: 0,
                 }}
               >
-                {/* Clock icon */}
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                  <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2"/>
-                  <path d="M6 3v3l2 1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+                <Clock size={12} strokeWidth={1.5} aria-hidden="true" />
               </button>
               {/* Theme toggle pill */}
               <button
@@ -1076,23 +1073,9 @@ export default function EditApp() {
                 }}
               >
                 {panelTheme === 'dark' ? (
-                  /* Moon (crescent) */
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                    <path d="M10.5 7.5a4.5 4.5 0 01-6-6A4.5 4.5 0 1010.5 7.5z" fill="currentColor"/>
-                  </svg>
+                  <Moon size={12} strokeWidth={1.5} aria-hidden="true" />
                 ) : (
-                  /* Sun (circle + rays) */
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                    <circle cx="6" cy="6" r="2.2" fill="currentColor"/>
-                    <line x1="6" y1="0.5" x2="6" y2="2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                    <line x1="6" y1="10" x2="6" y2="11.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                    <line x1="0.5" y1="6" x2="2" y2="6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                    <line x1="10" y1="6" x2="11.5" y2="6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                    <line x1="2.05" y1="2.05" x2="3.1" y2="3.1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                    <line x1="8.9" y1="8.9" x2="9.95" y2="9.95" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                    <line x1="9.95" y1="2.05" x2="8.9" y2="3.1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                    <line x1="3.1" y1="8.9" x2="2.05" y2="9.95" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                  </svg>
+                  <Sun size={12} strokeWidth={1.5} aria-hidden="true" />
                 )}
               </button>
             </div>

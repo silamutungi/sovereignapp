@@ -226,7 +226,9 @@ Fonts: Playfair Display (serif headings) + DM Mono (everything else)
 - Brain Audit checkTypography validates no hardcoded px sizes or thin weights
 
 ## Icon System — Apple HIG
-Library: lucide-react (SVG, matches SF Symbols metaphors)
+lucide-react is installed on visila.com and all generated apps.
+All UI icons use lucide-react. No inline SVGs for standard icons anywhere.
+Only brand logos (GitHub, Vercel, Visila mark) remain as inline SVG.
 Sizes: 12/16/20/24/32px — use tokens --icon-xs through --icon-xl
 Stroke: match to adjacent text — 1.5 regular, 2 semibold/buttons
 Accessibility: every icon-only button needs aria-label

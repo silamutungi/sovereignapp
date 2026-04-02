@@ -9,6 +9,7 @@
 // Session key: 'sovereign_user' → JSON.stringify({ email: string })
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { Menu, X } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import VisilaLogo from '../components/VisilaLogo'
 
@@ -970,11 +971,7 @@ function AuthDashboard({ email }: { email: string }) {
           aria-expanded={mobileNavOpen}
           style={{ background: 'none', border: 'none', color: '#f2efe8', cursor: 'pointer', padding: '4px', lineHeight: 0 }}
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <line x1="3" y1="6" x2="21" y2="6" />
-            <line x1="3" y1="12" x2="21" y2="12" />
-            <line x1="3" y1="18" x2="21" y2="18" />
-          </svg>
+          <Menu size={24} strokeWidth={1.5} />
         </button>
       </div>
 
@@ -1002,10 +999,7 @@ function AuthDashboard({ email }: { email: string }) {
               aria-label="Close menu"
               style={{ alignSelf: 'flex-end', background: 'none', border: 'none', color: '#0e0d0b', cursor: 'pointer', padding: '4px', lineHeight: 0 }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+              <X size={24} strokeWidth={1.5} />
             </button>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', marginTop: '48px' }}>
               <a

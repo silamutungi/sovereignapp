@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, type KeyboardEvent, type FormEvent, type RefObject } from 'react'
+import { Menu, X, Database, Lock } from 'lucide-react'
 import { t, type Locale } from './lib/i18n'
 import VisilaLogo from './components/VisilaLogo'
 import './styles/global.css'
@@ -81,11 +82,7 @@ function Nav({ locale }: { locale: Locale }) {
           aria-label="Open menu"
           aria-expanded={drawerOpen}
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <line x1="3" y1="6" x2="21" y2="6" />
-            <line x1="3" y1="12" x2="21" y2="12" />
-            <line x1="3" y1="18" x2="21" y2="18" />
-          </svg>
+          <Menu size={24} strokeWidth={1.5} />
         </button>
       </nav>
 
@@ -98,10 +95,7 @@ function Nav({ locale }: { locale: Locale }) {
               onClick={() => setDrawerOpen(false)}
               aria-label="Close menu"
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+              <X size={24} strokeWidth={1.5} />
             </button>
             <div className="nav-drawer-links">
               <a href="#how-it-works" className="nav-drawer-link" onClick={() => setDrawerOpen(false)}>
@@ -1209,9 +1203,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
                     style={{ borderColor: spec.primaryColor + '22', opacity: 0.3, cursor: 'default' }}
                     aria-label="Database choice happens on the next screen"
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                      <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/>
-                    </svg>
+                    <Database size={16} strokeWidth={1.5} aria-hidden="true" />
                     Connect Database
                   </div>
                 </div>
@@ -1388,10 +1380,7 @@ function Pricing({ locale }: { locale: Locale }) {
       </div>
 
       <div className="promise-row" aria-label="Pricing promise">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-        </svg>
+        <Lock size={18} strokeWidth={1.5} aria-hidden="true" />
         <p>🔒 {t(locale, 'pricing.promise')}</p>
       </div>
     </section>
