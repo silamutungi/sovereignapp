@@ -13,7 +13,7 @@ html, body { overflow-x: hidden; max-width: 100vw; position: relative; }
   background: var(--ink);
   color: var(--paper);
   padding: 8px 14px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   text-decoration: none;
   transition: top var(--duration-fast);
 }
@@ -38,7 +38,7 @@ html, body { overflow-x: hidden; max-width: 100vw; position: relative; }
   background: transparent;
   color: var(--text-mid);
   padding: 3px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   cursor: pointer;
   min-height: 28px;
   transition: background var(--duration-fast), color var(--duration-fast);
@@ -101,7 +101,7 @@ html, body { overflow-x: hidden; max-width: 100vw; position: relative; }
   background: var(--ink);
   color: var(--paper) !important;
   padding: 7px 14px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   min-height: 34px;
   display: inline-flex;
   align-items: center;

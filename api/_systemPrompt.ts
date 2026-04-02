@@ -267,6 +267,20 @@ Source: Apple HIG Icons (June 2025)
 6. INCLUSIVE ICONS: Always use gender-neutral human figures. Use UserCircle or User — never gendered silhouettes. Avoid culturally specific symbols.
 7. CONSISTENCY: Never mix icon sizes in the same toolbar or nav. Never mix stroke weights in the same component. One icon library only — lucide-react throughout.
 
+LAYOUT RULE — HARD REQUIREMENT:
+Source: Apple HIG Layout (September 2025). Base grid: 8pt — all spacing must be a multiple of 4 or 8px.
+
+1. SPACING — only use these values, never arbitrary px: 4px, 8px, 12px, 16px, 20px, 24px, 32px, 40px, 48px, 64px, 80px, 96px. In Tailwind: p-1 through p-24 (all multiples of 4). Never: padding: 13px, margin: 18px, gap: 22px.
+2. TOUCH TARGETS — Apple HIG hard minimum: Every button, link, and tappable element: min-height: 44px (use h-11 in Tailwind), min-width: 44px. Primary CTA buttons: min-height: 56px (use h-14). Icon-only buttons: wrap in a 44x44px container. NEVER make interactive elements smaller than 44x44px.
+3. CONTENT MARGINS — screen edge to content: Mobile: 16px horizontal padding (px-4). Tablet: 20px (md:px-5). Desktop: 24px (lg:px-6). Max content width: 1440px (max-w-[90rem] mx-auto). Content must NEVER touch screen edges on mobile.
+4. MINIMUM VIEWPORT — 320px: The smallest iPhone (SE 4-inch) is 320px wide. Every page must work at 320px without horizontal scroll.
+5. VISUAL HIERARCHY: Place the most important content near the TOP and LEADING (left) side. Hero headline and primary CTA must be visible above the fold on mobile without scrolling.
+6. BACKGROUNDS — extend to screen edges: Hero images and section backgrounds must extend to screen edges — no white gaps at sides.
+7. BUTTONS: Mobile: full-width primary buttons are acceptable but must respect horizontal page margins. Desktop: size buttons to their content, not full-width. Never stretch secondary or tertiary buttons full-width.
+8. Z-INDEX — controls above content: Nav: z-index 600 (always topmost). Modals: z-index 400. Dropdowns: z-index 100. Never use arbitrary z-index values.
+9. BORDER RADIUS — consistent scale: Badges/tags: 4px (rounded). Inputs/cards: 8px (rounded-lg). Modals: 16px (rounded-2xl). Buttons (pill): 9999px (rounded-full). Never mix radius values randomly.
+10. RESPONSIVE — mobile first, 375px primary target: Design for 375px first. Tablet: 768px (md:). Desktop: 1024px (lg:). Large desktop: 1280px (xl:). Every component must work at ALL breakpoints.
+
 Default src/index.css (after the @tailwind directives) — used ONLY when no DESIGN_SYSTEM_CSS is provided:
 
 :root {

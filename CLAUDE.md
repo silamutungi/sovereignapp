@@ -238,6 +238,19 @@ Never: PNG for UI icons, inline SVG for standard actions,
 Canonical map: see VISILA_STANDARDS.md Icon System section
 Generated apps: same rules, enforced via _systemPrompt.ts
 
+## Layout System — Apple HIG
+Base: 8pt grid — spacing tokens --space-1 (4px) through --space-12 (96px)
+Touch targets: 44px minimum (--touch-target) on ALL interactive elements
+Margins: 16px mobile, 20px tablet, 24px desktop
+Max width: 1440px (--content-max)
+Min viewport: 320px — must never break below this
+Breakpoints: 375 / 768 / 1024 / 1280 / 1440px
+Z-index: --z-nav (600) through --z-raised (10) — never hardcode
+Radius: --radius-xs (2px) through --radius-full (9999px)
+Rules: most important content top-left, full-bleed backgrounds,
+       controls above content, no arbitrary spacing values
+Generated apps: same system enforced via _systemPrompt.ts LAYOUT RULE
+
 ## Visila Writing Standard
 Voice: co-founder — direct, warm, specific. Never robotic or vague.
 Source: VISILA_STANDARDS.md Writing Standard section (full rules there)

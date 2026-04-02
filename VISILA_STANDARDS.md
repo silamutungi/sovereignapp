@@ -311,6 +311,72 @@ Always use these icons for these actions. Never substitute.
 - Consistent size within a context — never mix md and lg in same toolbar
 - Match stroke weight to adjacent text weight
 
+## Visila Layout System
+Source: Apple HIG Layout PDF (September 2025)
+Base grid: 8pt — all spacing is a multiple of 4 or 8px
+
+### Spacing scale (defined in src/styles/tokens.css)
+  `--space-1`   4px    hairline gaps, icon padding
+  `--space-2`   8px    tight inline gaps
+  `--space-3`   12px   compact list items
+  `--space-4`   16px   standard padding, form fields
+  `--space-5`   20px   section padding mobile
+  `--space-6`   24px   card padding
+  `--space-7`   32px   section gaps
+  `--space-8`   40px   large section padding
+  `--space-9`   48px   hero padding mobile
+  `--space-10`  64px   section gaps desktop
+  `--space-11`  80px   hero padding desktop
+  `--space-12`  96px   max section padding
+
+### Touch targets — hard requirement (Apple HIG)
+  `--touch-target`             44px — absolute minimum
+  `--touch-target-comfortable` 48px — preferred
+  `--touch-target-large`       56px — primary CTAs
+  Every interactive element must meet the 44px minimum. No exceptions.
+
+### Content margins
+  Mobile:  `var(--margin-mobile)`  = 16px
+  Tablet:  `var(--margin-tablet)`  = 20px
+  Desktop: `var(--margin-desktop)` = 24px
+  Max width: `var(--content-max)`  = 1440px
+
+### Breakpoints (Tailwind defaults — match Apple device specs)
+  sm:  375px — iPhone SE 4.7-inch (most common iPhone)
+  md:  768px — iPad portrait
+  lg:  1024px — iPad landscape / small desktop
+  xl:  1280px — standard desktop
+  2xl: 1440px — large desktop
+  Minimum: 320px — iPhone SE 4-inch (never break below this)
+
+### Z-index scale
+  `--z-nav`:      600   nav always topmost
+  `--z-toast`:    500   notifications
+  `--z-modal`:    400   modals, dialogs
+  `--z-overlay`:  300   backdrops
+  `--z-sticky`:   200   sticky headers
+  `--z-dropdown`: 100   dropdowns, tooltips
+  `--z-raised`:   10    cards on hover
+
+### Border radius scale
+  `--radius-xs`    2px    hairline
+  `--radius-sm`    4px    badges, tags
+  `--radius-md`    8px    inputs, small cards
+  `--radius-lg`    12px   cards, panels
+  `--radius-xl`    16px   modals, large cards
+  `--radius-2xl`   24px   hero cards, sheets
+  `--radius-full`  9999px pill buttons, chips
+
+### Rules — hard requirements
+- All spacing is a multiple of 4 or 8 — never arbitrary values
+- Minimum touch target: 44px on every interactive element
+- Content never touches screen edges — minimum 16px margin
+- Design for 375px first, test at 320px minimum
+- Most important content is top-left, above the fold
+- Backgrounds extend to screen edges (full-bleed)
+- Controls (nav, modals) always above content via z-index
+- Never use arbitrary z-index values
+
 ## Visila Writing Standard
 Source: Apple HIG Writing (December 2025) + Visila brand voice
 Applies to: all UI copy, Brain hints, error messages, empty states, button labels, placeholders, notifications
