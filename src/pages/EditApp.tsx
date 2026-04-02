@@ -756,7 +756,7 @@ export default function EditApp() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0e0d0b' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
           <p style={{ font: '13px/1.5 DM Mono, Courier New, monospace', color: '#f2efe8', margin: 0 }}>{loadError}</p>
-          <button onClick={() => navigate('/dashboard')} style={{ background: 'none', border: '1px solid #3a3830', color: '#5a5850', font: '11px/1 DM Mono, Courier New, monospace', padding: '8px 16px', cursor: 'pointer', borderRadius: 4 }}>
+          <button onClick={() => navigate('/dashboard')} style={{ background: 'none', border: '1px solid #3a3830', color: '#5a5850', font: '11px/1 DM Mono, Courier New, monospace', padding: '8px 16px', cursor: 'pointer', borderRadius: 'var(--radius-sm)' }}>
             ← Back to Dashboard
           </button>
         </div>
@@ -867,7 +867,7 @@ export default function EditApp() {
           justifyContent: 'space-between',
           padding: '0 16px',
           gap: 12,
-          zIndex: 10,
+          zIndex: 'var(--z-raised)',
         }}>
           {/* Left: back */}
           <button
@@ -907,7 +907,7 @@ export default function EditApp() {
                   textDecoration: 'none',
                   background: '#1a1917',
                   padding: '4px 8px',
-                  borderRadius: 3,
+                  borderRadius: 'var(--radius-xs)',
                   maxWidth: isMobile ? 100 : 200,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -921,7 +921,7 @@ export default function EditApp() {
             {isStaging && (
               <button
                 onClick={handleClaimClick}
-                style={{ background: '#FF1F6E', border: 'none', color: '#0e0d0b', font: '10px/1 DM Mono, Courier New, monospace', padding: '5px 10px', cursor: 'pointer', borderRadius: 3, whiteSpace: 'nowrap' }}
+                style={{ background: '#FF1F6E', border: 'none', color: '#0e0d0b', font: '10px/1 DM Mono, Courier New, monospace', padding: '5px 10px', cursor: 'pointer', borderRadius: 'var(--radius-xs)', whiteSpace: 'nowrap' }}
               >
                 Claim →
               </button>
@@ -1095,7 +1095,7 @@ export default function EditApp() {
                       {[80, 55, 70].map((w, i) => (
                         <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                           <div style={{ width: 22, height: 22, borderRadius: '50%', background: t.border, flexShrink: 0 }} />
-                          <div style={{ height: 32, width: `${w}%`, borderRadius: 6, background: t.border, animation: 'pulse 1.4s infinite' }} />
+                          <div style={{ height: 32, width: `${w}%`, borderRadius: 'var(--radius-md)', background: t.border, animation: 'pulse 1.4s infinite' }} />
                         </div>
                       ))}
                     </div>
@@ -1162,7 +1162,7 @@ export default function EditApp() {
                             {msg.pills && msg.pills.length > 0 && (
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
                                 {msg.pills.map((pill, i) => (
-                                  <span key={i} style={{ background: '#0f1a06', color: '#9ab870', font: '10px/1 DM Mono, Courier New, monospace', padding: '3px 8px', borderRadius: 3, border: '1px solid #1a3006' }}>
+                                  <span key={i} style={{ background: '#0f1a06', color: '#9ab870', font: '10px/1 DM Mono, Courier New, monospace', padding: '3px 8px', borderRadius: 'var(--radius-xs)', border: '1px solid #1a3006' }}>
                                     {pill}
                                   </span>
                                 ))}
@@ -1340,7 +1340,7 @@ export default function EditApp() {
                         color: planMode ? '#FF1F6E' : t.textDim,
                         background: planMode ? 'rgba(255,31,110,0.12)' : 'none',
                         border: `1px solid ${planMode ? 'rgba(255,31,110,0.3)' : 'transparent'}`,
-                        borderRadius: 10,
+                        borderRadius: 'var(--radius-lg)',
                         padding: '3px 8px',
                         cursor: 'pointer',
                         transition: 'all .15s',
@@ -1364,7 +1364,7 @@ export default function EditApp() {
                 background: t.panelBg,
                 display: 'flex',
                 flexDirection: 'column',
-                zIndex: 20,
+                zIndex: 'var(--z-raised)',
                 animation: 'fadeIn .15s ease',
               }}>
                 {/* History header */}
@@ -1415,7 +1415,7 @@ export default function EditApp() {
                               {m.text.length > 40 ? m.text.slice(0, 40) + '…' : m.text}
                             </span>
                             {isCurrentVersion && (
-                              <span style={{ font: '9px/1 DM Mono, Courier New, monospace', color: '#6ab870', background: '#0e1a0e', border: '1px solid #1e3a1e', borderRadius: 3, padding: '2px 6px', flexShrink: 0 }}>
+                              <span style={{ font: '9px/1 DM Mono, Courier New, monospace', color: '#6ab870', background: '#0e1a0e', border: '1px solid #1e3a1e', borderRadius: 'var(--radius-xs)', padding: '2px 6px', flexShrink: 0 }}>
                                 current
                               </span>
                             )}
@@ -1435,7 +1435,7 @@ export default function EditApp() {
                   const isCurrentVersion = versionsWithSha[0]?.id === selectedVersion.id
                   if (isCurrentVersion) return null
                   return (
-                    <div style={{ margin: '0 12px 12px', padding: '10px 12px', background: '#0c1a2e', border: '1px solid #1a3d5c', borderRadius: 6, flexShrink: 0 }}>
+                    <div style={{ margin: '0 12px 12px', padding: '10px 12px', background: '#0c1a2e', border: '1px solid #1a3d5c', borderRadius: 'var(--radius-md)', flexShrink: 0 }}>
                       <p style={{ font: '9px/1 DM Mono, Courier New, monospace', color: '#4a9edd', margin: '0 0 6px', letterSpacing: '0.08em' }}>↗ RESTORE NOTE</p>
                       <p style={{ font: '11px/1.6 DM Mono, Courier New, monospace', color: '#b8d4ec', margin: 0 }}>
                         Restoring will undo all edits after this point. Nothing is lost — you can reapply from history anytime.
@@ -1467,7 +1467,7 @@ export default function EditApp() {
                       type="text"
                       value={brandColor}
                       onChange={(e) => setBrandColor(e.target.value)}
-                      style={{ background: t.surface, border: `1px solid ${t.border}`, color: t.textPrimary, font: '11px/1 DM Mono, Courier New, monospace', padding: '6px 10px', borderRadius: 3, width: 80 }}
+                      style={{ background: t.surface, border: `1px solid ${t.border}`, color: t.textPrimary, font: '11px/1 DM Mono, Courier New, monospace', padding: '6px 10px', borderRadius: 'var(--radius-xs)', width: 80 }}
                     />
                   </div>
                 </div>
@@ -1487,7 +1487,7 @@ export default function EditApp() {
                           font: '10px/1 DM Mono, Courier New, monospace',
                           padding: '6px 10px',
                           cursor: 'pointer',
-                          borderRadius: 3,
+                          borderRadius: 'var(--radius-xs)',
                           textTransform: 'capitalize',
                           transition: 'background .15s, color .15s',
                         }}
@@ -1513,7 +1513,7 @@ export default function EditApp() {
                           font: '10px/1 DM Mono, Courier New, monospace',
                           padding: '7px 0',
                           cursor: 'pointer',
-                          borderRadius: 3,
+                          borderRadius: 'var(--radius-xs)',
                           textTransform: 'capitalize',
                           transition: 'background .15s, color .15s',
                         }}
@@ -1579,7 +1579,7 @@ export default function EditApp() {
                     font: '10px/1 DM Mono, Courier New, monospace',
                     padding: '3px 8px',
                     cursor: 'pointer',
-                    borderRadius: 3,
+                    borderRadius: 'var(--radius-xs)',
                     transition: 'all .15s',
                   }}
                   title="Click anywhere in the preview to describe a change"
@@ -1653,7 +1653,7 @@ export default function EditApp() {
                       onClick={handleOverlayClick}
                     >
                       {/* Visible "click mode active" indicator */}
-                      <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,31,110,0.15)', border: '1px solid rgba(255,31,110,0.4)', borderRadius: 4, padding: '4px 10px', font: '10px/1 DM Mono, Courier New, monospace', color: '#FF1F6E', pointerEvents: 'none', zIndex: 4 }}>
+                      <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,31,110,0.15)', border: '1px solid rgba(255,31,110,0.4)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', font: '10px/1 DM Mono, Courier New, monospace', color: '#FF1F6E', pointerEvents: 'none', zIndex: 4 }}>
                         Click anywhere to describe a change
                       </div>
 
@@ -1666,7 +1666,7 @@ export default function EditApp() {
                             top: Math.min(clickPopover.y, (iframeContainerRef.current?.offsetHeight ?? 400) - 120),
                             background: '#1a1917',
                             border: '1px solid #2a2925',
-                            borderRadius: 6,
+                            borderRadius: 'var(--radius-md)',
                             padding: 12,
                             width: 240,
                             zIndex: 5,
@@ -1685,7 +1685,7 @@ export default function EditApp() {
                             value={clickInput}
                             onChange={(e) => setClickInput(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitClickDescription() } }}
-                            style={{ minHeight: 56, marginBottom: 8, borderRadius: 4, border: '1px solid #2a2925' }}
+                            style={{ minHeight: 56, marginBottom: 8, borderRadius: 'var(--radius-sm)', border: '1px solid #2a2925' }}
                           />
                           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
                             <button onClick={() => setClickPopover(null)} className="ea-btn-ghost" style={{ fontSize: 10, padding: '5px 8px' }}>✕</button>
@@ -1725,11 +1725,11 @@ export default function EditApp() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
-                  zIndex: 20,
+                  zIndex: 'var(--z-raised)',
                 }}>
                   <button
                     onClick={() => { setShowHistory(false); setSelectedVersion(null); setHistoryPreviewUrl(null) }}
-                    style={{ background: 'none', border: '1px solid #2a2925', color: '#5a5850', font: '11px/1 DM Mono, Courier New, monospace', padding: '8px 14px', cursor: 'pointer', borderRadius: 3 }}
+                    style={{ background: 'none', border: '1px solid #2a2925', color: '#5a5850', font: '11px/1 DM Mono, Courier New, monospace', padding: '8px 14px', cursor: 'pointer', borderRadius: 'var(--radius-xs)' }}
                   >
                     Keep current
                   </button>
@@ -1757,7 +1757,7 @@ export default function EditApp() {
                         setReverting(false)
                       }
                     }}
-                    style={{ flex: 1, background: '#7c3aed', border: 'none', color: '#ffffff', font: '11px/1 DM Mono, Courier New, monospace', padding: '8px 14px', cursor: reverting ? 'default' : 'pointer', borderRadius: 3, opacity: reverting ? 0.6 : 1, transition: 'opacity .15s' }}
+                    style={{ flex: 1, background: '#7c3aed', border: 'none', color: '#ffffff', font: '11px/1 DM Mono, Courier New, monospace', padding: '8px 14px', cursor: reverting ? 'default' : 'pointer', borderRadius: 'var(--radius-xs)', opacity: reverting ? 0.6 : 1, transition: 'opacity .15s' }}
                   >
                     {reverting ? 'Restoring…' : 'Restore this version →'}
                   </button>
@@ -1773,12 +1773,12 @@ export default function EditApp() {
               transform: 'translateX(-50%)',
               background: '#0a0908',
               border: '0.5px solid #1e1d1a',
-              borderRadius: 20,
+              borderRadius: 'var(--radius-2xl)',
               padding: '5px 12px',
               display: 'flex',
               alignItems: 'center',
               gap: 7,
-              zIndex: 10,
+              zIndex: 'var(--z-raised)',
               pointerEvents: 'none',
               boxShadow: '0 2px 12px rgba(0,0,0,.5)',
             }}>
@@ -1805,10 +1805,10 @@ export default function EditApp() {
       {/* ── Security scan modal ────────────────────────────────────────────────── */}
       {scanOpen && (
         <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
           onClick={(e) => { if (e.target === e.currentTarget) setScanOpen(false) }}
         >
-          <div style={{ background: '#0e0d0b', border: '1px solid #2a2925', borderRadius: 10, width: '100%', maxWidth: 480, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ background: '#0e0d0b', border: '1px solid #2a2925', borderRadius: 'var(--radius-lg)', width: '100%', maxWidth: 480, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '20px 20px 0', flexShrink: 0 }}>
               <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 18, color: '#f2efe8', margin: '0 0 4px' }}>Claim your app</p>
               <p style={{ font: '11px/1.6 DM Mono, Courier New, monospace', color: '#5a5850', margin: '0 0 16px' }}>
@@ -1827,7 +1827,7 @@ export default function EditApp() {
               {scanResult && (
                 <div style={{ animation: 'fadeIn .2s ease' }}>
                   {scanResult.passed ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', background: '#0e1a0e', border: '1px solid #1e3a1e', borderRadius: 6, marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', background: '#0e1a0e', border: '1px solid #1e3a1e', borderRadius: 'var(--radius-md)', marginBottom: 16 }}>
                       <span style={{ color: '#6ab870', fontSize: 14 }}>✓</span>
                       <span style={{ font: '12px/1 DM Mono, Courier New, monospace', color: '#6ab870' }}>Security scan passed · Safe to claim · Score {scanResult.score}/100</span>
                     </div>
@@ -1862,7 +1862,7 @@ export default function EditApp() {
                     {scanResult.passed && (
                       <a
                         href={`/api/claim-build?build_id=${buildId}`}
-                        style={{ flex: 1, textAlign: 'center', background: '#FF1F6E', color: '#0e0d0b', font: '11px/1 DM Mono, Courier New, monospace', padding: '10px 0', borderRadius: 4, textDecoration: 'none', display: 'block' }}
+                        style={{ flex: 1, textAlign: 'center', background: '#FF1F6E', color: '#0e0d0b', font: '11px/1 DM Mono, Courier New, monospace', padding: '10px 0', borderRadius: 'var(--radius-sm)', textDecoration: 'none', display: 'block' }}
                       >
                         Claim and transfer →
                       </a>
@@ -1903,7 +1903,7 @@ function PlanCard({ plan, onApply, onCancel }: {
     <div className="hint-fade" style={{
       background: '#161514',
       border: '1px solid #2a2826',
-      borderRadius: 8,
+      borderRadius: 'var(--radius-md)',
       padding: '12px 14px',
       maxWidth: '92%',
     }}>
@@ -1924,7 +1924,7 @@ function PlanCard({ plan, onApply, onCancel }: {
         color: r.color,
         background: `${r.color}12`,
         border: `1px solid ${r.color}30`,
-        borderRadius: 10,
+        borderRadius: 'var(--radius-lg)',
         padding: '3px 8px',
         marginBottom: 10,
       }}>
@@ -1965,7 +1965,7 @@ function PlanCard({ plan, onApply, onCancel }: {
             font: '11px/1 DM Mono, Courier New, monospace',
             padding: '6px 14px',
             cursor: 'pointer',
-            borderRadius: 4,
+            borderRadius: 'var(--radius-sm)',
           }}
         >
           Apply &rarr;
@@ -1979,7 +1979,7 @@ function PlanCard({ plan, onApply, onCancel }: {
             font: '11px/1 DM Mono, Courier New, monospace',
             padding: '6px 14px',
             cursor: 'pointer',
-            borderRadius: 4,
+            borderRadius: 'var(--radius-sm)',
           }}
         >
           Cancel
@@ -2005,7 +2005,7 @@ function HintCard({ hint, onAction, onDismiss }: {
     <div className="hint-fade" style={{
       background: c.bg,
       border: `1px solid ${c.border}`,
-      borderRadius: 6,
+      borderRadius: 'var(--radius-md)',
       padding: '10px 12px',
       maxWidth: '92%',
     }}>
@@ -2021,11 +2021,11 @@ function HintCard({ hint, onAction, onDismiss }: {
         <div style={{ display: 'flex', gap: 6 }}>
           <button
             onClick={() => onAction(hint.action)}
-            style={{ background: c.actionBg, border: `1px solid ${c.border}`, color: c.actionColor, font: '10px/1 DM Mono, Courier New, monospace', padding: '5px 10px', cursor: 'pointer', borderRadius: 3 }}
+            style={{ background: c.actionBg, border: `1px solid ${c.border}`, color: c.actionColor, font: '10px/1 DM Mono, Courier New, monospace', padding: '5px 10px', cursor: 'pointer', borderRadius: 'var(--radius-xs)' }}
           >
             {hint.actionLabel ?? 'Do it →'}
           </button>
-          <button onClick={onDismiss} style={{ background: 'none', border: `1px solid ${c.border}`, color: c.bodyColor, font: '10px/1 DM Mono, Courier New, monospace', padding: '5px 10px', cursor: 'pointer', borderRadius: 3, opacity: 0.6 }}>
+          <button onClick={onDismiss} style={{ background: 'none', border: `1px solid ${c.border}`, color: c.bodyColor, font: '10px/1 DM Mono, Courier New, monospace', padding: '5px 10px', cursor: 'pointer', borderRadius: 'var(--radius-xs)', opacity: 0.6 }}>
             Not now
           </button>
         </div>

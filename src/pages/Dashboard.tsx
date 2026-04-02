@@ -908,7 +908,7 @@ function AuthDashboard({ email }: { email: string }) {
           justifyContent: 'space-between',
           position: 'sticky',
           top: 0,
-          zIndex: 100,
+          zIndex: 'var(--z-dropdown)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
@@ -980,14 +980,14 @@ function AuthDashboard({ email }: { email: string }) {
         <div
           onClick={() => setMobileNavOpen(false)}
           style={{
-            position: 'fixed', inset: 0, zIndex: 200,
+            position: 'fixed', inset: 0, zIndex: 'var(--z-overlay)',
             background: 'rgba(14,13,11,0.4)',
           }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              position: 'fixed', inset: 0, zIndex: 201,
+              position: 'fixed', inset: 0, zIndex: 'var(--z-overlay)',
               background: '#f2efe8',
               display: 'flex', flexDirection: 'column',
               padding: '20px 28px',
@@ -1351,7 +1351,7 @@ function AuthDashboard({ email }: { email: string }) {
       )}
 
       {toastMessage && (
-        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: '#0e0d0b', color: '#f2efe8', padding: '10px 20px', font: '12px/1 DM Mono, Courier New, monospace', border: '1px solid #FF1F6E', zIndex: 2000, whiteSpace: 'nowrap', borderRadius: 4 }}>
+        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: '#0e0d0b', color: '#f2efe8', padding: '10px 20px', font: '12px/1 DM Mono, Courier New, monospace', border: '1px solid #FF1F6E', zIndex: 'var(--z-toast)', whiteSpace: 'nowrap', borderRadius: 'var(--radius-sm)' }}>
           {toastMessage}
         </div>
       )}
@@ -1427,7 +1427,7 @@ function SetupDBModal({ build, onClose }: { build: Build; onClose: () => void })
                 padding: '10px 20px',
                 font: '500 13px/1 DM Mono, Courier New, monospace',
                 cursor: 'pointer',
-                borderRadius: '6px',
+                borderRadius: 'var(--radius-md)',
                 transition: 'all 0.15s',
                 minHeight: '44px',
               }}
@@ -1447,7 +1447,7 @@ function SetupDBModal({ build, onClose }: { build: Build; onClose: () => void })
                 border: '1px solid #3a3830',
                 padding: '10px 20px',
                 font: '13px/1 DM Mono, Courier New, monospace',
-                borderRadius: '6px',
+                borderRadius: 'var(--radius-md)',
                 textDecoration: 'none',
                 minHeight: '44px',
                 transition: 'border-color 0.15s',
@@ -1526,7 +1526,7 @@ function ClaimModal({ build, onClose, onClaimed }: { build: Build; onClose: () =
       <div
         style={{
           position: 'fixed', inset: 0, background: 'rgba(14,13,11,0.7)',
-          zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center',
           padding: '24px',
         }}
         onClick={onClose}
@@ -1538,7 +1538,7 @@ function ClaimModal({ build, onClose, onClaimed }: { build: Build; onClose: () =
           position: 'fixed', top: '50%', left: '50%',
           transform: 'translate(-50%, -50%)',
           background: '#f2efe8', width: '100%', maxWidth: '480px',
-          zIndex: 1001, padding: '40px',
+          zIndex: 'var(--z-modal)', padding: '40px',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -1595,7 +1595,7 @@ function ClaimModal({ build, onClose, onClaimed }: { build: Build; onClose: () =
                 style={{
                   flex: 1, background: '#0e0d0b', color: '#f2efe8', border: 'none',
                   padding: '12px 24px', font: '13px/1 DM Mono, Courier New, monospace',
-                  cursor: 'pointer', borderRadius: '4px',
+                  cursor: 'pointer', borderRadius: 'var(--radius-sm)',
                 }}
               >
                 Claim app →
@@ -1605,7 +1605,7 @@ function ClaimModal({ build, onClose, onClaimed }: { build: Build; onClose: () =
                 style={{
                   background: 'transparent', color: '#6b6862', border: '1px solid #d8d4ca',
                   padding: '12px 20px', font: '13px/1 DM Mono, Courier New, monospace',
-                  cursor: 'pointer', borderRadius: '4px',
+                  cursor: 'pointer', borderRadius: 'var(--radius-sm)',
                 }}
               >
                 Cancel
@@ -1643,7 +1643,7 @@ function ClaimModal({ build, onClose, onClaimed }: { build: Build; onClose: () =
               style={{
                 width: '100%', background: '#0e0d0b', color: '#f2efe8', border: 'none',
                 padding: '12px 24px', font: '13px/1 DM Mono, Courier New, monospace',
-                cursor: 'pointer', borderRadius: '4px',
+                cursor: 'pointer', borderRadius: 'var(--radius-sm)',
               }}
             >
               Done
@@ -1664,7 +1664,7 @@ function ClaimModal({ build, onClose, onClaimed }: { build: Build; onClose: () =
                 style={{
                   flex: 1, background: '#0e0d0b', color: '#f2efe8', border: 'none',
                   padding: '12px 24px', font: '13px/1 DM Mono, Courier New, monospace',
-                  cursor: 'pointer', borderRadius: '4px',
+                  cursor: 'pointer', borderRadius: 'var(--radius-sm)',
                 }}
               >
                 Try again
@@ -1674,7 +1674,7 @@ function ClaimModal({ build, onClose, onClaimed }: { build: Build; onClose: () =
                 style={{
                   background: 'transparent', color: '#6b6862', border: '1px solid #d8d4ca',
                   padding: '12px 20px', font: '13px/1 DM Mono, Courier New, monospace',
-                  cursor: 'pointer', borderRadius: '4px',
+                  cursor: 'pointer', borderRadius: 'var(--radius-sm)',
                 }}
               >
                 Close
@@ -1871,7 +1871,7 @@ function AppCard({
             border: '1px solid #FF1F6E55',
             font: '11px/1 DM Mono, Courier New, monospace',
             cursor: 'pointer',
-            borderRadius: '100px',
+            borderRadius: 'var(--radius-full)',
             marginBottom: '12px',
             transition: 'border-color 0.15s, background 0.15s',
             minHeight: '28px',
@@ -1921,7 +1921,7 @@ function AppCard({
               font: '11px/1 DM Mono, Courier New, monospace',
               fontWeight: 600,
               cursor: build.claim_status === 'pending_github_acceptance' ? 'default' : 'pointer',
-              borderRadius: '4px',
+              borderRadius: 'var(--radius-sm)',
               minHeight: '28px',
             }}
           >
@@ -1959,7 +1959,7 @@ function AppCard({
               background: '#0e0d0b',
               color: '#f2efe8',
               border: 'none',
-              borderRadius: '4px',
+              borderRadius: 'var(--radius-sm)',
               font: '11px/1 DM Mono, Courier New, monospace',
               padding: '7px 14px',
               cursor: 'pointer',
@@ -1974,7 +1974,7 @@ function AppCard({
                 background: 'transparent',
                 color: '#0e0d0b',
                 border: '1px solid #0e0d0b',
-                borderRadius: '4px',
+                borderRadius: 'var(--radius-sm)',
                 font: '11px/1 DM Mono, Courier New, monospace',
                 padding: '7px 14px',
                 cursor: 'pointer',
@@ -1990,7 +1990,7 @@ function AppCard({
                 background: 'transparent',
                 color: '#0e0d0b',
                 border: '1px solid #0e0d0b',
-                borderRadius: '4px',
+                borderRadius: 'var(--radius-sm)',
                 font: '11px/1 DM Mono, Courier New, monospace',
                 padding: '7px 14px',
                 cursor: 'pointer',
@@ -2068,7 +2068,7 @@ function AppCard({
                 background: '#c0392b',
                 color: '#fff',
                 border: 'none',
-                borderRadius: '4px',
+                borderRadius: 'var(--radius-sm)',
                 font: '11px/1 DM Mono, Courier New, monospace',
                 padding: '6px 12px',
                 cursor: 'pointer',
@@ -2082,7 +2082,7 @@ function AppCard({
                 background: 'transparent',
                 color: '#6b6862',
                 border: '1px solid #d8d4ca',
-                borderRadius: '4px',
+                borderRadius: 'var(--radius-sm)',
                 font: '11px/1 DM Mono, Courier New, monospace',
                 padding: '6px 12px',
                 cursor: 'pointer',
