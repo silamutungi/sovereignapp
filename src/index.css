@@ -62,6 +62,12 @@ p {
   margin: 0;
 }
 
+/* Always show a visible focus indicator */
+:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
 code,
 .counter {
   font-family: var(--font-mono);

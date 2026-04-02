@@ -854,7 +854,7 @@ export default function EditApp() {
         .ea-panel-light .queue-pill button:hover{color:#0e0d0b}
       `}</style>
 
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: '#0e0d0b' }}>
+      <main style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: '#0e0d0b' }}>
 
         {/* ── Top bar ─────────────────────────────────────────────────────────── */}
         <div style={{
@@ -872,7 +872,7 @@ export default function EditApp() {
           {/* Left: back */}
           <button
             onClick={() => navigate('/dashboard')}
-            style={{ background: 'none', border: 'none', color: '#5a5850', font: '11px/1 DM Mono, Courier New, monospace', cursor: 'pointer', padding: 0, flexShrink: 0, whiteSpace: 'nowrap' }}
+            style={{ background: 'none', border: 'none', color: '#5a5850', font: '11px/1 DM Mono, Courier New, monospace', cursor: 'pointer', padding: '8px 4px', minHeight: 44, flexShrink: 0, whiteSpace: 'nowrap' }}
             aria-label="Back to Dashboard"
           >
             ← Dashboard
@@ -1033,8 +1033,8 @@ export default function EditApp() {
                 aria-label="Version history"
                 style={{
                   marginLeft: 'auto',
-                  width: 28,
-                  height: 28,
+                  width: 44,
+                  height: 44,
                   borderRadius: '50%',
                   background: panelTheme === 'dark' ? '#2a2925' : '#e8e4da',
                   border: 'none',
@@ -1048,7 +1048,7 @@ export default function EditApp() {
                   padding: 0,
                 }}
               >
-                <Clock size={12} strokeWidth={1.5} aria-hidden="true" />
+                <Clock size={16} strokeWidth={1.5} aria-hidden="true" />
               </button>
               {/* Theme toggle pill */}
               <button
@@ -1057,8 +1057,8 @@ export default function EditApp() {
                 aria-label={panelTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                 style={{
                   marginLeft: 4,
-                  width: 28,
-                  height: 28,
+                  width: 44,
+                  height: 44,
                   borderRadius: '50%',
                   background: panelTheme === 'dark' ? '#2a2925' : '#e8e4da',
                   border: 'none',
@@ -1073,9 +1073,9 @@ export default function EditApp() {
                 }}
               >
                 {panelTheme === 'dark' ? (
-                  <Moon size={12} strokeWidth={1.5} aria-hidden="true" />
+                  <Moon size={16} strokeWidth={1.5} aria-hidden="true" />
                 ) : (
-                  <Sun size={12} strokeWidth={1.5} aria-hidden="true" />
+                  <Sun size={16} strokeWidth={1.5} aria-hidden="true" />
                 )}
               </button>
             </div>
@@ -1284,7 +1284,9 @@ export default function EditApp() {
 
                 {/* ── Input area ───────────────────────────────────────────── */}
                 <div style={{ borderTop: `1px solid ${t.border}`, padding: '8px 12px 12px', flexShrink: 0, background: t.panelBg, transition: 'background .15s, border-color .15s' }}>
+                  <label htmlFor="edit-input" style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}>Describe your edit</label>
                   <textarea
+                    id="edit-input"
                     ref={inputRef}
                     className="ea-textarea"
                     placeholder="What do you want to change..."
@@ -1588,7 +1590,7 @@ export default function EditApp() {
                 </button>
                 <button
                   onClick={() => setPreviewKey((k) => k + 1)}
-                  style={{ background: 'none', border: 'none', color: '#3a3830', cursor: 'pointer', font: '14px/1', padding: '2px 4px' }}
+                  style={{ background: 'none', border: 'none', color: '#3a3830', cursor: 'pointer', font: '14px/1', padding: '8px', minHeight: 44, minWidth: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   title="Refresh preview"
                   aria-label="Refresh preview"
                 >
@@ -1688,7 +1690,7 @@ export default function EditApp() {
                             style={{ minHeight: 56, marginBottom: 8, borderRadius: 'var(--radius-sm)', border: '1px solid #2a2925' }}
                           />
                           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
-                            <button onClick={() => setClickPopover(null)} className="ea-btn-ghost" style={{ fontSize: 10, padding: '5px 8px' }}>✕</button>
+                            <button onClick={() => setClickPopover(null)} className="ea-btn-ghost" aria-label="Close click description" style={{ fontSize: 10, padding: '5px 8px', minHeight: 44, minWidth: 44 }}>✕</button>
                             <button onClick={submitClickDescription} className="ea-btn-green" disabled={!clickInput.trim()} style={{ flex: 1 }}>
                               Update this →
                             </button>
@@ -1800,7 +1802,7 @@ export default function EditApp() {
             </div>
           </div>
         </div>
-      </div>
+      </main>
 
       {/* ── Security scan modal ────────────────────────────────────────────────── */}
       {scanOpen && (

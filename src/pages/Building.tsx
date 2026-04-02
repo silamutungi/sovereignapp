@@ -35,7 +35,7 @@ const LOG_STEPS: LogStep[] = [
   { matchOn: 'Database ready ✓',              icon: '✅', label: 'Database ready ✓' },
   { matchOn: 'Deploying to Vercel…',          icon: '⚙',  label: 'Deploying to Vercel…' },
   { matchOn: ['Live at', 'Sending your live URL…', 'done'], icon: '✅', label: 'Live on Vercel', urlKey: 'deployUrl' },
-  { matchOn: 'done',                          icon: '✦', label: 'You own everything. Welcome to Visila.', terminal: true },
+  { matchOn: 'done',                          icon: '✦', label: 'Your app is live. GitHub, Vercel, database — all yours.', terminal: true },
 ]
 
 // Returns index of the most advanced step reached given the current step string.
@@ -407,14 +407,14 @@ export default function Building() {
 
   if (!buildId) {
     return (
-      <div style={S.page}>
+      <main style={S.page}>
         <div style={S.card}>
           <p style={S.wordmark}>VISILA</p>
-          <p style={{ color: '#ff9090', textAlign: 'center', fontSize: '13px' }}>
-            No build ID found. <a href="/" style={S.homeLinkA}>Start over →</a>
+          <p role="alert" style={{ color: '#ff9090', textAlign: 'center', fontSize: '13px' }}>
+            No build ID found. <a href="/" style={{ ...S.homeLinkA, display: 'inline-block', minHeight: '44px', lineHeight: '44px' }}>Start over →</a>
           </p>
         </div>
-      </div>
+      </main>
     )
   }
 
@@ -451,9 +451,9 @@ export default function Building() {
   return (
     <>
       {/* Spinner keyframe — can't use App.css from this standalone page */}
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} * { box-sizing: border-box; margin: 0; padding: 0; }`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} * { box-sizing: border-box; margin: 0; padding: 0; } @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important;scroll-behavior:auto!important}}`}</style>
 
-      <div style={S.page}>
+      <main style={S.page}>
         <div style={S.card}>
           <p style={S.wordmark}>VISILA</p>
 
@@ -528,7 +528,8 @@ export default function Building() {
                   fontSize: '13px',
                   fontWeight: 400,
                   border: 'none',
-                  padding: '8px 0',
+                  padding: '12px 0',
+                  minHeight: '44px',
                   cursor: 'pointer',
                   letterSpacing: '0.01em',
                   textDecoration: 'underline',
@@ -606,7 +607,7 @@ export default function Building() {
                 rel="noreferrer"
                 style={{ color: '#FF1F6E', textDecoration: 'underline' }}
               >
-                Click here to connect manually →
+                Connect to Vercel manually →
               </a>
             </div>
           )}
@@ -667,11 +668,11 @@ export default function Building() {
 
           {(!status || isDone || isFailed) && (
             <p style={S.homeLink}>
-              <a href="/" style={S.homeLinkA}>← Back to Visila</a>
+              <a href="/" style={{ ...S.homeLinkA, display: 'inline-block', minHeight: '44px', lineHeight: '44px' }}>← Back to Visila</a>
             </p>
           )}
         </div>
-      </div>
+      </main>
     </>
   )
 }

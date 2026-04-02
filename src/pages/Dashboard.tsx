@@ -256,7 +256,8 @@ function EmailGate({ onVerified }: { onVerified: (email: string) => void }) {
                       color: '#FF1F6E',
                       cursor: 'pointer',
                       font: '12px/1 DM Mono, Courier New, monospace',
-                      padding: 0,
+                      padding: '12px 4px',
+                      minHeight: '44px',
                     }}
                   >
                     request a new link
@@ -344,8 +345,9 @@ function EmailGate({ onVerified }: { onVerified: (email: string) => void }) {
                   color: '#FF1F6E',
                   cursor: 'pointer',
                   font: '12px/1 DM Mono, Courier New, monospace',
-                  padding: 0,
-                  marginTop: '16px',
+                  padding: '12px 4px',
+                  minHeight: '44px',
+                  marginTop: '8px',
                   display: 'block',
                 }}
               >
@@ -884,6 +886,7 @@ function AuthDashboard({ email }: { email: string }) {
         @keyframes fadeIn { from{opacity:0;transform:translateX(-50%) translateY(6px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes drawer-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @media (prefers-reduced-motion: reduce) { *,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important;scroll-behavior:auto!important} }
         * { box-sizing: border-box; }
       `}</style>
 
@@ -897,8 +900,9 @@ function AuthDashboard({ email }: { email: string }) {
           .dash-topbar { padding: 0 16px !important; }
         }
       `}</style>
-      <div
+      <nav
         className="dash-topbar"
+        aria-label="Main navigation"
         style={{
           background: '#0e0d0b',
           padding: '0 32px',
@@ -930,11 +934,14 @@ function AuthDashboard({ email }: { email: string }) {
           </a>
           <span
             className="dash-nav-desktop"
+            aria-current="page"
             style={{
               font: '11px/1 DM Mono, Courier New, monospace',
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
               color: '#f2efe8',
+              borderBottom: '2px solid #FF1F6E',
+              paddingBottom: '2px',
             }}
           >
             Dashboard
@@ -955,12 +962,13 @@ function AuthDashboard({ email }: { email: string }) {
               background: '#FF1F6E',
               color: '#0e0d0b',
               border: 'none',
-              padding: '8px 16px',
+              padding: '10px 16px',
+              minHeight: '44px',
               font: '500 12px/1 DM Mono, Courier New, monospace',
               cursor: 'pointer',
             }}
           >
-            + New app
+            Build new app
           </button>
         </div>
         {/* Mobile hamburger */}
@@ -969,11 +977,11 @@ function AuthDashboard({ email }: { email: string }) {
           onClick={() => setMobileNavOpen(true)}
           aria-label="Open menu"
           aria-expanded={mobileNavOpen}
-          style={{ background: 'none', border: 'none', color: '#f2efe8', cursor: 'pointer', padding: '4px', lineHeight: 0 }}
+          style={{ background: 'none', border: 'none', color: '#f2efe8', cursor: 'pointer', padding: '10px', minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0 }}
         >
           <Menu size={24} strokeWidth={1.5} />
         </button>
-      </div>
+      </nav>
 
       {/* Mobile drawer */}
       {mobileNavOpen && (
@@ -997,7 +1005,7 @@ function AuthDashboard({ email }: { email: string }) {
             <button
               onClick={() => setMobileNavOpen(false)}
               aria-label="Close menu"
-              style={{ alignSelf: 'flex-end', background: 'none', border: 'none', color: '#0e0d0b', cursor: 'pointer', padding: '4px', lineHeight: 0 }}
+              style={{ alignSelf: 'flex-end', background: 'none', border: 'none', color: '#0e0d0b', cursor: 'pointer', padding: '10px', minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0 }}
             >
               <X size={24} strokeWidth={1.5} />
             </button>
@@ -1026,12 +1034,12 @@ function AuthDashboard({ email }: { email: string }) {
                 onClick={() => { setMobileNavOpen(false); navigate('/') }}
                 style={{
                   background: '#FF1F6E', color: '#0e0d0b', border: 'none',
-                  padding: '12px 20px', cursor: 'pointer',
+                  padding: '12px 20px', minHeight: '44px', cursor: 'pointer',
                   font: '500 14px/1 DM Mono, Courier New, monospace',
                   textAlign: 'left',
                 }}
               >
-                + New app
+                Build new app
               </button>
             </div>
           </div>
@@ -1039,6 +1047,7 @@ function AuthDashboard({ email }: { email: string }) {
       )}
 
       {/* ── Hero ────────────────────────────────────────────────────────── */}
+      <main>
       <div
         style={{
           background: '#f2efe8',
@@ -1166,16 +1175,16 @@ function AuthDashboard({ email }: { email: string }) {
                   margin: '0 0 10px',
                 }}
               >
-                No apps yet
+                Your first app is one idea away
               </h2>
               <p
                 style={{
-                  font: '12px/1 DM Mono, Courier New, monospace',
+                  font: '12px/1.5 DM Mono, Courier New, monospace',
                   color: '#6b6862',
                   margin: '0 0 24px',
                 }}
               >
-                Your first build is waiting.
+                Describe what you want to build — Visila handles the rest.
               </p>
               <button
                 onClick={() => navigate('/')}
@@ -1293,9 +1302,14 @@ function AuthDashboard({ email }: { email: string }) {
                 color: 'rgba(255,255,255,0.35)',
                 font: '16px/1 DM Mono, Courier New, monospace',
                 cursor: 'pointer',
-                padding: '4px',
+                padding: '10px',
+                minHeight: '44px',
+                minWidth: '44px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
-              aria-label="Dismiss"
+              aria-label="Dismiss coach tip"
             >
               ×
             </button>
@@ -1350,8 +1364,10 @@ function AuthDashboard({ email }: { email: string }) {
         </div>
       )}
 
+      </main>
+
       {toastMessage && (
-        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: '#0e0d0b', color: '#f2efe8', padding: '10px 20px', font: '12px/1 DM Mono, Courier New, monospace', border: '1px solid #FF1F6E', zIndex: 'var(--z-toast)', whiteSpace: 'nowrap', borderRadius: 'var(--radius-sm)' }}>
+        <div role="status" aria-live="polite" style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: '#0e0d0b', color: '#f2efe8', padding: '10px 20px', font: '12px/1 DM Mono, Courier New, monospace', border: '1px solid #FF1F6E', zIndex: 'var(--z-toast)', whiteSpace: 'nowrap', borderRadius: 'var(--radius-sm)' }}>
           {toastMessage}
         </div>
       )}
@@ -1642,11 +1658,11 @@ function ClaimModal({ build, onClose, onClaimed }: { build: Build; onClose: () =
               onClick={onClose}
               style={{
                 width: '100%', background: '#0e0d0b', color: '#f2efe8', border: 'none',
-                padding: '12px 24px', font: '13px/1 DM Mono, Courier New, monospace',
+                padding: '12px 24px', minHeight: '44px', font: '13px/1 DM Mono, Courier New, monospace',
                 cursor: 'pointer', borderRadius: 'var(--radius-sm)',
               }}
             >
-              Done
+              Back to dashboard →
             </button>
           </>
         )}
@@ -1961,7 +1977,8 @@ function AppCard({
               border: 'none',
               borderRadius: 'var(--radius-sm)',
               font: '11px/1 DM Mono, Courier New, monospace',
-              padding: '7px 14px',
+              padding: '10px 14px',
+              minHeight: '44px',
               cursor: 'pointer',
             }}
           >
@@ -1976,11 +1993,12 @@ function AppCard({
                 border: '1px solid #0e0d0b',
                 borderRadius: 'var(--radius-sm)',
                 font: '11px/1 DM Mono, Courier New, monospace',
-                padding: '7px 14px',
+                padding: '10px 14px',
+                minHeight: '44px',
                 cursor: 'pointer',
               }}
             >
-              GitHub
+              View on GitHub
             </button>
           )}
           {build.deploy_url && (
@@ -1992,11 +2010,12 @@ function AppCard({
                 border: '1px solid #0e0d0b',
                 borderRadius: 'var(--radius-sm)',
                 font: '11px/1 DM Mono, Courier New, monospace',
-                padding: '7px 14px',
+                padding: '10px 14px',
+                minHeight: '44px',
                 cursor: 'pointer',
               }}
             >
-              Visit
+              See it live
             </button>
           )}
         </div>
@@ -2099,13 +2118,14 @@ function AppCard({
               color: '#6b6862',
               border: 'none',
               font: '11px/1 DM Mono, Courier New, monospace',
-              padding: '4px 0',
+              padding: '12px 8px',
+              minHeight: '44px',
               cursor: 'pointer',
               textDecoration: 'underline',
               textUnderlineOffset: '3px',
             }}
           >
-            Delete
+            Delete app
           </button>
         )}
       </div>
