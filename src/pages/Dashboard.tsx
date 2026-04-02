@@ -9,7 +9,7 @@
 // Session key: 'sovereign_user' → JSON.stringify({ email: string })
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import VisilaLogo from '../components/VisilaLogo'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -154,7 +154,9 @@ function EmailGate({ onVerified }: { onVerified: (email: string) => void }) {
       >
         {/* Fixed wordmark */}
         <div style={{ padding: '20px 32px', position: 'fixed', top: 0, left: 0 }}>
-          <VisilaLogo size="sm" />
+          <Link to="/" aria-label="Visila home" style={{ textDecoration: 'none' }}>
+            <VisilaLogo size="sm" />
+          </Link>
         </div>
 
         {/* Center content */}
@@ -618,7 +620,9 @@ function TokenVerify({
           >
             <div style={{ maxWidth: '440px', width: '100%' }}>
               <div style={{ marginBottom: '32px' }}>
-                <VisilaLogo size="sm" />
+                <Link to="/" aria-label="Visila home" style={{ textDecoration: 'none' }}>
+                  <VisilaLogo size="sm" />
+                </Link>
               </div>
               <h2
                 style={{
@@ -686,7 +690,9 @@ function TokenVerify({
         >
           <div style={{ maxWidth: '440px', width: '100%' }}>
             <div style={{ marginBottom: '32px' }}>
-              <VisilaLogo size="sm" />
+              <Link to="/" aria-label="Visila home" style={{ textDecoration: 'none' }}>
+                <VisilaLogo size="sm" />
+              </Link>
             </div>
             <h2
               style={{
@@ -742,7 +748,9 @@ function TokenVerify({
           gap: '16px',
         }}
       >
-        <VisilaLogo size="sm" />
+        <Link to="/" aria-label="Visila home" style={{ textDecoration: 'none' }}>
+          <VisilaLogo size="sm" />
+        </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span
             style={{
@@ -890,7 +898,33 @@ function AuthDashboard({ email }: { email: string }) {
           zIndex: 100,
         }}
       >
-        <VisilaLogo size="sm" color="light" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+          <Link to="/" aria-label="Visila home" style={{ textDecoration: 'none', display: 'flex' }}>
+            <VisilaLogo size="sm" color="light" />
+          </Link>
+          <a
+            href="/#how-it-works"
+            style={{
+              font: '11px/1 DM Mono, Courier New, monospace',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: '#c8c4bc',
+              textDecoration: 'none',
+            }}
+          >
+            How it works
+          </a>
+          <span
+            style={{
+              font: '11px/1 DM Mono, Courier New, monospace',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: '#f2efe8',
+            }}
+          >
+            Dashboard
+          </span>
+        </div>
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
           <span
             style={{
