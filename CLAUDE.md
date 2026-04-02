@@ -1246,3 +1246,21 @@ Location: api/run-build.ts, injectVercelEnvVars.
 Cause: `parsed` typed as `... | null` after JSON.parse. Inside the `if (hasEnvConflict)` block, `parsed.failed` accessed without optional chaining fails TypeScript strict mode (TS18047: parsed is possibly null).
 Fix: `(parsed?.failed ?? []).map((f: any) => f.error?.envVarKey)` — always optional-chain `parsed` even after a truthy guard on a derived value.
 Learned: 2026-04-01.
+
+## Brain Audit Engine
+
+- Fires after every build (READY) and every edit (files changed > 0)
+- Fire-and-forget — never blocks build or edit flow
+- Checks: mobile nav, RLS, hardcoded colors, branding, secrets, broken links, alt text, logo home link
+- Auto-fixes: RLS (SQL via Supabase Management API), nav, colors, branding, alt text, logo link (via edit engine)
+- Flags to user: exposed secrets, broken nav links
+- All results logged to audit_log table
+- Alert cards poll every 30s in EditApp.tsx via BrainAlertCard component
+- Never use Sonnet for audit analysis — Haiku only
+- Rate limit: 20/hr per IP on the POST endpoint
+- maxDuration: 120s
+- Migration: supabase/migrations/add_audit_log.sql — run in Supabase SQL Editor before deploying
+- api/brain-audit.ts exports runBrainAudit() for direct import and default handler for HTTP POST
+- Wired in run-build.ts after design audit, before marking complete
+- Wired in edit.ts after successful response when commitSha is non-null
+Decided: 2026-04-01.

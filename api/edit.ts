@@ -97,7 +97,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     console.log('[edit] fetching build...', new Date().toISOString())
     const { data: build, error: buildError } = await supabase
       .from('builds')
-      .select('github_token, email, vercel_project_id, deploy_url')
+      .select('github_token, email, vercel_project_id, deploy_url, supabase_project_ref, repo_url')
       .eq('id', buildId)
       .is('deleted_at', null)
       .single()
@@ -872,6 +872,24 @@ Apply the change. Keep everything else identical. Return the complete updated in
       deployUrl: build.deploy_url ?? null,
       ...(brainFollowup ? { brain_followup: brainFollowup } : {}),
     })
+
+    // ── Fire Brain Audit async after successful edit (files changed > 0) ──
+    if (commitSha) {
+      const repoPath = String(repoUrl).replace('https://github.com/', '')
+      const [editRepoOwner, editRepoName] = repoPath.split('/')
+      const editAppUrl = process.env.VITE_APP_URL ?? 'https://visila.com'
+      fetch(`${editAppUrl}/api/brain-audit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          buildId,
+          deployUrl: build.deploy_url ?? '',
+          supabaseRef: build.supabase_project_ref ?? '',
+          repoOwner: editRepoOwner,
+          repoName: editRepoName,
+        }),
+      }).catch((err: unknown) => console.error('[edit] Brain audit fire-and-forget failed:', err))
+    }
 
   } catch (err) {
     console.error('[edit] Error:', err, new Date().toISOString())

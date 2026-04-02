@@ -7,6 +7,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import BrainAlertCard from '../components/BrainAlertCard'
+import type { BrainAlert } from '../components/BrainAlertCard'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -164,6 +166,10 @@ export default function EditApp() {
   const [hint, setHint] = useState<BrainHint | null>(null)
   const [lastHintType, setLastHintType] = useState<string | null>(null)
   const [, setDeployUnhealthy] = useState(false)
+
+  // Brain audit alerts
+  const [brainAlerts, setBrainAlerts] = useState<BrainAlert[]>([])
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
 
   // Live status + deploy timing
   const [lastDeployedAt, setLastDeployedAt] = useState<number | null>(null)
@@ -516,6 +522,36 @@ export default function EditApp() {
     const timer = setTimeout(() => void submitEdit(text), 600)
     return () => clearTimeout(timer)
   }, [pendingAutoSubmit, build, submitEdit])
+
+  // ── Brain audit alert polling (every 30s) ──────────────────────────────────
+
+  useEffect(() => {
+    if (!buildId) return
+    let cancelled = false
+
+    async function pollAlerts() {
+      try {
+        const { data, error } = await supabase
+          .from('audit_log')
+          .select('id, check_name, severity, details, auto_fixed, created_at')
+          .eq('build_id', buildId)
+          .eq('passed', false)
+          .eq('auto_fixed', false)
+          .order('created_at', { ascending: false })
+          .limit(10)
+
+        if (!cancelled && !error && data) {
+          setBrainAlerts(data as BrainAlert[])
+        }
+      } catch {
+        // Non-fatal — alerts are supplementary
+      }
+    }
+
+    void pollAlerts()
+    const interval = setInterval(pollAlerts, 30_000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [buildId])
 
   // ── Brain hint ────────────────────────────────────────────────────────────────
 
@@ -1203,6 +1239,29 @@ export default function EditApp() {
                       onDismiss={() => setHint(null)}
                     />
                   )}
+
+                  {brainAlerts
+                    .filter((a) => !dismissedAlerts.has(a.id))
+                    .map((alert) => (
+                      <BrainAlertCard
+                        key={alert.id}
+                        alert={alert}
+                        onFix={(instruction) => {
+                          setDismissedAlerts((prev) => new Set([...prev, alert.id]))
+                          setInput(instruction)
+                          setTimeout(() => {
+                            if (inputRef.current) {
+                              inputRef.current.focus()
+                              inputRef.current.style.height = 'auto'
+                              inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`
+                            }
+                          }, 0)
+                        }}
+                        onDismiss={(alertId) => {
+                          setDismissedAlerts((prev) => new Set([...prev, alertId]))
+                        }}
+                      />
+                    ))}
                 </div>
 
                 {/* ── Prompt queue ─────────────────────────────────────────── */}

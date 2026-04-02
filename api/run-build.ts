@@ -199,6 +199,7 @@ interface BuildRecord {
   audit_flags: string | null
   supabase_url: string | null
   supabase_anon_key: string | null
+  supabase_project_ref: string | null
 }
 
 async function getBuild(
@@ -1479,6 +1480,20 @@ export default async function handler(req: any, res: any): Promise<void> {
             // Non-fatal — audit failure does not block build completion
             console.error('[run-build] audit error (non-fatal):', auditErr)
           }
+
+          // ── Fire Brain Audit async — non-blocking ─────────────────────
+          const appUrl = process.env.VITE_APP_URL ?? 'https://visila.com'
+          fetch(`${appUrl}/api/brain-audit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              buildId,
+              deployUrl: deployResult.deployUrl,
+              supabaseRef: build.supabase_project_ref ?? '',
+              repoOwner: ghOwner,
+              repoName,
+            }),
+          }).catch((err: unknown) => console.error('[run-build] Brain audit fire-and-forget failed:', err))
 
           // ── Mark build complete ──────────────────────────────────────────
           await updateBuild(supabaseUrl, serviceKey, buildId, {
