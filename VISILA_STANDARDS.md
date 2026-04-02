@@ -239,6 +239,78 @@ Fonts: --font-serif (Playfair Display), --font-mono (DM Mono), --font-sans (Geis
 ### Generated apps
 Same Apple HIG scale. Font family varies by category (see CATEGORY_TYPOGRAPHY in api/_designSystem.ts). All weights, tracking, and leading values are identical to visila.com tokens.
 
+## Visila Icon System
+Source: Apple HIG Icons (June 2025)
+Library: lucide-react — SVG, matches SF Symbols metaphors
+Format: always SVG (via lucide-react) — never PNG for UI icons
+
+### Size tokens (defined in src/styles/tokens.css)
+  `--icon-xs`   12px   inline with caption text
+  `--icon-sm`   16px   inline with body text, badges
+  `--icon-md`   20px   nav, toolbar, standard buttons
+  `--icon-lg`   24px   primary actions, headers
+  `--icon-xl`   32px   empty states, illustrations
+
+### Stroke weight — must match adjacent text weight (Apple HIG)
+  Regular text (400)    → strokeWidth={1.5}
+  Semibold text (600)   → strokeWidth={2}
+  Primary buttons       → strokeWidth={2}
+  Large/decorative      → strokeWidth={1}
+
+### Canonical icon mapping — Visila standard actions
+Always use these icons for these actions. Never substitute.
+
+| Action | Lucide component | SF Symbol |
+|---|---|---|
+| Search | Search | magnifyingglass |
+| Add / New | Plus | plus |
+| Delete | Trash2 | trash |
+| Edit / Rename | Pencil | pencil |
+| Close / Dismiss | X | xmark |
+| Done / Confirm | Check | checkmark |
+| Undo | Undo2 | arrow.uturn.backward |
+| Redo | Redo2 | arrow.uturn.forward |
+| Share | Share2 | square.and.arrow.up |
+| More options | MoreHorizontal | ellipsis |
+| Filter | SlidersHorizontal | line.3.horizontal.decrease |
+| User / Account | UserCircle | person.crop.circle |
+| Settings | Settings | gear |
+| Archive | Archive | archivebox |
+| Calendar | Calendar | calendar |
+| Version / History | Clock | clock |
+| Copy | Copy | document.on.document |
+| Folder / Move | Folder | folder |
+| Download | Download | arrow.down.to.line |
+| Upload | Upload | arrow.up.from.line |
+| Warning | AlertTriangle | exclamationmark.triangle |
+| Error | AlertCircle | exclamationmark.circle |
+| Success | CheckCircle | checkmark.circle |
+| Info | Info | info.circle |
+| Dark mode | Moon / Sun | toggle between |
+| Menu (mobile) | Menu | line.3.horizontal |
+| Back | ArrowLeft | chevron.left |
+| External link | ExternalLink | arrow.up.right.square |
+| Refresh / Retry | RefreshCw | arrow.clockwise |
+| Lock | Lock | lock |
+| Visibility | Eye / EyeOff | eye / eye.slash |
+| Brain / AI | Sparkles | sparkles |
+| Build / Deploy | Zap | bolt |
+| Code | Code2 | curlybraces |
+| Git / Version | GitBranch | git-branch |
+
+### Accessibility — hard requirement
+- Every icon-only button MUST have `aria-label`
+- Every decorative icon should have `aria-hidden="true"`
+- Pattern: `<button aria-label="Delete app"><Trash2 .../></button>`
+
+### Rules
+- Always use lucide-react — never inline SVG for standard icons
+- Never use PNG for UI icons — SVG only (scales perfectly)
+- Never mix icon libraries in the same app
+- Gender-neutral icons only — UserCircle not gendered silhouettes
+- Consistent size within a context — never mix md and lg in same toolbar
+- Match stroke weight to adjacent text weight
+
 ## Visila Writing Standard
 Source: Apple HIG Writing (December 2025) + Visila brand voice
 Applies to: all UI copy, Brain hints, error messages, empty states, button labels, placeholders, notifications

@@ -225,6 +225,17 @@ Fonts: Playfair Display (serif headings) + DM Mono (everything else)
 - Generated app fonts: vary by category — see CATEGORY_TYPOGRAPHY in api/_designSystem.ts
 - Brain Audit checkTypography validates no hardcoded px sizes or thin weights
 
+## Icon System — Apple HIG
+Library: lucide-react (SVG, matches SF Symbols metaphors)
+Sizes: 12/16/20/24/32px — use tokens --icon-xs through --icon-xl
+Stroke: match to adjacent text — 1.5 regular, 2 semibold/buttons
+Accessibility: every icon-only button needs aria-label
+Decorative icons: aria-hidden="true"
+Never: PNG for UI icons, inline SVG for standard actions,
+       mixing icon libraries, gendered human figures
+Canonical map: see VISILA_STANDARDS.md Icon System section
+Generated apps: same rules, enforced via _systemPrompt.ts
+
 ## Visila Writing Standard
 Voice: co-founder — direct, warm, specific. Never robotic or vague.
 Source: VISILA_STANDARDS.md Writing Standard section (full rules there)

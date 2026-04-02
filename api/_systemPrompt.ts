@@ -256,6 +256,17 @@ The DESIGN_SYSTEM_CSS includes a complete typography token set. You MUST follow 
 6. Type hierarchy: convey hierarchy through weight and size only. Never use more than one typeface family. Never use color alone to indicate hierarchy.
 7. Load the font via Google Fonts in index.html <head>. Use the correct URL for whichever --font-primary is set: Inter: https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap, Plus Jakarta Sans: https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap, DM Sans: https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap, Lato: https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap.
 
+ICON SYSTEM RULE — HARD REQUIREMENT:
+Source: Apple HIG Icons (June 2025)
+
+1. LIBRARY: Use lucide-react for ALL icons in the generated app. Import only from 'lucide-react'. Never use inline SVG for standard UI icons. Never use PNG for UI icons. lucide-react is already installed — do not add other icon libraries.
+2. SIZES: Use these sizes consistently: Inline with caption text: size={12}. Inline with body text / badges: size={16}. Nav, toolbar, buttons: size={20}. Primary actions, headers: size={24}. Empty state illustrations: size={32}. Never use arbitrary sizes like size={18} or size={22}.
+3. STROKE WEIGHT — match to adjacent text weight: Next to regular body text: strokeWidth={1.5}. Next to semibold labels/buttons: strokeWidth={2}. Large decorative icons: strokeWidth={1}. Never omit strokeWidth — always set it explicitly.
+4. CANONICAL ACTIONS — always use these icons: Search: <Search />. Add: <Plus />. Delete: <Trash2 />. Edit: <Pencil />. Close: <X />. Confirm/Done: <Check />. More: <MoreHorizontal />. Settings: <Settings />. User/Account: <UserCircle />. Warning: <AlertTriangle />. Error: <AlertCircle />. Success: <CheckCircle />. Back: <ArrowLeft />. Menu: <Menu />. External link: <ExternalLink />.
+5. ACCESSIBILITY — hard requirement: Every icon-only button MUST have aria-label: <button aria-label="Delete item"><Trash2 size={20} /></button>. Decorative icons MUST have aria-hidden="true": <Star size={16} aria-hidden="true" />. Never leave an interactive icon without aria-label.
+6. INCLUSIVE ICONS: Always use gender-neutral human figures. Use UserCircle or User — never gendered silhouettes. Avoid culturally specific symbols.
+7. CONSISTENCY: Never mix icon sizes in the same toolbar or nav. Never mix stroke weights in the same component. One icon library only — lucide-react throughout.
+
 Default src/index.css (after the @tailwind directives) — used ONLY when no DESIGN_SYSTEM_CSS is provided:
 
 :root {
