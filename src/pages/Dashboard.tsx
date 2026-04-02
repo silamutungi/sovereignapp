@@ -92,7 +92,7 @@ function EmailGate({ onVerified }: { onVerified: (email: string) => void }) {
         })
         if (!res.ok) {
           const data = (await res.json()) as { error?: string }
-          setError(data.error ?? 'Something went wrong. Please try again.')
+          setError(data.error ?? 'Unable to send link. Try again.')
           return
         }
         setSent(true)
@@ -123,7 +123,7 @@ function EmailGate({ onVerified }: { onVerified: (email: string) => void }) {
         })
         if (!res.ok) {
           const data = (await res.json()) as { error?: string }
-          setUpdateError(data.error ?? 'Something went wrong. Please try again.')
+          setUpdateError(data.error ?? 'Unable to update email. Try again.')
           return
         }
         setUpdateSent(true)
@@ -202,7 +202,7 @@ function EmailGate({ onVerified }: { onVerified: (email: string) => void }) {
                 margin: '0 0 32px',
               }}
             >
-              We'll send a link to your inbox —<br />
+              A login link will be sent to your inbox —<br />
               no password needed.
             </p>
 
@@ -1507,7 +1507,7 @@ function ClaimModal({ build, onClose, onClaimed }: { build: Build; onClose: () =
       })
       const data = await r.json() as { ok?: boolean; error?: string; claimed_url?: string }
       if (!r.ok || !data.ok) {
-        setErrorMsg(data.error ?? 'Something went wrong. Please try again.')
+        setErrorMsg(data.error ?? 'Claim failed. Try again.')
         setStep('error')
         return
       }

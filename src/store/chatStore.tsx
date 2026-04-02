@@ -176,7 +176,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }
 
       if (!res.ok || !data.reply) {
-        push({ role: 'sovereign', text: data.error ?? 'Something went wrong.' })
+        push({ role: 'sovereign', text: data.error ?? 'Something went wrong. Try again.' })
       } else {
         push({
           role: 'sovereign',

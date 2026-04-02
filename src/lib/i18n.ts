@@ -139,7 +139,7 @@ const strings: Record<Locale, Record<string, string>> = {
     'wl.btn': 'Lock in $19/mo — start building now →',
     'wl.err': 'Please enter a valid email address.',
     'wl.note': 'No spam · One email when it ships · Cancel any time',
-    'wl.success': "You're on the list. We'll be in touch.",
+    'wl.success': "You're on the list. A confirmation is on its way.",
 
     // ── Footer ────────────────────────────────────────────────────────────
     'footer.promise': 'Every app Visila generates is yours — code, data, domain.\nNo lock-in. No dependency. No permission required.',

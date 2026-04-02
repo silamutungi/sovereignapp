@@ -490,7 +490,7 @@ export default function EditApp() {
       })
       const data = await res.json() as { ok?: boolean; error?: string; commitSha?: string; deployUrl?: string }
       if (!res.ok || !data.ok) {
-        const errText = data.error ?? 'Something went wrong. Please try again.'
+        const errText = data.error ?? 'Edit failed. Try again.'
         pushMsg({ role: 'sovereign', text: errText })
         saveMessage('sovereign', errText)
       } else {

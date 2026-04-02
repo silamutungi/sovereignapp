@@ -208,7 +208,7 @@ function FigmaImport() {
       if (!res.ok) throw new Error(data.error ?? 'Extraction failed')
       setResult(data)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong')
+      setError(e instanceof Error ? e.message : 'Brief extraction failed. Try again.')
     }
     setLoading(false)
   }
@@ -431,7 +431,7 @@ async function callGenerateAPI(
   if (!contentType.includes('text/event-stream')) {
     // Pre-flight error (rate limit, validation) — JSON response
     const data = await res.json() as { error?: string; message?: string }
-    return { error: data.error ?? data.message ?? 'Something went wrong.' }
+    return { error: data.error ?? data.message ?? 'Generation failed. Try again.' }
   }
 
   // Stream SSE events
@@ -776,7 +776,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div>
               <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '20px', fontWeight: 600, color: '#0e0d0b', margin: '0 0 16px', lineHeight: 1.3 }}>
-                Here's what we're building.
+                Here's what you're building.
               </p>
               <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '26px', fontWeight: 700, color: '#FF1F6E', margin: '0 0 8px', lineHeight: 1.2 }}>
                 {brief.name}

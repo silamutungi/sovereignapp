@@ -239,6 +239,72 @@ Fonts: --font-serif (Playfair Display), --font-mono (DM Mono), --font-sans (Geis
 ### Generated apps
 Same Apple HIG scale. Font family varies by category (see CATEGORY_TYPOGRAPHY in api/_designSystem.ts). All weights, tracking, and leading values are identical to visila.com tokens.
 
+## Visila Writing Standard
+Source: Apple HIG Writing (December 2025) + Visila brand voice
+Applies to: all UI copy, Brain hints, error messages, empty states, button labels, placeholders, notifications
+
+### Voice
+Co-founder energy. Direct, warm, specific. Honest without being clinical. Never robotic, never condescending, never vague. Think: the smartest person on your team telling you something important in plain language.
+
+### Tone by context
+- Building / generating: active, forward ("Building ChefNear...")
+- Success: warm, brief ("ChefNear is live.")
+- Error: calm, specific, actionable — no blame
+- Brain hints: YC partner — specific to THIS edit, never generic
+- Empty states: welcoming, directive — always include a next step
+- Warnings: direct, no drama, clear what to do
+
+### Capitalization — pick one per element, never mix
+- Nav links: ALL CAPS ("HOW IT WORKS", "DASHBOARD")
+- Page headings: Sentence case ("Manage your apps.")
+- Section headings: Sentence case ("Version history")
+- Button labels: Sentence case ("Send my dashboard link →")
+- Card labels / badges: ALL CAPS ("ERROR", "COMPLETE", "BUILDING")
+- Tooltips / hints: Sentence case
+- Never use Title Case anywhere — too formal for Visila's voice
+
+### Button labels — always a verb, always specific
+- "Try again" not "Retry"
+- "Build my app" not "Submit"
+- "Restore this version" not "Revert"
+- "Delete app" not "Delete"
+- "Update →" is fine — action + direction is clear
+
+### Error messages — no blame, no jargon, clear next step
+Pattern: [What happened] · [What to do]
+- "Build failed. Check the log or try again."
+- "Unable to connect. Check your internet and try again."
+- "Enter a valid email address, like name@example.com"
+- Never: "Deployment failed" (no next step), "We're having trouble" (vague, uses "we")
+- Never: "oops", "uh-oh", "whoops" — insincere
+- Never: "we" in error messages — say what happened, not who caused it
+- Never show raw API errors to users — translate to plain English
+
+### Possessive pronouns
+- Never use "we" in system messages — unclear and evasive
+- "your" is fine in direct address ("Your app is live")
+- Avoid "my" in button labels — prefer the action alone
+
+### Empty states — always guide, always include a next step
+- Dashboard (no builds): "Your first app is one idea away. Describe what you want to build below."
+- Version history (no edits): "No edits yet. Every change you make will appear here."
+- Brain panel (no hints): "Brain is watching. Hints appear after your first edit."
+
+### Placeholder text — example or description, never robotic
+- "name@example.com" not "Enter email address"
+- "A marketplace for local chefs..." not "Type here"
+- "What do you want to change..." not "Enter your edit"
+
+### Rules checklist — verify before every UI commit
+- [ ] Every button label is a verb
+- [ ] No "we" in any system or error message
+- [ ] No raw API errors shown to users
+- [ ] No "oops", "uh-oh", or similar interjections
+- [ ] Capitalization consistent per element type
+- [ ] Every empty state has a next step
+- [ ] Error messages include what happened AND what to do
+- [ ] Placeholder text is an example or description, not a command
+
 ---
 
 ## Part 8 — Information Architecture

@@ -225,6 +225,19 @@ Fonts: Playfair Display (serif headings) + DM Mono (everything else)
 - Generated app fonts: vary by category — see CATEGORY_TYPOGRAPHY in api/_designSystem.ts
 - Brain Audit checkTypography validates no hardcoded px sizes or thin weights
 
+## Visila Writing Standard
+Voice: co-founder — direct, warm, specific. Never robotic or vague.
+Source: VISILA_STANDARDS.md Writing Standard section (full rules there)
+
+Quick reference:
+- Buttons: always a verb, sentence case
+- Errors: [what happened] · [what to do], no blame, no "we"
+- Empty states: always include a next step and a button/link
+- Placeholders: example or description, never a command
+- Capitalization: ALL CAPS badges, Sentence case headings/buttons
+- Never show raw API errors to users — translate to plain English
+- Never use "oops", "uh-oh", "we're having trouble"
+
 ## Waitlist table (Supabase)
 - Table: waitlist
 - Columns: id (uuid), email (text, unique), created_at (timestamp), source (text)

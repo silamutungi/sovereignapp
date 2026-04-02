@@ -292,7 +292,7 @@ export default function Building() {
       // 5-minute hard timeout
       if (Date.now() - pollStartRef.current > MAX_POLL_MS) {
         stopPolling()
-        setPollError("This is taking longer than expected. Check your email — we'll send your live URL when it's ready.")
+        setPollError("This is taking longer than expected. Check your email — your live URL will arrive when the build completes.")
         return
       }
 
@@ -310,7 +310,7 @@ export default function Building() {
           consecutiveErrorsRef.current++
           if (consecutiveErrorsRef.current >= MAX_CONSECUTIVE_ERRORS) {
             stopPolling()
-            setPollError('Something went wrong checking your build status. Please refresh and try again.')
+            setPollError('Unable to check build status. Refresh the page and try again.')
           }
           return
         }
@@ -465,7 +465,7 @@ export default function Building() {
           {needsSupabaseRetry && !isDone && (
             <div style={{ marginBottom: '32px' }}>
               <p style={{ ...S.subtitle, marginBottom: '24px', color: 'rgba(255,255,255,0.6)' }}>
-                We couldn't connect your Supabase account. Tap below to try again.
+                Supabase connection failed. Tap below to try again.
               </p>
               <button
                 onClick={() => { void handleSupabaseReconnect() }}
@@ -546,7 +546,7 @@ export default function Building() {
               : needsSupabaseRetry
               ? ''
               : isFailed
-              ? 'Something went wrong during provisioning.'
+              ? 'Build failed. Try again or check the log for details.'
               : dbChoice === null && status?.status === 'queued'
               ? ''
               : 'Provisioning your app — this takes about 60 seconds…'}
@@ -599,7 +599,7 @@ export default function Building() {
           {isLoginConnectionError && (
             <div style={S.errorBox} role="alert">
               <strong>Vercel link failed.</strong>{' '}
-              We couldn't connect Vercel to your repo automatically.{' '}
+              Vercel could not be linked to your repo automatically.{' '}
               <a
                 href={`https://vercel.com/new/git/import?s=${encodeURIComponent(status?.repoUrl ?? '')}`}
                 target="_blank"
@@ -624,7 +624,7 @@ export default function Building() {
               disabled={retrying}
               style={{ ...S.ctaBtn, marginTop: '12px', opacity: retrying ? 0.6 : 1, cursor: retrying ? 'not-allowed' : 'pointer' }}
             >
-              {retrying ? 'Retrying…' : 'Retry from last checkpoint →'}
+              {retrying ? 'Trying again…' : 'Try again from last checkpoint →'}
             </button>
           )}
 
