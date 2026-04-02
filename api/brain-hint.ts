@@ -53,12 +53,45 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   const count = Number(edit_count ?? 0)
 
+  // ── Fetch build idea + recent edits from Supabase (Bug 2 + Bug 3) ─────
+  const supabaseUrl = process.env.SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  let buildIdea = app_type ?? 'web app'
+  let fetchedFeatures: string[] = Array.isArray(features_built) ? features_built : []
+
+  if (supabaseUrl && serviceKey) {
+    // Bug 2 fix — fetch build.idea server-side instead of trusting client app_type
+    try {
+      const ideaRes = await fetch(
+        `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(build_id)}&deleted_at=is.null&select=idea,app_name`,
+        { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } },
+      )
+      if (ideaRes.ok) {
+        const rows = await ideaRes.json() as Array<{ idea: string | null; app_name: string | null }>
+        if (rows[0]?.idea) buildIdea = rows[0].idea
+      }
+    } catch { /* non-fatal — fall back to client-supplied app_type */ }
+
+    // Bug 3 fix — fetch last 10 edit messages for features_built context
+    try {
+      const msgRes = await fetch(
+        `${supabaseUrl}/rest/v1/edit_messages?build_id=eq.${encodeURIComponent(build_id)}&role=eq.sovereign&order=created_at.desc&limit=10&select=content`,
+        { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } },
+      )
+      if (msgRes.ok) {
+        const msgs = await msgRes.json() as Array<{ content: string }>
+        if (msgs.length > 0) {
+          fetchedFeatures = msgs.map((m) => m.content)
+        }
+      }
+    } catch { /* non-fatal — fall back to client-supplied features_built */ }
+  }
+
   // ── Competitive edge hint — fires once on the very first edit ──────────
   // If the build has known competitors, prompt the founder to differentiate.
   if (count === 1) {
     try {
-      const supabaseUrl = process.env.SUPABASE_URL
-      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
       if (supabaseUrl && serviceKey) {
         const buildRes = await fetch(
           `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(build_id)}&deleted_at=is.null&select=competitors`,
@@ -113,8 +146,8 @@ export default async function handler(req: any, res: any): Promise<void> {
     }
 
     // ── Blue post-edit hint — co-founder insight on what they just changed ──
-    const featureList = Array.isArray(features_built) && features_built.length > 0
-      ? features_built.join(', ')
+    const featureList = fetchedFeatures.length > 0
+      ? fetchedFeatures.join(', ')
       : 'none listed'
 
     // BRAIN HINT VOICE — Visila Writing Standard (Apple HIG Writing, December 2025)
@@ -125,7 +158,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     const prompt = `You are Brain — Visila's co-founder intelligence. A founder just edited their app.
 
 THEIR EDIT: ${String(edit_instruction).slice(0, 300)}
-APP TYPE: ${app_type ?? 'web app'}
+APP IDEA: ${buildIdea}
 TOTAL EDITS: ${count}
 FEATURES BUILT: ${featureList}
 
