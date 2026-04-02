@@ -243,7 +243,9 @@ Dark mode is not a feature. It is the default. Every generated app must respond 
 
 RULE: ALL colors are CSS custom properties on :root. Never use raw hex values like #0e0d0b or #f2efe8 in component styles. Only the :root definition uses raw hex.
 
-Define this in src/index.css (after the @tailwind directives):
+IMPORTANT: If the user message contains DESIGN_SYSTEM_CSS, use that EXACT CSS in src/index.css instead of the default :root block below. The design system is generated per-app and overrides these defaults. Only fall back to the defaults below if DESIGN_SYSTEM_CSS is not present.
+
+Default src/index.css (after the @tailwind directives) — used ONLY when no DESIGN_SYSTEM_CSS is provided:
 
 :root {
   --color-bg:             #f2efe8;

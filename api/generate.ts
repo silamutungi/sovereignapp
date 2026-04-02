@@ -6,6 +6,7 @@
 //
 import Anthropic from '@anthropic-ai/sdk'
 import { checkRateLimit } from './_rateLimit.js'
+import { generateDesignSystem, mapCategory } from './_designSystem.js'
 import { SYSTEM_PROMPT } from './_systemPrompt.js'
 import { resolveHeroImage } from './lib/images.js'
 
@@ -366,6 +367,24 @@ If not flagged, reason should be empty string.`,
       competitiveContext = `\n\nAPP CATEGORY: ${appCategory}\nBuild the standard features expected for this category.`
     }
 
+    // ── Design system generation ────────────────────────────────────────────
+    // Haiku generates a named, WCAG AA-compliant palette per app
+    const designCategory = mapCategory(appCategory)
+    let designSystemCSS = ''
+    let designSystemMood = ''
+    try {
+      const ds = await generateDesignSystem(
+        userMessage.slice(0, 40).replace(/[^a-zA-Z0-9 ]/g, '').trim(),
+        userMessage,
+        designCategory,
+      )
+      designSystemCSS = ds.css
+      designSystemMood = ds.mood
+      console.log('[generate] design system:', ds.palette_name, '| mood:', ds.mood)
+    } catch (dsErr) {
+      console.warn('[generate] design system failed (non-fatal):', dsErr instanceof Error ? dsErr.message : String(dsErr))
+    }
+
     // ── Hero image resolution ─────────────────────────────────────────────────
     // Priority: Gemini → OpenAI → Unsplash → Pexels → null
     // All logic lives in api/lib/images.ts
@@ -404,7 +423,14 @@ Return only the image prompt text, nothing else. Max 100 words.`
     const heroImageInjection = heroImageUrl
       ? `\n\nHERO_IMAGE_URL = ${heroImageUrl}`
       : ''
-    const finalUserMessage = userMessage + heroImageInjection + competitiveContext
+
+    // Inject the design system CSS so Sonnet uses these tokens in src/index.css
+    // instead of the default Visila palette from the system prompt.
+    const designSystemInjection = designSystemCSS
+      ? `\n\nDESIGN_SYSTEM_CSS — Use this EXACT CSS in src/index.css instead of the default :root block:\n${designSystemCSS}\n\nDESIGN_MOOD: ${designSystemMood}. Let this mood inform typography weight, spacing density, and animation choices.`
+      : ''
+
+    const finalUserMessage = userMessage + heroImageInjection + designSystemInjection + competitiveContext
 
     console.log('[generate] Creating Anthropic stream...')
     const stream = client.messages.stream({
