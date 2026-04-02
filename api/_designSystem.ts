@@ -38,11 +38,48 @@ export type DesignToken = {
   separator_dark:       string
 }
 
+export type TypographySystem = {
+  font_primary:   string
+  font_mono:      string
+  scale: {
+    large_title:  string
+    title_1:      string
+    title_2:      string
+    title_3:      string
+    headline:     string
+    body:         string
+    callout:      string
+    subhead:      string
+    footnote:     string
+    caption:      string
+  }
+  weights: {
+    regular:      number
+    medium:       number
+    semibold:     number
+    bold:         number
+  }
+  tracking: {
+    display:      string
+    title:        string
+    body:         string
+    caption:      string
+    overline:     string
+  }
+  leading: {
+    tight:        number
+    normal:       number
+    relaxed:      number
+    loose:        number
+  }
+}
+
 export type DesignSystem = {
   palette_name:  string
   mood:          string
   category:      AppCategory
   tokens:        DesignToken
+  typography:    TypographySystem
   css:           string
 }
 
@@ -248,9 +285,65 @@ const CATEGORY_PALETTE: Record<AppCategory, CategoryPalette> = {
   },
 }
 
+// ── Apple HIG Typography — shared by all categories ─────────────────────────
+
+const APPLE_HIG_TYPE_SYSTEM = {
+  scale: {
+    large_title: '2.125rem',   // 34px
+    title_1:     '1.75rem',    // 28px
+    title_2:     '1.375rem',   // 22px
+    title_3:     '1.25rem',    // 20px
+    headline:    '1.0625rem',  // 17px
+    body:        '1.0625rem',  // 17px
+    callout:     '1rem',       // 16px
+    subhead:     '0.9375rem',  // 15px
+    footnote:    '0.8125rem',  // 13px
+    caption:     '0.75rem',    // 12px
+  },
+  weights: {
+    regular:  400,
+    medium:   500,
+    semibold: 600,
+    bold:     700,
+  },
+  tracking: {
+    display:  '0.012em',
+    title:    '0em',
+    body:     '-0.025em',
+    caption:  '0em',
+    overline: '0.08em',
+  },
+  leading: {
+    tight:   1.2,
+    normal:  1.3,
+    relaxed: 1.5,
+    loose:   1.6,
+  },
+}
+
+const CATEGORY_TYPOGRAPHY: Record<AppCategory, { font_primary: string }> = {
+  MARKETPLACE:             { font_primary: "'Inter', system-ui, sans-serif" },
+  SAAS_TOOL:               { font_primary: "'Inter', system-ui, sans-serif" },
+  BOOKING_SCHEDULING:      { font_primary: "'Inter', system-ui, sans-serif" },
+  DIRECTORY_LISTING:       { font_primary: "'Inter', system-ui, sans-serif" },
+  COMMUNITY_SOCIAL:        { font_primary: "'Plus Jakarta Sans', system-ui, sans-serif" },
+  PORTFOLIO_SHOWCASE:      { font_primary: "'DM Sans', system-ui, sans-serif" },
+  INTERNAL_TOOL:           { font_primary: "'Inter', system-ui, sans-serif" },
+  ECOMMERCE_RETAIL:        { font_primary: "'Inter', system-ui, sans-serif" },
+  RESTAURANT_HOSPITALITY:  { font_primary: "'Lato', system-ui, sans-serif" },
+}
+
+function getTypography(category: AppCategory): TypographySystem {
+  return {
+    font_primary: CATEGORY_TYPOGRAPHY[category].font_primary,
+    font_mono: "'JetBrains Mono', 'Courier New', monospace",
+    ...APPLE_HIG_TYPE_SYSTEM,
+  }
+}
+
 // ── CSS generation ───────────────────────────────────────────────────────────
 
-function tokensToCSS(tokens: DesignToken): string {
+function tokensToCSS(tokens: DesignToken, typo: TypographySystem): string {
   return `:root {
   /* Brand */
   --color-primary:          ${tokens.primary};
@@ -275,6 +368,37 @@ function tokensToCSS(tokens: DesignToken): string {
   --color-warning:          #d97706;
   --color-error:            #dc2626;
   --color-info:             #2563eb;
+
+  /* ── TYPOGRAPHY — Apple HIG scale ── */
+  --font-primary:           ${typo.font_primary};
+  --font-mono:              ${typo.font_mono};
+
+  --text-large-title:       ${typo.scale.large_title};
+  --text-title-1:           ${typo.scale.title_1};
+  --text-title-2:           ${typo.scale.title_2};
+  --text-title-3:           ${typo.scale.title_3};
+  --text-headline:          ${typo.scale.headline};
+  --text-body:              ${typo.scale.body};
+  --text-callout:           ${typo.scale.callout};
+  --text-subhead:           ${typo.scale.subhead};
+  --text-footnote:          ${typo.scale.footnote};
+  --text-caption:           ${typo.scale.caption};
+
+  --weight-regular:         ${typo.weights.regular};
+  --weight-medium:          ${typo.weights.medium};
+  --weight-semibold:        ${typo.weights.semibold};
+  --weight-bold:            ${typo.weights.bold};
+
+  --tracking-display:       ${typo.tracking.display};
+  --tracking-title:         ${typo.tracking.title};
+  --tracking-body:          ${typo.tracking.body};
+  --tracking-caption:       ${typo.tracking.caption};
+  --tracking-overline:      ${typo.tracking.overline};
+
+  --leading-tight:          ${typo.leading.tight};
+  --leading-normal:         ${typo.leading.normal};
+  --leading-relaxed:        ${typo.leading.relaxed};
+  --leading-loose:          ${typo.leading.loose};
 }
 
 @media (prefers-color-scheme: dark) {
@@ -408,13 +532,15 @@ ${REFINE_SCHEMA}`,
 
     if (parsed.tokens && validateTokens(parsed.tokens)) {
       const tokens = parsed.tokens
+      const typo = getTypography(category)
       console.log('[designSystem] Haiku palette:', parsed.palette_name)
       return {
         palette_name: parsed.palette_name ?? `${appName} ${category}`,
         mood: parsed.mood ?? defaults.mood,
         category,
         tokens,
-        css: tokensToCSS(tokens),
+        typography: typo,
+        css: tokensToCSS(tokens, typo),
       }
     }
     console.log('[designSystem] Haiku tokens failed validation, using defaults')
@@ -423,11 +549,13 @@ ${REFINE_SCHEMA}`,
   }
 
   // Fallback — category defaults always work
+  const typo = getTypography(category)
   return {
     palette_name: `${appName} ${defaults.mood.split(',')[0].trim()}`,
     mood: defaults.mood,
     category,
     tokens: defaults.tokens,
-    css: tokensToCSS(defaults.tokens),
+    typography: typo,
+    css: tokensToCSS(defaults.tokens, typo),
   }
 }

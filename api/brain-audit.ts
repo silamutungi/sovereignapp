@@ -491,6 +491,48 @@ function checkLogoHomeLink(repoFiles: Record<string, string>): AuditResult {
   }
 }
 
+// ── Typography check ─────────────────────────────────────────────────────────
+
+function checkTypography(repoFiles: Record<string, string>): AuditResult {
+  const violations: string[] = []
+
+  for (const [path, content] of Object.entries(repoFiles)) {
+    if (!path.endsWith('.tsx') && !path.endsWith('.css')) continue
+
+    // Check for hardcoded font-size in px (CSS and inline styles)
+    const pxSizes = content.match(/font-size:\s*\d+px/g) ?? []
+    const inlineSizes = content.match(/fontSize:\s*['"]?\d+(?:px)?['"]?/g) ?? []
+    if (pxSizes.length > 0 || inlineSizes.length > 0) {
+      violations.push(`${path}: ${pxSizes.length + inlineSizes.length} hardcoded font-size values`)
+    }
+
+    // Check for font-weight below 400 (Thin/Light)
+    const thinWeights = content.match(/font-weight:\s*(100|200|300)\b/g) ?? []
+    const inlineThin = content.match(/fontWeight:\s*['"]?(100|200|300)\b/g) ?? []
+    if (thinWeights.length > 0 || inlineThin.length > 0) {
+      violations.push(`${path}: font-weight below 400 (Thin/Light — illegible)`)
+    }
+  }
+
+  if (violations.length === 0) {
+    return {
+      check: 'checkTypography',
+      passed: true,
+      severity: 'info',
+      auto_fixable: false,
+      details: 'No typography violations found',
+    }
+  }
+
+  return {
+    check: 'checkTypography',
+    passed: false,
+    severity: 'warning',
+    auto_fixable: false,
+    details: violations.join('; '),
+  }
+}
+
 // ── Core audit runner ─────────────────────────────────────────────────────────
 
 export async function runBrainAudit(
@@ -537,6 +579,7 @@ export async function runBrainAudit(
     checkBrokenNavLinks(repoFiles, deployUrl),
     checkAltText(repoFiles),
     checkLogoHomeLink(repoFiles),
+    checkTypography(repoFiles),
   ])
 
   const results: AuditResult[] = []

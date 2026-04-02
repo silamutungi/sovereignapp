@@ -213,6 +213,18 @@ are defined in tokens.css for incremental migration. New code must use --color-*
 
 Fonts: Playfair Display (serif headings) + DM Mono (everything else)
 
+## Typography — Apple HIG System
+- Tokens defined in src/styles/tokens.css under :root
+- Same scale used for visila.com and generated apps
+- Min body: var(--text-body) = 17px. Min anywhere: var(--text-caption) = 12px
+- Weights: --weight-regular/medium/semibold/bold only (400/500/600/700)
+- Never below 400 weight — Thin/Light fail legibility
+- Tracking: --tracking-body (-0.025em) for body, --tracking-display (0.012em) for hero
+- Leading: --leading-relaxed (1.5) for body, --leading-tight (1.2) for display
+- visila.com fonts: Playfair Display + DM Mono + Geist Sans
+- Generated app fonts: vary by category — see CATEGORY_TYPOGRAPHY in api/_designSystem.ts
+- Brain Audit checkTypography validates no hardcoded px sizes or thin weights
+
 ## Waitlist table (Supabase)
 - Table: waitlist
 - Columns: id (uuid), email (text, unique), created_at (timestamp), source (text)

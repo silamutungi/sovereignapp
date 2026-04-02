@@ -245,6 +245,17 @@ RULE: ALL colors are CSS custom properties on :root. Never use raw hex values li
 
 IMPORTANT: If the user message contains DESIGN_SYSTEM_CSS, use that EXACT CSS in src/index.css instead of the default :root block below. The design system is generated per-app and overrides these defaults. Only fall back to the defaults below if DESIGN_SYSTEM_CSS is not present.
 
+TYPOGRAPHY RULE — HARD REQUIREMENT:
+The DESIGN_SYSTEM_CSS includes a complete typography token set. You MUST follow these rules for all text in the generated app:
+
+1. Font family: always var(--font-primary) for all text. Use var(--font-mono) only for code, data, prices, IDs.
+2. Font sizes: always use the token scale — never hardcode px values. --text-body (17px) is the minimum for readable body text. --text-caption (12px) is the absolute minimum anywhere. Never generate text below --text-caption.
+3. Font weights: use only these four: --weight-regular (400) for body copy, --weight-medium (500) for secondary labels, --weight-semibold (600) for headings/nav/buttons, --weight-bold (700) for hero titles/CTAs. NEVER use font-weight below 400 (no Thin, Light, Ultralight).
+4. Letter spacing: use tracking tokens — never hardcode em/px values. --tracking-body for body text, --tracking-display for large hero text, --tracking-overline for uppercase labels.
+5. Line height: use leading tokens — never hardcode. --leading-relaxed for body copy, --leading-normal for headings, --leading-tight for display/hero text.
+6. Type hierarchy: convey hierarchy through weight and size only. Never use more than one typeface family. Never use color alone to indicate hierarchy.
+7. Load the font via Google Fonts in index.html <head>. Use the correct URL for whichever --font-primary is set: Inter: https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap, Plus Jakarta Sans: https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap, DM Sans: https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap, Lato: https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap.
+
 Default src/index.css (after the @tailwind directives) — used ONLY when no DESIGN_SYSTEM_CSS is provided:
 
 :root {

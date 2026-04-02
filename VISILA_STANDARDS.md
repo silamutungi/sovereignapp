@@ -216,6 +216,29 @@ Source: Apple HIG Dark Mode documentation.
 
 **Happy path obsession.** The most common user action on each screen is the most prominent, easiest, fastest to complete. Edge cases are handled gracefully but never given equal visual weight.
 
+## Visila Typography System
+Source: Apple HIG Typography PDF (December 2025)
+Applied to: visila.com (src/styles/tokens.css) and all generated apps (api/_designSystem.ts)
+
+### Rules (hard requirements)
+- Minimum body text: 17px (--text-body). Never below 12px anywhere.
+- Font weights: Regular (400), Medium (500), Semibold (600), Bold (700) only
+- Never use Thin, Light, or Ultralight — illegible at small sizes
+- One typeface per app — hierarchy through weight and size only
+- Never use color alone to convey hierarchy
+- Letter spacing: negative for body (-0.025em), positive for display (0.012em)
+- Line height: 1.5 relaxed for body, 1.2 tight for display
+
+### Token reference (src/styles/tokens.css)
+Scale: --text-large-title (34px) through --text-caption (12px)
+Weights: --weight-regular through --weight-bold
+Tracking: --tracking-display, --tracking-body, --tracking-caption
+Leading: --leading-tight (1.2) through --leading-loose (1.6)
+Fonts: --font-serif (Playfair Display), --font-mono (DM Mono), --font-sans (Geist Sans)
+
+### Generated apps
+Same Apple HIG scale. Font family varies by category (see CATEGORY_TYPOGRAPHY in api/_designSystem.ts). All weights, tracking, and leading values are identical to visila.com tokens.
+
 ---
 
 ## Part 8 — Information Architecture
