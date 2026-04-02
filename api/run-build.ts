@@ -54,6 +54,22 @@ const NET = 10_000 // 10s per individual network call
 
 // ── Auto-provisioning ─────────────────────────────────────────────────────────
 
+// Safety-net SQL: enables RLS on every public table that doesn't already have it.
+// Runs after schema SQL to catch any tables the generation model missed.
+const RLS_SAFETY_NET_SQL = `
+DO $$
+DECLARE
+  t text;
+BEGIN
+  FOR t IN
+    SELECT tablename FROM pg_tables
+    WHERE schemaname = 'public'
+  LOOP
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
+  END LOOP;
+END $$;
+`
+
 async function provisionSupabase(
   supabaseToken: string,
   appName: string,
@@ -118,6 +134,16 @@ async function provisionSupabase(
       const err = await sqlRes.json() as { message?: string }
       throw new Error(`Schema migration failed: ${err.message ?? sqlRes.status}`)
     }
+
+    // Safety net: enable RLS on any table that doesn't already have it
+    await fetch(`https://api.supabase.com/v1/projects/${projectId}/database/query`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${supabaseToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query: RLS_SAFETY_NET_SQL }),
+    }).catch(err => console.warn('[run-build] RLS safety net non-fatal:', err))
   }
 
   // 5. Inject env vars into Vercel project (no-op if vercelProjectId is empty)
@@ -1281,6 +1307,16 @@ export default async function handler(req: any, res: any): Promise<void> {
                   },
                   NET,
                 ).catch(err => console.warn('[run-build] own-temp schema exec non-fatal:', err))
+                // RLS safety net
+                await fetchWithTimeout(
+                  `https://api.supabase.com/v1/projects/${sovereignRef}/database/query`,
+                  {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${mgmtToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: RLS_SAFETY_NET_SQL }),
+                  },
+                  NET,
+                ).catch(err => console.warn('[run-build] RLS safety net non-fatal:', err))
               }
             }
           } else {
@@ -1304,14 +1340,24 @@ export default async function handler(req: any, res: any): Promise<void> {
                   },
                   NET,
                 ).catch(err => console.warn('[run-build] visila schema exec non-fatal:', err))
+                // RLS safety net
+                await fetchWithTimeout(
+                  `https://api.supabase.com/v1/projects/${sovereignRef}/database/query`,
+                  {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${mgmtToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: RLS_SAFETY_NET_SQL }),
+                  },
+                  NET,
+                ).catch(err => console.warn('[run-build] RLS safety net non-fatal:', err))
               } else {
                 console.log('[run-build] SOVEREIGN_SUPABASE_REF or MANAGEMENT_TOKEN not set — schema stored for manual run')
               }
             }
           }
 
-          // Secure the tables (RLS is already in the generated schema, this step
-          // is a visual indicator that security has been applied)
+          // Secure the tables — RLS safety net runs above, this step is a
+          // visual indicator that security has been applied
           await step('Securing your tables…')
 
           // Inject Supabase env vars into Vercel project before file push so

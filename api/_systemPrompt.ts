@@ -945,6 +945,14 @@ You are generating a complete React + Vite + TypeScript + Tailwind CSS + Supabas
 
 CRITICAL OUTPUT ORDER: Generate the files array FIRST. Generate supabaseSchema LAST. Never write supabaseSchema before all files are complete. The tool schema fills in property order — files is the first property, supabaseSchema is last.
 
+SUPABASE SCHEMA SQL RULES — MANDATORY:
+After every CREATE TABLE statement in supabaseSchema, you MUST immediately add:
+  ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY;
+Then add at minimum a permissive read policy for authenticated users:
+  CREATE POLICY "public_read" ON {table_name} FOR SELECT USING (true);
+For tables with a user_id column, also add insert/update policies using auth.uid() = user_id.
+Never create a table without enabling RLS. This is a hard requirement — Supabase sends security alerts for tables without RLS, and every generated app must pass security review.
+
 This is Phase 1 generation. Output only the 26 files listed below. Do not add extra pages or feature-specific components — the goal is a deployable, working app under 60 seconds.
 
 Required files (exactly these 26, in this order):
