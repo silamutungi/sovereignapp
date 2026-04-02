@@ -7,6 +7,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { checkRateLimit } from './_rateLimit.js'
 import { generateDesignSystem, mapCategory } from './_designSystem.js'
+import { ACCESSIBILITY_RULES } from './lib/accessibility-rules.js'
 import { SYSTEM_PROMPT } from './_systemPrompt.js'
 import { resolveHeroImage } from './lib/images.js'
 
@@ -430,7 +431,7 @@ Return only the image prompt text, nothing else. Max 100 words.`
       ? `\n\nDESIGN_SYSTEM_CSS — Use this EXACT CSS in src/index.css instead of the default :root block:\n${designSystemCSS}\n\nDESIGN_MOOD: ${designSystemMood}. Let this mood inform typography weight, spacing density, and animation choices.`
       : ''
 
-    const finalUserMessage = userMessage + heroImageInjection + designSystemInjection + competitiveContext
+    const finalUserMessage = userMessage + heroImageInjection + designSystemInjection + ACCESSIBILITY_RULES + competitiveContext
 
     console.log('[generate] Creating Anthropic stream...')
     const stream = client.messages.stream({
