@@ -573,10 +573,6 @@ Return only the image prompt text, nothing else. Max 100 words.`
                 enum: ['landing-page', 'saas', 'marketplace', 'social', 'tool', 'ecommerce'],
                 description: 'The best-fit app type. landing-page = public-facing site only, saas = subscription service, marketplace = buyers and sellers, social = community/network, tool = single-purpose utility, ecommerce = product sales.',
               },
-              supabaseSchema: {
-                type: 'string',
-                description: 'Complete Supabase SQL schema. Includes CREATE TABLE, ALTER TABLE ENABLE ROW LEVEL SECURITY, CREATE POLICY for all operations, and CREATE INDEX. Use auth.uid() = user_id for user-owned data. Use standard SQL compatible with PostgreSQL 15.',
-              },
               setupInstructions: {
                 type: 'string',
                 description: 'Numbered plain-English steps for the owner to activate the app after deployment. Always includes: create Supabase project, run the SQL schema, set environment variables in Vercel, any app-specific configuration steps.',
@@ -612,6 +608,10 @@ Return only the image prompt text, nothing else. Max 100 words.`
                   required: ['title', 'description', 'action', 'priority'],
                   additionalProperties: false,
                 },
+              },
+              supabaseSchema: {
+                type: 'string',
+                description: 'GENERATE THIS LAST — after all files are complete. Complete Supabase SQL schema. Includes CREATE TABLE, ALTER TABLE ENABLE ROW LEVEL SECURITY, CREATE POLICY for all operations, and CREATE INDEX. Use auth.uid() = user_id for user-owned data. Use standard SQL compatible with PostgreSQL 15.',
               },
             },
             required: ['appName', 'tagline', 'primaryColor', 'appType', 'files', 'supabaseSchema', 'setupInstructions', 'tier', 'activeStandards', 'nextSteps'],
