@@ -1388,3 +1388,18 @@ Desktop nav is unchanged — mobile pattern is additive only.
 Verify at 375px before every commit touching nav.
 This applies to both visila.com pages (src/App.tsx, src/pages/Dashboard.tsx) and the generation prompt for generated apps (_systemPrompt.ts).
 Learned: 2026-04-01.
+
+**Vercel streaming: unbounded pre-processing kills the stream silently**
+Symptom: Client shows "Generation stream ended without result." with no error detail. Vercel logs show the function was killed at 300s.
+Root cause: Pre-processing steps (web search in buildCategoryBrief, hero image resolution, moderation, classification) can collectively consume 200s+ of the 300s Vercel budget before the Anthropic stream even opens. When Vercel kills the function, the stream closes with no error event — the client has no way to distinguish this from a normal close.
+Rules:
+1. Every pre-processing step that calls an external API must be wrapped in `withTimeout()`. Web search: 15s max. Image resolution: 20s max.
+2. Track total pre-processing elapsed time. If it exceeds 240s, send a `data: {"error":"..."}` SSE event and return — do not open a stream Vercel will immediately kill.
+3. The stream's `on('error')` handler must write an SSE error event so the client can show a meaningful message rather than silent close.
+4. Add `console.log("GENERATE_START")` and `console.log("STREAM_OPEN", { elapsed, promptSizes })` to confirm in Vercel logs that the function reaches the streaming step.
+Fix: Commit f2c3ebc. `withTimeout(buildCategoryBrief(), 15000)`, `withTimeout(resolveHeroImage(), 20000)`, 240s guard before stream open, `stream.on('error')` sends SSE.
+Learned: 2026-04-02.
+
+**resolveHeroImage() must never throw**
+Rule: `resolveHeroImage()` tries Gemini → OpenAI → Unsplash → Pexels → null. Any unhandled exception in this chain propagates to the generate handler and kills the response before the stream is created. Wrap the entire call in `try/catch` with null fallback — image failure should always degrade gracefully to the ink background, never crash generation.
+Learned: 2026-04-02.
