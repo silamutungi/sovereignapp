@@ -13,6 +13,7 @@ import { UX_KNOWLEDGE_LAYER } from './lib/ux-knowledge.js'
 import { SYSTEM_PROMPT } from './_systemPrompt.js'
 import { resolveHeroImage } from './lib/images.js'
 import { buildCategoryBrief, formatCategoryBriefForPrompt } from './lib/categoryIntelligence.js'
+import { MANDATORY_PAGES, MANDATORY_PAGES_ENFORCEMENT } from './lib/mandatoryPages.js'
 
 // Model constants — change here to swap models across the file
 // MODEL_GENERATION: multi-file React app codegen (18+ files, structured tool call)
@@ -498,7 +499,10 @@ Return only the image prompt text, nothing else. Max 100 words.`
     // Static layer remains as fallback when RAG returns < 3 results.
     const uxLayer = UX_KNOWLEDGE_LAYER.slice(0, 4000)
     const a11yRules = ACCESSIBILITY_RULES.slice(0, 2000)
-    const finalUserMessage = categoryBriefInjection + userMessage + heroImageInjection + designSystemInjection.slice(0, 8000) + competitiveContext + contentLayer + uxLayer + a11yRules
+    const mandatoryPagesInjection = MANDATORY_PAGES[appCategory.toUpperCase()]
+      ? '\n\n' + MANDATORY_PAGES[appCategory.toUpperCase()] + '\n\n' + MANDATORY_PAGES_ENFORCEMENT
+      : ''
+    const finalUserMessage = categoryBriefInjection + mandatoryPagesInjection + userMessage + heroImageInjection + designSystemInjection.slice(0, 8000) + competitiveContext + contentLayer + uxLayer + a11yRules
 
     const preProcessingMs = Date.now() - startedAt
     console.log('[generate] STREAM_OPEN pre_processing_ms:', preProcessingMs,
