@@ -746,6 +746,17 @@ function NdevPanel({ locale }: { locale: Locale }) {
               rows={3}
               aria-label={t(locale, 'ndev.h')}
             />
+            {value.length > 0 && (
+              <p style={{
+                textAlign: 'right',
+                margin: '4px 0 0',
+                fontSize: '12px',
+                fontFamily: "'Geist Sans', system-ui, sans-serif",
+                color: value.length > 1000 ? '#f87171' : value.length > 500 ? '#f59e0b' : '#a3a3a3',
+              }}>
+                {value.length} character{value.length !== 1 ? 's' : ''}{value.length > 1000 ? ' — we\'ll focus your idea automatically' : ''}
+              </p>
+            )}
             {generateError && (
               <p className="ndev-email-err" role="alert">{generateError}</p>
             )}

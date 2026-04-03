@@ -221,6 +221,10 @@ ${idea}`
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const flush = () => { if (typeof (res as any).flush === 'function') (res as any).flush() }
 
+  // Immediate keepalive — prevents mobile proxies from timing out during pre-processing
+  res.write(': keepalive\n\n')
+  flush()
+
   // Await the write so large payloads are fully queued before we end the response
   const sendEvent = (data: object): Promise<void> =>
     new Promise<void>((resolve) => {
@@ -228,15 +232,15 @@ ${idea}`
       res.write(payload, () => { flush(); resolve() })
     })
 
-  // SSE keepalive — prevents Vercel edge / proxies from dropping idle connections
+  // Pre-processing keepalive — fires every 5s during condensation, category research, hero image fetch
   const keepalive = setInterval(() => {
     try {
       res.write(': keepalive\n\n')
       flush()
     } catch {
-      // connection already closed — interval will be cleared in finally
+      // connection already closed — interval will be cleared below
     }
-  }, 8_000)
+  }, 5_000)
 
   const endStream = () => {
     clearInterval(keepalive)
@@ -476,19 +480,21 @@ Return only the image prompt text, nothing else. Max 100 words.`
       ? `\n\nDESIGN_SYSTEM_CSS — Use this EXACT CSS in src/index.css instead of the default :root block:\n${designSystemCSS}\n\nDESIGN_MOOD: ${designSystemMood}. Let this mood inform typography weight, spacing density, and animation choices.`
       : ''
 
-    const contentLayer = buildContentLayer(appCategory, userMessage.slice(0, 500))
+    const contentLayer = buildContentLayer(appCategory, userMessage.slice(0, 500)).slice(0, 3000)
     // TODO Phase 2: replace UX_KNOWLEDGE_LAYER with dynamic RAG retrieval
     // from Supabase vector store — query by build.idea + build.app_type
     // to inject the most relevant chunks from the 6 UX books at build time.
     // Static layer remains as fallback when RAG returns < 3 results.
-    const finalUserMessage = categoryBriefInjection + userMessage + heroImageInjection + designSystemInjection + competitiveContext + contentLayer + UX_KNOWLEDGE_LAYER + ACCESSIBILITY_RULES
+    const uxLayer = UX_KNOWLEDGE_LAYER.slice(0, 4000)
+    const a11yRules = ACCESSIBILITY_RULES.slice(0, 2000)
+    const finalUserMessage = categoryBriefInjection + userMessage + heroImageInjection + designSystemInjection.slice(0, 8000) + competitiveContext + contentLayer + uxLayer + a11yRules
 
     console.log('[generate] Creating Anthropic stream...')
     const stream = client.messages.stream({
       // Sonnet 4.6: handles 18-file React/TS/Tailwind generation at ~80% lower cost than Opus.
       // Do not downgrade to Haiku — structured tool_use with 18 files requires Sonnet-class reasoning.
       model: MODEL_GENERATION,
-      max_tokens: 24000,
+      max_tokens: 32000,
       // Prompt caching: cache_control marks the system prompt as cacheable.
       // Anthropic caches it for ~5 minutes. The system prompt is ~6000 tokens — caching it
       // reduces input token costs by ~90% on repeated generation calls.
@@ -605,8 +611,16 @@ Return only the image prompt text, nothing else. Max 100 words.`
       }
     })
 
-    console.log('[generate] Awaiting finalMessage...')
-    const message = await stream.finalMessage()
+    let message: Anthropic.Message
+    try {
+      console.log('[generate] Awaiting finalMessage...')
+      message = await stream.finalMessage()
+    } catch (streamError) {
+      console.error('[generate] stream error:', streamError)
+      await sendEvent({ type: 'error', error: 'Generation failed — please try again with a shorter idea.' })
+      endStream()
+      return
+    }
     const elapsed = Date.now() - startedAt
     console.log(
       '[generate] finalMessage resolved:',
@@ -663,6 +677,16 @@ Return only the image prompt text, nothing else. Max 100 words.`
       },
     }
     const doneJson = JSON.stringify(donePayload)
+
+    // Empty result guard — if the entire payload is suspiciously small,
+    // the generation likely produced truncated or degenerate output.
+    if (doneJson.length < 100) {
+      console.error('[generate] empty result guard: payload_bytes:', doneJson.length)
+      await sendEvent({ type: 'error', error: 'Generation failed — please try again with a shorter idea.' })
+      endStream()
+      return
+    }
+
     console.log('[generate] Sending done event, payload_bytes:', doneJson.length)
     await sendEvent(donePayload)
     console.log('[generate] Done event write callback fired, ending stream. elapsed_ms:', Date.now() - startedAt)
