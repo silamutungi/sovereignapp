@@ -234,7 +234,8 @@ ${idea}`
       res.write(payload, () => { flush(); resolve() })
     })
 
-  // Pre-processing keepalive — fires every 5s during condensation, category research, hero image fetch
+  // Keepalive — fires every 15s through the ENTIRE request lifecycle including finalMessage().
+  // Without this, browsers kill the SSE connection during the silent generation window.
   const keepalive = setInterval(() => {
     try {
       res.write(': keepalive\n\n')
@@ -242,7 +243,7 @@ ${idea}`
     } catch {
       // connection already closed — interval will be cleared below
     }
-  }, 5_000)
+  }, 15_000)
 
   const endStream = () => {
     clearInterval(keepalive)
