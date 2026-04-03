@@ -20,6 +20,7 @@ import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { checkRateLimit } from './_rateLimit.js'
 import { resolveHeroImage } from './lib/images.js'
+import { reindexFiles } from './lib/componentIndex.js'
 
 export const MODEL_GENERATION = 'claude-sonnet-4-6'
 export const MODEL_FAST = 'claude-haiku-4-5-20251001'
@@ -44,6 +45,17 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
 // Matches: "add a pricing page", "create a contact section", "build an about screen"
 const NEW_PAGE_PATTERN = /\b(add|create|build|make)\s+(?:a\s+|an\s+)?(\w+)\s+(?:page|section|screen)\b/i
+
+// ── Classifier result type ──────────────────────────────────────────────────
+interface ClassifierResult {
+  instruction_type: string
+  relevant_files: string[]
+  atomic_requirements: string[]
+  risk: string
+  risk_reason: string
+  validation_checks: string[]
+  plan_summary: string
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function handler(req: any, res: any): Promise<void> {
@@ -98,7 +110,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     console.log('[edit] fetching build...', new Date().toISOString())
     const { data: build, error: buildError } = await supabase
       .from('builds')
-      .select('github_token, email, vercel_project_id, deploy_url, supabase_project_ref, repo_url')
+      .select('id, github_token, email, vercel_project_id, deploy_url, supabase_project_ref, repo_url, idea, app_type')
       .eq('id', buildId)
       .is('deleted_at', null)
       .single()
@@ -128,68 +140,147 @@ export default async function handler(req: any, res: any): Promise<void> {
       Accept: 'application/vnd.github.v3+json',
     }
 
-    // ── Plan mode — return structured plan without executing edit ─────────────
-    if (req.query?.plan === 'true') {
-      // Step 1: Fetch file tree (src/ only, .tsx/.ts/.css files)
-      let planFileTree: string[] = []
-      try {
-        const treeRes = await fetch(
-          `https://api.github.com/repos/${repoPath}/git/trees/main?recursive=1`,
-          { headers: ghHeaders },
-        )
-        if (treeRes.ok) {
-          const treeData = await treeRes.json() as { tree: Array<{ path: string; type: string }> }
-          planFileTree = treeData.tree
-            .filter((f) => f.type === 'blob' && f.path.startsWith('src/') && (f.path.endsWith('.tsx') || f.path.endsWith('.ts') || f.path.endsWith('.css')))
-            .map((f) => f.path)
-        }
-      } catch { /* non-fatal — planFileTree stays empty */ }
-
-      // Step 2: Single Haiku call — summary, files, changes, risk
-      try {
-        const planMsg = await anthropic.messages.create({
-          model: MODEL_FAST,
-          max_tokens: 512,
-          messages: [{
-            role: 'user',
-            content: `Here is the file tree of a React + Vite app:\n${planFileTree.join('\n')}\n\nThe user wants to make this change: ${editRequest}\n\nReturn a JSON object with:\n{\n  "summary": "One sentence: what will change and what the user will see (never mention file names)",\n  "files": ["src/components/Button.tsx", "src/index.css"],\n  "changes": [\n    { "file": "src/index.css", "what": "Update --color-primary from #FF1F6E to #0047AB" },\n    { "file": "src/components/Button.tsx", "what": "Update bg-[#FF1F6E] class to use CSS variable var(--color-primary)" }\n  ],\n  "risk": "low or medium or high"\n}\n\nRisk rules: "low" if 1 file with cosmetic changes (color, text, spacing), "high" if 4+ files or logic/routing/auth/schema changes, "medium" for everything else.\n\nReturn only valid JSON, no markdown fences.`,
-          }],
-        })
-        const planRaw = planMsg.content
-          .filter((b) => b.type === 'text')
-          .map((b) => (b as { type: 'text'; text: string }).text)
-          .join('')
-          .trim()
-          .replace(/^```(?:json)?\s*/i, '')
-          .replace(/\s*```\s*$/, '')
-          .trim()
-
-        const planData = JSON.parse(planRaw) as {
-          summary?: string
-          files?: string[]
-          changes?: Array<{ file: string; what: string }>
-          risk?: string
-        }
-
-        // Validate and sanitize
-        const summary = typeof planData.summary === 'string' ? planData.summary : 'Apply the requested change.'
-        const files = Array.isArray(planData.files)
-          ? (planData.files as unknown[]).filter((f): f is string => typeof f === 'string').slice(0, 8)
-          : []
-        const changes = Array.isArray(planData.changes)
-          ? (planData.changes as Array<{ file?: string; what?: string }>)
-              .filter((c) => typeof c.file === 'string' && typeof c.what === 'string')
-              .map((c) => ({ file: c.file!, what: c.what! }))
-              .slice(0, 8)
-          : []
-        const risk = ['low', 'medium', 'high'].includes(planData.risk ?? '') ? planData.risk! : 'medium'
-
-        console.log(`[edit] plan mode — risk:${risk} files:${files.length} — ${summary}`)
-        res.status(200).json({ plan: { summary, files, changes, risk } })
-      } catch (planErr) {
-        console.warn('[edit] plan Haiku call failed:', planErr)
-        res.status(200).json({ plan: { summary: 'Apply the requested change.', files: [], changes: [], risk: 'medium' } })
+    // ── Fetch file tree (shared by classifier, plan mode, and edit) ──────────
+    let fileTree: string[] = []
+    try {
+      const treeRes = await fetch(
+        `https://api.github.com/repos/${repoPath}/git/trees/main?recursive=1`,
+        { headers: ghHeaders },
+      )
+      if (treeRes.ok) {
+        const treeData = await treeRes.json() as { tree: Array<{ path: string; type: string }> }
+        fileTree = treeData.tree
+          .filter((f) => f.type === 'blob' && f.path.startsWith('src/') && (f.path.endsWith('.tsx') || f.path.endsWith('.ts') || f.path.endsWith('.css')))
+          .map((f) => f.path)
+        console.log(`[edit] file-tree: ${fileTree.length} files`)
       }
+    } catch (e) {
+      console.warn('[edit] file tree fetch failed (non-fatal):', e)
+    }
+
+    // ── Fetch component index for Brain-guided file identification ──────────
+    let indexContext = ''
+    try {
+      const { data: componentIndex } = await supabase
+        .from('component_index')
+        .select('name, file, line_start, line_end, type, description, visible_text')
+        .eq('build_id', build.id)
+
+      if (componentIndex && componentIndex.length > 0) {
+        indexContext = 'COMPONENT INDEX:\n' + componentIndex.map((c: { name: string; file: string; line_start: number | null; line_end: number | null; type: string | null; description: string | null; visible_text: unknown }) =>
+          `${c.name} (${c.type ?? 'unknown'}) → ${c.file}:${c.line_start ?? '?'}-${c.line_end ?? '?'}\n` +
+          `  What it does: ${c.description ?? 'no description'}\n` +
+          `  Visible text: ${Array.isArray(c.visible_text) ? (c.visible_text as string[]).join(' | ') : 'none'}`
+        ).join('\n\n') + '\n\n'
+        console.log(`[edit] component index: ${componentIndex.length} entries loaded`)
+      }
+    } catch (idxErr) {
+      console.warn('[edit] component index fetch failed (non-fatal):', idxErr)
+    }
+
+    // ── STEP 1: Instruction Classifier (Haiku — Prompt A) ───────────────────
+    let classifierResult: ClassifierResult = {
+      instruction_type: 'style_change',
+      relevant_files: [],
+      atomic_requirements: [editRequest],
+      risk: 'medium',
+      risk_reason: 'Classifier did not run.',
+      validation_checks: [],
+      plan_summary: 'Apply the requested change.',
+    }
+
+    try {
+      const classifierPrompt = `You are Visila's pre-edit intelligence layer. You analyze a user's instruction before any code is written. You do four things at once.
+
+${indexContext}APP CONTEXT:
+- App type: ${build.app_type ?? 'web app'}
+- App idea: ${build.idea ?? 'unknown'}
+- File tree (src/ only):
+${fileTree.join('\n')}
+
+USER INSTRUCTION: "${editRequest}"
+
+TASK — return a single JSON object with these exact keys:
+
+{
+  "instruction_type": one of ["style_change", "content_change", "feature_add", "new_page", "schema_change", "bug_fix", "layout_change", "multi_system"],
+  "relevant_files": [],
+  "atomic_requirements": [],
+  "risk": "low" | "medium" | "high",
+  "risk_reason": "one sentence",
+  "validation_checks": [],
+  "plan_summary": "One plain-English sentence describing what will change and why."
+}
+
+relevant_files: Array of file paths from the tree that need to be READ or EDITED. Max 6. Include the router file if instruction_type is "new_page". Include the nav component if navigation changes are needed. Be precise — wrong file selection is the #1 cause of silent failures. Use the COMPONENT INDEX above (if present) to match the user's description against component names and visible_text — this gives you exact file paths and line numbers.
+
+atomic_requirements: Array of ALL changes required for this instruction to work end-to-end. Example for "new_page": ["create src/pages/Pricing.tsx", "add route in src/App.tsx", "add nav link in src/components/Nav.tsx"]. Every item must be actionable. Nothing vague.
+
+validation_checks: Array of checks the execution agent should run after making changes. Specific, verifiable assertions — not generic advice. Max 4.
+
+RULES:
+- Return only valid JSON. No markdown fences. No explanation outside the object.
+- If the instruction is ambiguous, set risk to "high" and explain in risk_reason.
+- Never hallucinate file paths. Every path in relevant_files must exist in the tree above.
+- If instruction_type is "new_page" or "multi_system", relevant_files MUST include the router file and any nav component.
+- If instruction_type is "schema_change", set risk to "high" always.`
+
+      const classifierMsg = await anthropic.messages.create({
+        model: MODEL_FAST,
+        max_tokens: 512,
+        messages: [{ role: 'user', content: classifierPrompt }],
+      })
+
+      const classifierRaw = classifierMsg.content
+        .filter((b) => b.type === 'text')
+        .map((b) => (b as { type: 'text'; text: string }).text)
+        .join('')
+        .trim()
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```\s*$/, '')
+        .trim()
+
+      const parsed = JSON.parse(classifierRaw) as ClassifierResult
+
+      const validTypes = ['style_change', 'content_change', 'feature_add', 'new_page', 'schema_change', 'bug_fix', 'layout_change', 'multi_system']
+      classifierResult = {
+        instruction_type: validTypes.includes(parsed.instruction_type) ? parsed.instruction_type : 'style_change',
+        relevant_files: Array.isArray(parsed.relevant_files)
+          ? (parsed.relevant_files as unknown[]).filter((f): f is string => typeof f === 'string' && fileTree.includes(f)).slice(0, 6)
+          : [],
+        atomic_requirements: Array.isArray(parsed.atomic_requirements)
+          ? (parsed.atomic_requirements as unknown[]).filter((r): r is string => typeof r === 'string').slice(0, 8)
+          : [editRequest],
+        risk: ['low', 'medium', 'high'].includes(parsed.risk) ? parsed.risk : 'medium',
+        risk_reason: typeof parsed.risk_reason === 'string' ? parsed.risk_reason : '',
+        validation_checks: Array.isArray(parsed.validation_checks)
+          ? (parsed.validation_checks as unknown[]).filter((c): c is string => typeof c === 'string').slice(0, 4)
+          : [],
+        plan_summary: typeof parsed.plan_summary === 'string' ? parsed.plan_summary : 'Apply the requested change.',
+      }
+
+      console.log(`[edit] classifier — type:${classifierResult.instruction_type} risk:${classifierResult.risk} files:${classifierResult.relevant_files.length} reqs:${classifierResult.atomic_requirements.length}`)
+    } catch (classErr) {
+      console.warn('[edit] classifier failed (using defaults):', classErr)
+    }
+
+    // ── Plan mode — return classifier result without executing edit ──────────
+    if (req.query?.plan === 'true') {
+      console.log(`[edit] plan mode — risk:${classifierResult.risk} — ${classifierResult.plan_summary}`)
+      res.status(200).json({
+        plan: {
+          summary: classifierResult.plan_summary,
+          files: classifierResult.relevant_files,
+          changes: classifierResult.atomic_requirements.map((r) => {
+            const fileMatch = r.match(/(?:in |update |create |add .* in )(src\/\S+)/)
+            return { file: fileMatch?.[1] ?? '', what: r }
+          }),
+          risk: classifierResult.risk,
+          risk_reason: classifierResult.risk_reason,
+          instruction_type: classifierResult.instruction_type,
+          validation_checks: classifierResult.validation_checks,
+        },
+      })
       return
     }
 
@@ -319,6 +410,8 @@ export default async function handler(req: any, res: any): Promise<void> {
     const isNewPage = NEW_PAGE_PATTERN.test(editRequest)
     let brainFollowup: string | null = null
     let commitSha: string | null = null
+    let editConfidence: string | null = null
+    let editValidationResults: Array<{ check: string; passed: boolean; note?: string }> | null = null
 
     // ════════════════════════════════════════════════════════════════════════
     // NEW_PAGE PATH
@@ -488,132 +581,172 @@ Rules for the new page:
         ? `\nIMAGES: Use this exact pre-fetched image URL (permanent, responsive): ${resolvedImageUrl}\nDo NOT use any other image URL — this one is already verified to load correctly. Implement as backgroundImage on the section element, never as an img tag.`
         : `\nIMAGES: Do not add any image URLs. If a hero image is needed, use a solid background color: background-color: var(--color-ink). Never use source.unsplash.com, placeholder.com, picsum.photos, or loremflickr.com.`
 
-      // ── STEP 1: Fetch full file tree from GitHub ───────────────────────────
-      let fileTree: string[] = []
-      try {
-        const treeRes = await fetch(
-          `https://api.github.com/repos/${repoPath}/git/trees/main?recursive=1`,
-          { headers: ghHeaders },
-        )
-        if (treeRes.ok) {
-          const treeData = await treeRes.json() as { tree: Array<{ path: string; type: string }> }
-          fileTree = treeData.tree
-            .filter((f) => f.type === 'blob' && f.path.startsWith('src/') && (f.path.endsWith('.tsx') || f.path.endsWith('.ts')))
-            .map((f) => f.path)
-          console.log(`[edit] file-tree: ${fileTree.length} files`)
-        }
-      } catch (e) {
-        console.warn('[edit] file tree fetch failed (non-fatal):', e)
+      // ── STEP 2: Use classifier results to identify files ────────────────────
+      let relevantPaths = classifierResult.relevant_files.length > 0
+        ? [...classifierResult.relevant_files]
+        : []
+
+      // Fallback: if classifier returned no files, try common candidates
+      if (relevantPaths.length === 0 && fileTree.length > 0) {
+        const fallbackCandidates = ['src/pages/Home.tsx', 'src/App.tsx', 'src/index.css']
+        relevantPaths = fallbackCandidates.filter((c) => fileTree.includes(c)).slice(0, 3)
+        console.log('[edit] classifier returned no files, using fallbacks:', relevantPaths.join(', '))
       }
 
       let multiFileSucceeded = false
 
-      if (fileTree.length > 0) {
-        // ── STEP 2: Identify relevant files via Haiku ────────────────────────
-        let relevantPaths: string[] = []
-        try {
-          const haikuMsg = await anthropic.messages.create({
-            model: MODEL_FAST,
-            max_tokens: 256,
-            messages: [{
-              role: 'user',
-              content: `Here is the file tree of a React + Vite app:\n${fileTree.join('\n')}\n\nThe user wants to make this change: ${editRequest}\n\nReturn a JSON array of the file paths most likely to need reading or editing to fulfill this instruction. Include the file that owns the relevant component. Max 5 files. Return only JSON, no fences, no explanation.`,
-            }],
-          })
-          const haikuRaw = haikuMsg.content
-            .filter((b) => b.type === 'text')
-            .map((b) => (b as { type: 'text'; text: string }).text)
-            .join('')
-            .trim()
-            .replace(/^```(?:json)?\s*/i, '')
-            .replace(/\s*```\s*$/, '')
-            .trim()
-          const parsed = JSON.parse(haikuRaw) as unknown
-          if (Array.isArray(parsed)) {
-            relevantPaths = (parsed as unknown[])
-              .filter((p): p is string => typeof p === 'string' && fileTree.includes(p))
-              .slice(0, 5)
-          }
-          console.log('[edit] relevant files:', relevantPaths.join(', '))
-        } catch (e) {
-          console.warn('[edit] Haiku file identification failed (falling back):', e)
-        }
+      if (relevantPaths.length > 0) {
+        console.log('[edit] relevant files:', relevantPaths.join(', '))
 
-        if (relevantPaths.length > 0) {
-          // ── STEP 3: Fetch content of each relevant file ──────────────────
-          const fetchedFiles = await Promise.all(relevantPaths.map((p) => fetchGitHubFile(p)))
-          const validFiles = fetchedFiles.filter((f): f is NonNullable<typeof f> => f !== null)
+        // ── STEP 3: Fetch content of each relevant file ──────────────────
+        const fetchedFiles = await Promise.all(relevantPaths.map((p) => fetchGitHubFile(p)))
+        const validFiles = fetchedFiles.filter((f): f is NonNullable<typeof f> => f !== null)
 
-          if (validFiles.length > 0) {
-            await setBuildStatus('building', 'Generating your edit…')
+        if (validFiles.length > 0) {
+          await setBuildStatus('building', 'Generating your edit…')
 
-            const fileContextBlocks = validFiles
-              .map((f) => `### ${f.path}\n${f.content}`)
-              .join('\n\n---\n\n')
+          const fileContextBlocks = validFiles
+            .map((f) => `### ${f.path}\n\`\`\`tsx\n${f.content}\n\`\`\``)
+            .join('\n\n')
 
-            // ── STEP 4: Generate multi-file edit with Sonnet ───────────────
-            const multiFilePrompt = `You are Visila's world-class engineering agent editing a React + Vite + TypeScript web application. You apply design judgment at every level — the Jony Ive standard: calm, precise, trustworthy, quietly powerful.
+          // ── STEP 4: Execute edit with self-validation (Sonnet — Prompt B) ──
+          const executionPrompt = `You are Visila's execution agent. You edit React + Vite + TypeScript applications with the precision of a senior engineer and the design judgment of Jony Ive: calm, precise, trustworthy, quietly powerful.
 
-User instruction: ${editRequest}
+You do NOT just respond to instructions. You:
+1. Execute the change completely and atomically
+2. Verify your own output against a validation checklist
+3. Report exactly what changed and whether it is correct
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+APP CONTEXT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+App idea: ${build.idea ?? 'unknown'}
+App type: ${build.app_type ?? 'web app'}
+Instruction type: ${classifierResult.instruction_type}
+Risk level: ${classifierResult.risk}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+USER INSTRUCTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${editRequest}
 ${imageGuidance}
 
-Current file contents:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REQUIRED ATOMIC CHANGES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+You MUST complete ALL of the following. Missing any one makes the edit broken:
+${classifierResult.atomic_requirements.map((r, i) => `${i + 1}. ${r}`).join('\n')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CURRENT FILE CONTENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${fileContextBlocks}
 ${editLessonContext}
 
-CODE RULES:
-- Never use React.* namespace (use named imports: import { useState, type FormEvent } from 'react')
-- Never use @/ path aliases — relative paths only
-- React Router v6: useNavigate not useHistory, Routes not Switch
-- Tailwind classes only — no inline styles except backgroundImage on hero sections
-- Hero images: backgroundImage inline style on section element, never an img tag
-- IMPORTANT: Never hardcode color hex values inline (e.g. bg-[#0047AB]). Always update the CSS custom property in src/index.css instead (e.g. --color-primary: #0047AB). This ensures color changes propagate consistently across the entire app.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VALIDATION CHECKLIST (verify before returning)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+After writing your edits, check each of these against your output:
+${classifierResult.validation_checks.length > 0
+            ? classifierResult.validation_checks.map((c, i) => `${i + 1}. ${c}`).join('\n')
+            : '1. Confirm all files that need to change are included in the output.'}
 
-Return a JSON object where:
-- keys are file paths (e.g. "src/pages/Home.tsx")
-- values are the complete updated file content
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ENGINEERING RULES (non-negotiable)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- COLORS: Never hardcode hex values. Always use CSS custom properties: var(--color-primary), var(--color-background), var(--color-text), etc. If a color does not have a var(), use the closest existing var().
+- IMPORTS: All imports from local files require explicit .js extensions. Correct: import { Button } from './components/Button.js'. Wrong: import { Button } from './components/Button'.
+- EXPORTS: Every component file must retain its default export.
+- COMPLETENESS: Return the FULL file content for every file you change. Never return diffs, snippets, or partial files.
+- ATOMICITY: If instruction_type is "new_page", you MUST return: the new page file, the updated router file (with the new route added), the updated nav component (with the new link added). All three or none. A page without a route is unreachable.
+- SCOPE: Only change what is required. Do not refactor unrelated code. Do not rename variables, reorder imports, or clean up code you did not touch.
+- REACT: Never use React.* namespace — use named imports: import { useState, type FormEvent } from 'react'. No @/ path aliases. React Router v6 only (useNavigate not useHistory, Routes not Switch).
+- TAILWIND: Tailwind classes only — no inline styles except backgroundImage on hero sections.
+- HERO IMAGES: backgroundImage inline style on section element, never an img tag.
 
-Only include files that actually need to change.
-Return only valid JSON, no markdown fences. First character must be { and last must be }.`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OUTPUT FORMAT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Return a single JSON object:
 
-            try {
-              const multiFileMsg = await anthropic.messages.create({
-                model: MODEL_GENERATION,
-                max_tokens: 8000,
-                messages: [{ role: 'user', content: multiFilePrompt }],
-              })
+{
+  "files": {
+    "src/pages/Example.tsx": "// full file content here",
+    "src/App.tsx": "// full file content here"
+  },
+  "validation_results": [
+    { "check": "check description", "passed": true, "note": "optional detail" },
+    { "check": "check description", "passed": false, "note": "what was wrong and how you fixed it" }
+  ],
+  "changes_summary": "One sentence: what changed, in which files, and why.",
+  "confidence": "high" | "medium" | "low",
+  "confidence_reason": "Why are you confident or uncertain? Be specific."
+}
 
-              const rawMulti = multiFileMsg.content
-                .filter((b) => b.type === 'text')
-                .map((b) => (b as { type: 'text'; text: string }).text)
-                .join('')
-                .trim()
-                .replace(/^```(?:json)?\s*/i, '')
-                .replace(/\s*```\s*$/, '')
-                .trim()
+If confidence is "low", explain what you were uncertain about in confidence_reason.
+The edit will still be committed — but the low confidence will be surfaced to the user.
 
-              const changedFiles = JSON.parse(rawMulti) as Record<string, string>
-              const entries = Object.entries(changedFiles).filter(([, v]) => typeof v === 'string' && v.length > 0)
+Return only valid JSON. No markdown fences. No preamble. First character must be { and last must be }.`
 
-              if (entries.length > 0) {
-                const filesToCommit = entries.map(([path, content]) => ({ path, content }))
-                console.log('[edit] atomic commit — files changed:', filesToCommit.map((f) => f.path).join(', '))
-                await setBuildStatus('building', 'Pushing your change…')
+          try {
+            const editMsg = await anthropic.messages.create({
+              model: MODEL_GENERATION,
+              max_tokens: 8000,
+              messages: [{ role: 'user', content: executionPrompt }],
+            })
 
-                const atomicSha = await atomicCommit(filesToCommit, `edit: ${editRequest.slice(0, 60)}`)
-                if (atomicSha) {
-                  commitSha = atomicSha
-                  multiFileSucceeded = true
-                  console.log('[edit] atomic commit succeeded', commitSha.slice(0, 7), new Date().toISOString())
-                } else {
-                  console.warn('[edit] atomic commit failed — falling back to single-file mode')
-                }
-              } else {
-                console.warn('[edit] multi-file response had no valid entries — falling back')
-              }
-            } catch (e) {
-              console.warn('[edit] multi-file generation/parse failed (falling back):', e)
+            const rawEdit = editMsg.content
+              .filter((b) => b.type === 'text')
+              .map((b) => (b as { type: 'text'; text: string }).text)
+              .join('')
+              .trim()
+              .replace(/^```(?:json)?\s*/i, '')
+              .replace(/\s*```\s*$/, '')
+              .trim()
+
+            const editResult = JSON.parse(rawEdit) as {
+              files?: Record<string, string>
+              validation_results?: Array<{ check: string; passed: boolean; note?: string }>
+              changes_summary?: string
+              confidence?: string
+              confidence_reason?: string
             }
+
+            // Extract confidence and validation metadata
+            editConfidence = editResult.confidence ?? null
+            editValidationResults = Array.isArray(editResult.validation_results) ? editResult.validation_results : null
+            brainFollowup = editResult.changes_summary ?? null
+
+            if (editConfidence) {
+              console.log(`[edit] confidence: ${editConfidence}${editResult.confidence_reason ? ' — ' + editResult.confidence_reason : ''}`)
+            }
+            if (editValidationResults) {
+              const passed = editValidationResults.filter((v) => v.passed).length
+              console.log(`[edit] validation: ${passed}/${editValidationResults.length} checks passed`)
+            }
+
+            // Extract and commit files
+            const changedFiles = editResult.files ?? {}
+            const entries = Object.entries(changedFiles).filter(([, v]) => typeof v === 'string' && v.length > 0)
+
+            if (entries.length > 0) {
+              const filesToCommit = entries.map(([path, content]) => ({ path, content }))
+              console.log('[edit] atomic commit — files changed:', filesToCommit.map((f) => f.path).join(', '))
+              await setBuildStatus('building', 'Pushing your change…')
+
+              const atomicSha = await atomicCommit(filesToCommit, `edit: ${editRequest.slice(0, 60)}`)
+              if (atomicSha) {
+                commitSha = atomicSha
+                multiFileSucceeded = true
+                console.log('[edit] atomic commit succeeded', commitSha.slice(0, 7), new Date().toISOString())
+              } else {
+                console.warn('[edit] atomic commit failed — falling back to single-file mode')
+              }
+            } else {
+              console.warn('[edit] execution returned no valid file entries — falling back')
+            }
+          } catch (e) {
+            console.warn('[edit] execution/parse failed (falling back):', e)
           }
         }
       }
@@ -870,13 +1003,18 @@ Apply the change. Keep everything else identical. Return the complete updated in
       commitSha: commitSha ?? null,
       deployUrl: build.deploy_url ?? null,
       ...(brainFollowup ? { brain_followup: brainFollowup } : {}),
+      ...(editConfidence ? { confidence: editConfidence } : {}),
+      ...(editValidationResults ? { validation_results: editValidationResults } : {}),
+      instruction_type: classifierResult.instruction_type,
     })
 
-    // ── Fire Brain Audit async after successful edit (files changed > 0) ──
+    // ── Fire Brain Audit + Monitor async after successful edit (files changed > 0) ──
     if (commitSha) {
-      const repoPath = String(repoUrl).replace('https://github.com/', '')
-      const [editRepoOwner, editRepoName] = repoPath.split('/')
+      const editRepoPath = String(repoUrl).replace('https://github.com/', '')
+      const [editRepoOwner, editRepoName] = editRepoPath.split('/')
       const editAppUrl = process.env.VITE_APP_URL ?? 'https://visila.com'
+
+      // Brain Audit — fire-and-forget
       fetch(`${editAppUrl}/api/brain-audit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -888,6 +1026,26 @@ Apply the change. Keep everything else identical. Return the complete updated in
           repoName: editRepoName,
         }),
       }).catch((err: unknown) => console.error('[edit] Brain audit fire-and-forget failed:', err))
+
+      // Post-Deploy Monitor (Prompt C) — fire-and-forget
+      fetch(`${editAppUrl}/api/monitor`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          buildId,
+          editRequest,
+          confidence: editConfidence,
+          validationResults: editValidationResults,
+          changedFiles: commitSha ? Object.keys(classifierResult.relevant_files) : [],
+        }),
+      }).catch((err: unknown) => console.error('[edit] Monitor fire-and-forget failed:', err))
+
+      // Re-index only the changed files — keep component index fresh
+      const changedPaths = classifierResult.relevant_files.filter((f) => f.endsWith('.tsx') || f.endsWith('.ts'))
+      if (changedPaths.length > 0) {
+        reindexFiles(build.id, changedPaths, editRepoOwner, editRepoName, anthropic, supabase, githubToken)
+          .catch((e: unknown) => console.warn('[edit] reindex failed (non-fatal):', e))
+      }
     }
 
   } catch (err) {

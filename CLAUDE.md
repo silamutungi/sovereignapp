@@ -1441,3 +1441,8 @@ Happy path log: `[run-build] Vercel: SSO confirmed OFF`
 Failure log: `[run-build] Vercel: SSO still ON after PATCH — {deploymentType}`
 Remains non-fatal — build proceeds regardless. The warning in logs is the signal to manually backfill via scripts/backfill-sso.ts.
 Learned: 2026-04-03.
+
+**Component index (component_index table): maps every UI component to exact file coordinates**
+Built once at generation time via indexComponents(), re-indexed per-file after every edit via reindexFiles(). Both functions in api/lib/componentIndex.ts. Never throws — non-fatal to build and edit pipelines. Injected into the Haiku file-identification prompt in api/edit.ts so Brain can match user descriptions against component names and visible_text. Foundation for screenshot vision layer.
+Migration: api/migrations/add_component_index.sql — run in Supabase SQL Editor before deploying.
+Learned: 2026-04-03.

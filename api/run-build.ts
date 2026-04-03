@@ -27,9 +27,12 @@
 // Instead: create Vercel project (linked to GitHub) → push files to GitHub
 // → Vercel auto-deploys via GitHub integration → poll for READY status.
 //
+import Anthropic from '@anthropic-ai/sdk'
+import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit } from './_rateLimit.js'
 import { scoreApp } from './_scoreApp.js'
 import { runDesignAudit } from './audit-generated-app.js'
+import { indexComponents } from './lib/componentIndex.js'
 
 export const maxDuration = 300
 
@@ -1513,6 +1516,20 @@ export default async function handler(req: any, res: any): Promise<void> {
               repoName,
             }),
           }).catch((err: unknown) => console.error('[run-build] Brain audit fire-and-forget failed:', err))
+
+          // ── Index components for Brain ─────────────────────────────────
+          await step('Indexing components…')
+          try {
+            const idxAnthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+            const idxSupabase = createClient(supabaseUrl!, serviceKey!)
+            const count = await indexComponents(
+              buildId as string, ghOwner, repoName,
+              idxAnthropic, idxSupabase, build.github_token,
+            )
+            console.log(`[run-build] component index: ${count} components`)
+          } catch (e) {
+            console.warn('[run-build] component index failed (non-fatal):', e)
+          }
 
           // ── Mark build complete ──────────────────────────────────────────
           // Always re-write deploy_url alongside status so retries never leave
