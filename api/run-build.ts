@@ -1252,10 +1252,12 @@ export default async function handler(req: any, res: any): Promise<void> {
             // Vercel enables SSO protection by default on all projects in a team with SSO
             // configured. Must be disabled immediately after project creation — failure
             // blocks all iframe previews silently. Non-fatal: build proceeds regardless.
+            // Endpoint: PATCH /v9/projects/{id} with { ssoProtection: null }.
+            // NOT /v1/projects/{id}/protection-bypass — that's for generating bypass links.
             try {
               const ssoTeamQ = vcTeamId ? `?teamId=${encodeURIComponent(vcTeamId)}` : ''
               const ssoRes = await fetchWithTimeout(
-                `https://api.vercel.com/v1/projects/${encodeURIComponent(vcProjectId)}/protection-bypass${ssoTeamQ}`,
+                `https://api.vercel.com/v9/projects/${encodeURIComponent(vcProjectId)}${ssoTeamQ}`,
                 {
                   method: 'PATCH',
                   headers: {

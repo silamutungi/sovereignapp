@@ -59,7 +59,20 @@ Keep each array to 2-3 items maximum. Be specific and actionable, not generic.`,
 
     if (!textBlock) return null
 
-    const parsed = JSON.parse(textBlock) as CategoryBrief
+    // Strip markdown code fences if present
+    let cleaned = textBlock.trim()
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '')
+
+    // If the model returned prose instead of JSON, extract the JSON object
+    if (!cleaned.startsWith('{') && !cleaned.startsWith('[')) {
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) {
+        throw new Error(`No JSON object found in response: "${cleaned.slice(0, 100)}"`)
+      }
+      cleaned = jsonMatch[0]
+    }
+
+    const parsed = JSON.parse(cleaned) as CategoryBrief
     return parsed
   } catch (e) {
     console.error('[categoryIntelligence] failed, continuing without brief:', e)

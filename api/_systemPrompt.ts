@@ -1084,6 +1084,12 @@ String literals in TypeScript must use straight ASCII quotes only. Curly quotes 
   RIGHT: setError(\`Those credentials didn't work.\`)       ← template literal is also safe
 Rule: when a string contains an apostrophe, use double quotes or a template literal. Never let a curly quote appear inside any string literal in any .ts or .tsx file.
 
+**Supabase getSession() returns a Promise — always await it:**
+supabase.auth.getSession() is async. If you assign the result to a variable and check it without \`await\`, TypeScript will warn "This condition will always return true since this Promise is always defined" (TS2801). The value is a Promise object (always truthy), not the session.
+  WRONG: const session = supabase.auth.getSession(); if (session) { ... }
+  RIGHT: const { data: { session } } = await supabase.auth.getSession(); if (session) { ... }
+Same rule applies to supabase.auth.getUser() and any other async Supabase call.
+
 **src/vite-env.d.ts is required — omitting it breaks import.meta.env:**
 Every Vite project needs src/vite-env.d.ts containing exactly: /// <reference types="vite/client" />
 Without it tsc fails with "Property 'env' does not exist on type 'ImportMeta'" on every VITE_* env var access. This is file #7 in the required file list.
