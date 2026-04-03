@@ -203,7 +203,7 @@ ${idea}`
 
   // ── Build user message with combined length cap ──────────────────────────
   const MAX_COMBINED_LENGTH = 3500
-  const baseMessage = condensedIdea.slice(0, 2500)
+  const baseMessage = condensedIdea.slice(0, 1500)
   const hint = variationHint
     ? `\n\nVARIATION INSTRUCTION (attempt ${attempt} of 3): ${variationHint}`
     : ''
@@ -492,23 +492,27 @@ Return only the image prompt text, nothing else. Max 100 words.`
       ? `\n\nDESIGN_SYSTEM_CSS — Use this EXACT CSS in src/index.css instead of the default :root block:\n${designSystemCSS}\n\nDESIGN_MOOD: ${designSystemMood}. Let this mood inform typography weight, spacing density, and animation choices.`
       : ''
 
-    const contentLayer = buildContentLayer(appCategory, userMessage.slice(0, 500)).slice(0, 3000)
+    const contentLayer = buildContentLayer(appCategory, userMessage.slice(0, 500)).slice(0, 1500)
     // TODO Phase 2: replace UX_KNOWLEDGE_LAYER with dynamic RAG retrieval
     // from Supabase vector store — query by build.idea + build.app_type
     // to inject the most relevant chunks from the 6 UX books at build time.
     // Static layer remains as fallback when RAG returns < 3 results.
-    const uxLayer = UX_KNOWLEDGE_LAYER.slice(0, 4000)
-    const a11yRules = ACCESSIBILITY_RULES.slice(0, 2000)
+    const uxLayer = UX_KNOWLEDGE_LAYER.slice(0, 2000)
+    const a11yRules = ACCESSIBILITY_RULES.slice(0, 1000)
     const mandatoryPagesInjection = MANDATORY_PAGES[appCategory.toUpperCase()]
       ? '\n\n' + MANDATORY_PAGES[appCategory.toUpperCase()] + '\n\n' + MANDATORY_PAGES_ENFORCEMENT
       : ''
-    const finalUserMessage = categoryBriefInjection + mandatoryPagesInjection + userMessage + heroImageInjection + designSystemInjection.slice(0, 8000) + competitiveContext + contentLayer + uxLayer + a11yRules
+    categoryBriefInjection = categoryBriefInjection.slice(0, 1500)
+    competitiveContext = competitiveContext.slice(0, 500)
+    const finalUserMessage = categoryBriefInjection + mandatoryPagesInjection + userMessage + heroImageInjection + designSystemInjection.slice(0, 4000) + competitiveContext + contentLayer + uxLayer + a11yRules
 
     const preProcessingMs = Date.now() - startedAt
     console.log('[generate] STREAM_OPEN pre_processing_ms:', preProcessingMs,
-      'finalUserMessage_chars:', finalUserMessage.length,
+      'finalUserMessage_chars:', finalUserMessage.length, 'target: <12000',
       'system_prompt_chars:', SYSTEM_PROMPT.length,
       'categoryBrief_chars:', categoryBriefInjection.length,
+      'mandatoryPages_chars:', mandatoryPagesInjection.length,
+      'designSystem_chars:', designSystemInjection.slice(0, 4000).length,
       'contentLayer_chars:', contentLayer.length,
       'uxLayer_chars:', uxLayer.length,
       'a11yRules_chars:', a11yRules.length,
