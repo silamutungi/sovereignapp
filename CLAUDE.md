@@ -1403,3 +1403,29 @@ Learned: 2026-04-02.
 **resolveHeroImage() must never throw**
 Rule: `resolveHeroImage()` tries Gemini → OpenAI → Unsplash → Pexels → null. Any unhandled exception in this chain propagates to the generate handler and kills the response before the stream is created. Wrap the entire call in `try/catch` with null fallback — image failure should always degrade gracefully to the ink background, never crash generation.
 Learned: 2026-04-02.
+
+**Vercel build failures: always fetch deployment events on ERROR state**
+Symptom: run-build logs show `deployment state: ERROR` with no detail. The error (tsc failures, missing deps, bad imports) lives in Vercel's build logs, not in Visila's function logs.
+Rule: When deployment state is ERROR, fetch build events immediately:
+GET https://api.vercel.com/v2/deployments/{deploymentId}/events?teamId={teamId}&limit=100
+Authorization: Bearer $VERCEL_STAGING_TOKEN
+Look for `errorCode: lint_or_type_error` or `errorCode: build_failed` and read the message lines for the exact tsc/vite error.
+Never log just the state string and move on — the state alone is useless for debugging.
+Learned: 2026-04-02.
+
+**SSO disable: correct endpoint is PATCH /v9/projects/{id}, not protection-bypass**
+Symptom: SSO disable returns 400 or silently does nothing. Deployed apps have SSO still on, blocking iframe preview.
+Wrong: POST /v1/projects/{id}/protection-bypass — this generates bypass links, it does not disable SSO.
+Correct: PATCH /v9/projects/{id}?teamId={teamId} with body `{ "ssoProtection": null }`.
+After the PATCH, log `response.ssoProtection` to confirm it's null — a 2xx alone does not guarantee SSO is off. Non-fatal fallback must be preserved.
+Learned: 2026-04-02.
+
+**categoryIntelligence: always JSON-extract defensively**
+Symptom: `JSON.parse` throws `SyntaxError: Unexpected token 'I'` because the model returned "I'll search..." instead of a JSON object.
+Rule: Never call JSON.parse directly on an Anthropic API response. Always:
+1. Strip ```json fences
+2. Check if the string starts with `{` or `[`
+3. If not, extract via `/\{[\s\S]*\}/` regex
+4. If extraction fails, throw with the first 100 chars of the raw response so the error log is useful
+The model will return prose before JSON on tool call responses. Defensive extraction is the standard pattern for all structured output parsing.
+Learned: 2026-04-02.
