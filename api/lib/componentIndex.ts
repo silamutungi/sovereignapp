@@ -217,7 +217,7 @@ For each component return:
   "file": "src/path/to/file.tsx",
   "line_start": first line of the component function or const,
   "line_end": last closing brace of the component,
-  "type": "section" | "button" | "form" | "nav" | "card" | "modal" | "page" | "other",
+  "type": "nav" | "section" | "button" | "form" | "card" | "modal" | "page" | "other",
   "description": "one sentence — what this renders and where it appears on screen",
   "props": ["array", "of", "prop", "names"],
   "visible_text": ["every string literal the user would read on screen"]
@@ -225,6 +225,7 @@ For each component return:
 
 Rules:
 - Only include components that render visible UI (return JSX)
+- ALWAYS include navigation components (Navbar, Nav, NavBar, NavigationBar, Header, TopBar, Sidebar) even if they appear to be layout wrappers. These are visible UI with type "nav".
 - Skip hooks, utilities, type definitions, constants
 - Skip components not imported/used anywhere
 - visible_text must include button labels, headings, placeholder text, nav links — anything a user would read or click
