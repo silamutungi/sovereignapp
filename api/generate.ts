@@ -31,7 +31,7 @@ export const config = {
 }
 
 // Allow up to 300 seconds — needed for multi-file generation on Vercel Pro
-export const maxDuration = 300
+export const maxDuration = 800
 
 interface NextStep {
   title: string
