@@ -31,14 +31,79 @@ Dates: Intl.DateTimeFormat(undefined, ...). Currency: Intl.NumberFormat(undefine
 Classify the idea into one category. This drives layout, nav, hero, and dashboard:
 
 MARKETPLACE: Grid browse → Discover → Transact. Nav: Logo|Browse|Post listing|Sign in. Hero: show browsable items.
+MANDATORY PAGES:
+1. Home — hero, 6 featured listings with seed data, categories, how it works, trust signals
+2. Browse — filterable listing grid, sort, search, results count
+3. ListingDetail — photos, description, price, provider info, 3 seed reviews, CTA
+4. HowItWorks — 3-step explainer for buyers and sellers
+5. ForSellers — value prop, commission/pricing, sign up CTA
+6. Dashboard — user listings or bookings
+
 SAAS_TOOL: Configure → Use → Monitor. Nav: Logo|Features|Pricing|Sign in|Start free. Hero: show product UI.
+MANDATORY PAGES:
+1. Home — hero with product screenshot, 3 core features, social proof, pricing CTA
+2. Features — detailed breakdown, use cases, before/after
+3. Pricing — 3 tiers (Free/Pro/Team), feature comparison table, monthly/annual toggle
+4. Dashboard — fully functional with seed data showing real utility
+5. Settings — account, billing placeholder, team/members
+
 BOOKING_SCHEDULING: Select time → Confirm → Manage. Nav: Logo|Browse|Sign in|Book now. Hero: show bookable service.
+MANDATORY PAGES:
+1. Home — hero with CTA, 3 trust signals, how it works, 3 seed testimonials
+2. Services — min 4 services with name, description, duration, real price
+3. Booking — date/time picker, service selector, confirmation step
+4. About — team story, credentials, why us
+5. Contact — address, phone, hours, contact form
+
 DIRECTORY_LISTING: Search → Filter → Find. Nav: Logo|Browse|Submit|Sign in. Hero: single large search input.
+MANDATORY PAGES:
+1. Home — search bar hero, 6 featured listings, popular categories, recently added
+2. Browse — full directory, filters, list/grid toggle
+3. ListingProfile — full detail: contact, hours, photos, location, reviews
+4. SubmitListing — provider submission form
+5. CategoryPage — filtered view for a single category
+
 COMMUNITY_SOCIAL: Post → React → Connect. Nav: Logo|Feed|Members|Avatar|Post. Hero: show community activity.
+MANDATORY PAGES:
+1. Home/Feed — activity feed with 5 seed posts, trending topics, who to follow
+2. Profile — bio, posts, followers/following counts, activity
+3. Explore — trending content, categories, search members
+4. Groups — group list, group detail with posts and members
+5. Notifications — activity feed with seed data
+
 PORTFOLIO_SHOWCASE: Browse → Admire → Contact. Nav: Logo|Work|About|Contact. Hero: full-bleed best work.
+MANDATORY PAGES:
+1. Home — hero, 3 featured projects, brief about, contact CTA
+2. Work — full project grid, filterable by type, thumbnail + category
+3. ProjectDetail — challenge, approach, outcome, visuals
+4. About — bio, skills, experience, downloadable CV link
+5. Contact — form, social links, availability status
+
 INTERNAL_TOOL: View → Filter → Act → Export. Sidebar nav. No marketing hero. Straight to dashboard.
+MANDATORY PAGES:
+1. Dashboard — KPIs, recent activity, quick actions, seed data
+2. MainFeature — core workflow fully built with seed data
+3. Reports — data tables, charts, date range filters, export
+4. Team — user list, roles, invite flow
+5. Settings — configuration, integrations placeholder
+
 ECOMMERCE_RETAIL: Browse → Detail → Cart → Checkout. Nav: Logo|Shop|Categories|Cart|Sign in. Hero: product imagery.
+MANDATORY PAGES:
+1. Home — hero product/campaign, 6 featured products with prices, categories, trust signals
+2. Shop — full product grid, filters, sort, price range
+3. ProductDetail — photos, description, price, variants, add to cart, 3 seed reviews
+4. Cart — line items, quantities, subtotal, promo field, checkout CTA
+5. Checkout — shipping, payment placeholder, order summary, confirmation
+
 RESTAURANT_HOSPITALITY: Discover → Menu → Reserve. Nav: Logo|Menu|Reserve|Order|Find us. Hero: food/venue photo.
+MANDATORY PAGES:
+1. Home — atmosphere hero, reserve + order CTAs, hours, location, 3 featured dishes
+2. Menu — full menu: Starters/Mains/Desserts/Drinks, min 16 items with real prices
+3. Reserve — date/time/party size picker, special requests, confirmation
+4. About — story, team, awards, philosophy
+5. FindUs — address, hours, map placeholder, phone, private dining inquiry
+
+MANDATORY PAGES ENFORCEMENT: Generate ALL pages listed for the detected category. Every page must be a real populated React component — no placeholders, no TODOs, no empty shells. Seed every page with content specific to the app idea. A missing mandatory page is a generation failure.
 
 ## TIERS
 
