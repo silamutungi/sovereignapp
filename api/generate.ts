@@ -59,6 +59,7 @@ interface AppSpec {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function handler(req: any, res: any): Promise<void> {
+  console.log('[generate] GENERATE_START', new Date().toISOString())
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' })
     return
@@ -391,11 +392,12 @@ If not flagged, reason should be empty string.`,
     }
 
     // ── Step 2b: Category Intelligence — live web research via Haiku + web search ──
+    // Timeout: 15s max — web search can hang indefinitely and eat the 300s budget
     let categoryBriefInjection = ''
     let leapfrogFeatures: string[] = []
     try {
       console.log('[generate] building category brief for:', appCategory)
-      const brief = await buildCategoryBrief(userMessage, appCategory)
+      const brief = await withTimeout(buildCategoryBrief(userMessage, appCategory), 15_000)
       if (brief) {
         categoryBriefInjection = formatCategoryBriefForPrompt(brief)
         leapfrogFeatures = brief.leapfrogOpportunities
@@ -406,7 +408,7 @@ If not flagged, reason should be empty string.`,
         console.log('[generate] category brief built, competitors:', brief.competitorNames)
       }
     } catch (e) {
-      console.error('[generate] category brief failed, continuing:', e)
+      console.warn('[generate] category brief failed or timed out (non-fatal):', e instanceof Error ? e.message : String(e))
     }
 
     // ── Step 3: Build competitive context string for injection ──────────────
@@ -466,7 +468,16 @@ Return only the image prompt text, nothing else. Max 100 words.`
     }
 
     // Step 2 — Resolve hero image (Gemini → OpenAI → Unsplash → Pexels → null)
-    const heroImageUrl = await resolveHeroImage(imagePrompt ?? userMessage.slice(0, 60))
+    // Timeout: 20s — image resolution should never block generation
+    let heroImageUrl: string | null = null
+    try {
+      heroImageUrl = await withTimeout(
+        resolveHeroImage(imagePrompt ?? userMessage.slice(0, 60)),
+        20_000,
+      )
+    } catch (heroErr) {
+      console.warn('[generate] hero image failed or timed out (non-fatal):', heroErr instanceof Error ? heroErr.message : String(heroErr))
+    }
 
     // Inject the permanent hero URL into the user message.
     // Claude reads HERO_IMAGE_URL and uses it as-is — no URL generation needed.
@@ -489,7 +500,23 @@ Return only the image prompt text, nothing else. Max 100 words.`
     const a11yRules = ACCESSIBILITY_RULES.slice(0, 2000)
     const finalUserMessage = categoryBriefInjection + userMessage + heroImageInjection + designSystemInjection.slice(0, 8000) + competitiveContext + contentLayer + uxLayer + a11yRules
 
-    console.log('[generate] Creating Anthropic stream...')
+    const preProcessingMs = Date.now() - startedAt
+    console.log('[generate] STREAM_OPEN pre_processing_ms:', preProcessingMs,
+      'finalUserMessage_chars:', finalUserMessage.length,
+      'system_prompt_chars:', SYSTEM_PROMPT.length,
+      'categoryBrief_chars:', categoryBriefInjection.length,
+      'contentLayer_chars:', contentLayer.length,
+      'uxLayer_chars:', uxLayer.length,
+      'a11yRules_chars:', a11yRules.length,
+    )
+    // Guard: if pre-processing ate most of the budget, bail early rather than
+    // opening a stream that will be killed mid-generation by Vercel timeout.
+    if (preProcessingMs > 240_000) {
+      console.error('[generate] pre-processing exceeded 240s, aborting to avoid timeout')
+      await sendEvent({ type: 'error', error: 'Generation took too long — please try again with a simpler idea.' })
+      endStream()
+      return
+    }
     const stream = client.messages.stream({
       // Sonnet 4.6: handles 18-file React/TS/Tailwind generation at ~80% lower cost than Opus.
       // Do not downgrade to Haiku — structured tool_use with 18 files requires Sonnet-class reasoning.
@@ -593,8 +620,11 @@ Return only the image prompt text, nothing else. Max 100 words.`
     })
 
     // Log stream-level errors (connection drops, API errors mid-stream)
+    // Also send an SSE error event — finalMessage() will reject, but the client
+    // may have already disconnected before the catch block runs.
     stream.on('error', (streamErr) => {
       console.error('[generate] Stream error event:', streamErr)
+      void sendEvent({ type: 'error', error: 'Generation stream interrupted — please try again.' })
     })
 
     let nextThresholdIdx = 0
