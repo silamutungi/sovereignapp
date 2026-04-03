@@ -46,14 +46,19 @@ export async function fetchGeminiHeroImage(prompt: string): Promise<string | nul
 
   console.log('[images] trying Gemini')
   const genAI = new GoogleGenAI({ apiKey: geminiKey })
-  const imgResponse = await genAI.models.generateContent({
-    model: 'gemini-3.1-flash-image-preview',
-    contents: prompt,
-    config: {
-      responseModalities: ['TEXT', 'IMAGE'],
-      imageConfig: { aspectRatio: '16:9', imageSize: '1K' },
-    },
-  })
+  const imgResponse = await Promise.race([
+    genAI.models.generateContent({
+      model: 'gemini-3.1-flash-image-preview',
+      contents: prompt,
+      config: {
+        responseModalities: ['TEXT', 'IMAGE'],
+        imageConfig: { aspectRatio: '16:9', imageSize: '1K' },
+      },
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Gemini timeout')), 8000),
+    ),
+  ])
 
   let b64: string | undefined
   let mimeType = 'image/png'
@@ -156,13 +161,22 @@ export async function fetchPexelsHeroImage(prompt: string): Promise<string | nul
 
 // ── Master resolver — tries each path in priority order ──────���───────────────
 
+async function tryProvider(fn: () => Promise<string | null>, name: string): Promise<string | null> {
+  try {
+    return await fn()
+  } catch (e) {
+    console.log(`[images] ${name} failed:`, e instanceof Error ? e.message : String(e))
+    return null
+  }
+}
+
 export async function resolveHeroImage(prompt: string): Promise<string | null> {
   try {
     return (
-      (await fetchGeminiHeroImage(prompt)) ??
-      (await fetchOpenAIHeroImage(prompt)) ??
-      (await fetchUnsplashHeroImage(prompt)) ??
-      (await fetchPexelsHeroImage(prompt)) ??
+      (await tryProvider(() => fetchGeminiHeroImage(prompt), 'Gemini')) ??
+      (await tryProvider(() => fetchOpenAIHeroImage(prompt), 'OpenAI')) ??
+      (await tryProvider(() => fetchUnsplashHeroImage(prompt), 'Unsplash')) ??
+      (await tryProvider(() => fetchPexelsHeroImage(prompt), 'Pexels')) ??
       null
     )
   } catch (e) {
