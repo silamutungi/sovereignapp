@@ -1269,7 +1269,8 @@ export default async function handler(req: any, res: any): Promise<void> {
                 NET,
               )
               if (ssoRes.ok) {
-                console.log(`[run-build] SSO protection disabled for ${vcProjectId}`)
+                const ssoBody = await ssoRes.json().catch(() => null)
+                console.log('[run-build] Vercel: SSO disabled —', JSON.stringify(ssoBody?.ssoProtection))
               } else {
                 const ssoBody = await ssoRes.text().catch(() => '')
                 console.error('[run-build] Vercel: SSO disable failed (non-fatal) —', ssoRes.status, ssoBody)
