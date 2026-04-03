@@ -530,7 +530,7 @@ Return only the image prompt text, nothing else. Max 100 words.`
       // Sonnet 4.6: handles 18-file React/TS/Tailwind generation at ~80% lower cost than Opus.
       // Do not downgrade to Haiku — structured tool_use with 18 files requires Sonnet-class reasoning.
       model: MODEL_GENERATION,
-      max_tokens: 32000,
+      max_tokens: 64000,
       // Prompt caching: cache_control marks the system prompt as cacheable.
       // Anthropic caches it for ~5 minutes. The system prompt is ~6000 tokens — caching it
       // reduces input token costs by ~90% on repeated generation calls.
