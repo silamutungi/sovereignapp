@@ -199,7 +199,8 @@ interface BuildRecord {
   confidence_score: number | null
   launch_gate_passed: boolean | null
   audit_score: number | null
-  audit_flags: string | null
+  audit_flags: Record<string, unknown> | null
+  audit_top_fixes: string[] | null
   supabase_url: string | null
   supabase_anon_key: string | null
   supabase_project_ref: string | null
@@ -1485,10 +1486,14 @@ export default async function handler(req: any, res: any): Promise<void> {
           try {
             const auditResult = await runDesignAudit(ghOwner, repoName, build.github_token)
             console.log(`[run-build] audit score: ${auditResult.score}/100, fixes: ${auditResult.fixes_applied}`)
+            if (auditResult.top_fixes.length > 0) {
+              console.log('[run-build] audit top fixes:', auditResult.top_fixes.join(' | '))
+            }
 
             await updateBuild(supabaseUrl, serviceKey, buildId, {
               audit_score: auditResult.score,
-              audit_flags: auditResult.fixes_applied > 15 ? 'high_fix_count' : null,
+              audit_flags: auditResult.breakdown,
+              audit_top_fixes: auditResult.top_fixes,
             })
 
             if (auditResult.fixes_applied > 15) {

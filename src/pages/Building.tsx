@@ -11,6 +11,7 @@ interface BuildStatus {
   deployUrl: string | null
   error: string | null
   audit_score: number | null
+  audit_top_fixes: string[] | null
 }
 
 // ── Step definitions (ordered) ────────────────────────────────────────────────
@@ -657,6 +658,24 @@ export default function Building() {
                 }}>
                   ✦ Design audit · {status.audit_score === 100 ? '35/35 passed' : `${status.audit_score}/100`}
                 </p>
+              )}
+              {status.audit_top_fixes && status.audit_top_fixes.length > 0 && (
+                <ul style={{
+                  marginTop: '8px',
+                  paddingLeft: '16px',
+                  listStyle: 'none',
+                }}>
+                  {(status.audit_top_fixes).map((fix, i) => (
+                    <li key={i} style={{
+                      fontSize: '10px',
+                      color: 'rgba(255,255,255,0.35)',
+                      fontFamily: "'DM Mono', 'Courier New', monospace",
+                      lineHeight: '1.6',
+                    }}>
+                      · {fix}
+                    </li>
+                  ))}
+                </ul>
               )}
               <p style={{ marginTop: '16px', fontSize: '12px', color: 'rgba(255,255,255,0.45)', textAlign: 'center' }}>
                 <a href="/dashboard" style={{ color: 'rgba(138,184,0,0.8)', textDecoration: 'none' }}>

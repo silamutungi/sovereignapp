@@ -46,7 +46,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     let dbRes: any
     try {
       dbRes = await fetch(
-        `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&deleted_at=is.null&select=status,step,app_name,repo_url,deploy_url,error,vercel_project_id,updated_at,claim_status,audit_score,staging,claimed_at`,
+        `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&deleted_at=is.null&select=status,step,app_name,repo_url,deploy_url,error,vercel_project_id,updated_at,claim_status,audit_score,audit_top_fixes,staging,claimed_at`,
         {
           headers: {
             apikey: serviceKey,
@@ -80,6 +80,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       updated_at: string | null
       claim_status: string | null
       audit_score: number | null
+      audit_top_fixes: string[] | null
       staging: boolean | null
       claimed_at: string | null
     }>
@@ -182,6 +183,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       error:        row.error,
       claim_status: row.claim_status,
       audit_score:  row.audit_score,
+      audit_top_fixes: row.audit_top_fixes,
       staging:      row.staging,
       claimed_at:   row.claimed_at,
     })

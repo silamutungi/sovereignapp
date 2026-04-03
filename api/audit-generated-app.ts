@@ -452,6 +452,10 @@ async function commitGitHubFile(
   }
 }
 
+export interface AuditBreakdown {
+  [category: string]: { passed: number; total: number; deductions: string[] }
+}
+
 export async function runDesignAudit(
   owner: string,
   repo: string,
@@ -461,6 +465,8 @@ export async function runDesignAudit(
   score: number
   fixes_applied: number
   failures: AuditFailure[]
+  breakdown: AuditBreakdown
+  top_fixes: string[]
 }> {
   // 1. Fetch target files in parallel (best-effort — missing files are skipped)
   const fetched = await Promise.all(
@@ -534,11 +540,26 @@ export async function runDesignAudit(
     }
   }
 
+  // Build per-category breakdown with deduction reasons
+  const breakdown: AuditBreakdown = {}
+  for (const [cat, data] of Object.entries(report.categories)) {
+    breakdown[cat] = {
+      passed: data.passed,
+      total: data.total,
+      deductions: data.checks.filter((c) => !c.passed).map((c) => c.description),
+    }
+  }
+
+  // Top 3 most impactful fixes — failed checks sorted by category importance
+  const top_fixes = failures.slice(0, 3).map((f) => `${f.category}: ${f.description}`)
+
   return {
     passed: report.score >= 80,
     score: report.score,
     fixes_applied,
     failures,
+    breakdown,
+    top_fixes,
   }
 }
 
