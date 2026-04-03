@@ -143,6 +143,29 @@ export default async function handler(req: any, res: any): Promise<void> {
     }
   }
 
+  // ── Condense idea into a focused product brief via Haiku ────────────────────
+  let condensedIdea = idea
+  try {
+    const condenseClient = new Anthropic({ apiKey })
+    const condenseResponse = await condenseClient.messages.create({
+      model: process.env.MODEL_FAST || 'claude-haiku-4-5-20251001',
+      max_tokens: 500,
+      messages: [{
+        role: 'user',
+        content: `Summarize this app idea into a focused product brief. Extract: what it does, who it's for, and the 3-5 core features. Be specific and concrete. Remove any color/design specs, technical implementation details, or repeated points. Max 350 words. Return only the brief, no preamble.
+
+App idea:
+${idea}`
+      }]
+    })
+    condensedIdea = condenseResponse.content[0].type === 'text'
+      ? condenseResponse.content[0].text
+      : idea
+    console.log(`[generate] idea condensed from ${idea.length} chars to ${condensedIdea.length} chars`)
+  } catch (condenseErr) {
+    console.warn('[generate] idea condensation failed (non-fatal), using original idea:', condenseErr instanceof Error ? condenseErr.message : String(condenseErr))
+  }
+
   // ── Fetch top recurring lessons from Brain (best-effort, non-blocking) ─────
   // Lessons with build_count >= 3 are confirmed recurring patterns. Injecting
   // them into the user message (not system prompt) preserves prompt caching
@@ -178,7 +201,7 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   // ── Build user message with combined length cap ──────────────────────────
   const MAX_COMBINED_LENGTH = 3500
-  const baseMessage = idea.slice(0, 2500)
+  const baseMessage = condensedIdea.slice(0, 2500)
   const hint = variationHint
     ? `\n\nVARIATION INSTRUCTION (attempt ${attempt} of 3): ${variationHint}`
     : ''
