@@ -415,11 +415,15 @@ async function callGenerateAPI(
   body: Record<string, unknown>,
   onProgress: (msg: string) => void,
 ): Promise<GenerateResult> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 900_000) // 15 min
   const res = await fetch('/api/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    signal: controller.signal,
   })
+  clearTimeout(timeoutId)
 
   const contentType = res.headers.get('content-type') ?? ''
   if (!contentType.includes('text/event-stream')) {

@@ -234,8 +234,8 @@ ${idea}`
       res.write(payload, () => { flush(); resolve() })
     })
 
-  // Keepalive — fires every 15s through the ENTIRE request lifecycle including finalMessage().
-  // Without this, browsers kill the SSE connection during the silent generation window.
+  // Keepalive — fires every 8s through the ENTIRE request lifecycle including finalMessage().
+  // 8s prevents browsers and proxies from treating the connection as idle.
   const keepalive = setInterval(() => {
     try {
       res.write(': keepalive\n\n')
@@ -243,7 +243,7 @@ ${idea}`
     } catch {
       // connection already closed — interval will be cleared below
     }
-  }, 15_000)
+  }, 8_000)
 
   const endStream = () => {
     clearInterval(keepalive)
@@ -650,11 +650,22 @@ Return only the image prompt text, nothing else. Max 100 words.`
       }
     })
 
+    // Progress pings — real SSE data events every 10s so browsers don't drop the connection.
+    // SSE comments (: keepalive) are ignored by some browsers; data events are not.
+    const generationPing = setInterval(() => {
+      try {
+        res.write('data: ' + JSON.stringify({ type: 'progress', message: 'Building your app...' }) + '\n\n')
+        flush()
+      } catch { /* connection closed */ }
+    }, 10_000)
+
     let message: Anthropic.Message
     try {
       console.log('[generate] Awaiting finalMessage...')
       message = await stream.finalMessage()
+      clearInterval(generationPing)
     } catch (streamError) {
+      clearInterval(generationPing)
       console.error('[generate] stream error:', streamError)
       await sendEvent({ type: 'error', error: 'Generation failed — please try again with a shorter idea.' })
       endStream()
