@@ -1270,10 +1270,26 @@ export default async function handler(req: any, res: any): Promise<void> {
               )
               if (ssoRes.ok) {
                 const ssoBody = await ssoRes.json().catch(() => null)
-                console.log('[run-build] Vercel: SSO disabled —', JSON.stringify(ssoBody?.ssoProtection))
+                console.log('[run-build] Vercel: SSO PATCH response —', JSON.stringify(ssoBody?.ssoProtection))
               } else {
                 const ssoBody = await ssoRes.text().catch(() => '')
-                console.error('[run-build] Vercel: SSO disable failed (non-fatal) —', ssoRes.status, ssoBody)
+                console.error('[run-build] Vercel: SSO disable PATCH failed (non-fatal) —', ssoRes.status, ssoBody)
+              }
+
+              // Verify SSO is actually off — the PATCH can return 200 without effect
+              const verifyRes = await fetchWithTimeout(
+                `https://api.vercel.com/v9/projects/${encodeURIComponent(vcProjectId)}${ssoTeamQ}`,
+                { headers: { Authorization: `Bearer ${process.env.SOVEREIGN_VERCEL_TOKEN!}` } },
+                NET,
+              )
+              if (verifyRes.ok) {
+                const verifyBody = await verifyRes.json().catch(() => null)
+                const stillOn = verifyBody?.ssoProtection != null
+                if (stillOn) {
+                  console.error('[run-build] Vercel: SSO still ON after PATCH —', JSON.stringify(verifyBody?.ssoProtection))
+                } else {
+                  console.log('[run-build] Vercel: SSO confirmed OFF')
+                }
               }
             } catch (ssoErr) {
               console.error('[run-build] Vercel: SSO disable threw (non-fatal):', ssoErr)

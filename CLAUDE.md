@@ -1429,3 +1429,15 @@ Rule: Never call JSON.parse directly on an Anthropic API response. Always:
 4. If extraction fails, throw with the first 100 chars of the raw response so the error log is useful
 The model will return prose before JSON on tool call responses. Defensive extraction is the standard pattern for all structured output parsing.
 Learned: 2026-04-02.
+
+**SSO disable: verify with GET after PATCH — Vercel may silently ignore it**
+Symptom: run-build logs show SSO disable succeeded (2xx) but the deployed app still has SSO on, blocking the iframe preview. No error visible anywhere.
+Root cause: Vercel's PATCH /v9/projects/{id} returns 2xx even when the ssoProtection field wasn't actually modified — either due to team-level settings overriding project settings, or eventual consistency returning stale data immediately after the PATCH.
+Rule: Always verify SSO disable with a GET after the PATCH:
+1. PATCH with { ssoProtection: null }
+2. GET project and check ssoProtection in response
+3. If not null → log warning so it's visible in Vercel function logs
+Happy path log: `[run-build] Vercel: SSO confirmed OFF`
+Failure log: `[run-build] Vercel: SSO still ON after PATCH — {deploymentType}`
+Remains non-fatal — build proceeds regardless. The warning in logs is the signal to manually backfill via scripts/backfill-sso.ts.
+Learned: 2026-04-03.
