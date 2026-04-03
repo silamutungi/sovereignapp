@@ -12,6 +12,7 @@ import { buildContentLayer } from './lib/content-strategy.js'
 import { UX_KNOWLEDGE_LAYER } from './lib/ux-knowledge.js'
 import { SYSTEM_PROMPT } from './_systemPrompt.js'
 import { resolveHeroImage } from './lib/images.js'
+import { buildCategoryBrief, formatCategoryBriefForPrompt } from './lib/categoryIntelligence.js'
 
 // Model constants — change here to swap models across the file
 // MODEL_GENERATION: multi-file React app codegen (18+ files, structured tool call)
@@ -362,6 +363,25 @@ If not flagged, reason should be empty string.`,
       console.log('[generate] parity features identified:', parityFeatures.length)
     }
 
+    // ── Step 2b: Category Intelligence — live web research via Haiku + web search ──
+    let categoryBriefInjection = ''
+    let leapfrogFeatures: string[] = []
+    try {
+      console.log('[generate] building category brief for:', appCategory)
+      const brief = await buildCategoryBrief(userMessage, appCategory)
+      if (brief) {
+        categoryBriefInjection = formatCategoryBriefForPrompt(brief)
+        leapfrogFeatures = brief.leapfrogOpportunities
+        // Override static competitors with web-researched ones if available
+        if (brief.competitorNames.length > 0) {
+          competitors = brief.competitorNames
+        }
+        console.log('[generate] category brief built, competitors:', brief.competitorNames)
+      }
+    } catch (e) {
+      console.error('[generate] category brief failed, continuing:', e)
+    }
+
     // ── Step 3: Build competitive context string for injection ──────────────
     let competitiveContext = ''
     if (parityFeatures.length > 0) {
@@ -438,7 +458,7 @@ Return only the image prompt text, nothing else. Max 100 words.`
     // from Supabase vector store — query by build.idea + build.app_type
     // to inject the most relevant chunks from the 6 UX books at build time.
     // Static layer remains as fallback when RAG returns < 3 results.
-    const finalUserMessage = userMessage + heroImageInjection + designSystemInjection + competitiveContext + contentLayer + UX_KNOWLEDGE_LAYER + ACCESSIBILITY_RULES
+    const finalUserMessage = categoryBriefInjection + userMessage + heroImageInjection + designSystemInjection + competitiveContext + contentLayer + UX_KNOWLEDGE_LAYER + ACCESSIBILITY_RULES
 
     console.log('[generate] Creating Anthropic stream...')
     const stream = client.messages.stream({
@@ -616,6 +636,7 @@ Return only the image prompt text, nothing else. Max 100 words.`
         competitors,
         parityFeatures,
         heroImageUrl: heroImageUrl ?? null,
+        leapfrogFeatures,
       },
     }
     const doneJson = JSON.stringify(donePayload)

@@ -1,0 +1,91 @@
+import Anthropic from '@anthropic-ai/sdk'
+
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY!,
+})
+
+export type CategoryBrief = {
+  category: string
+  tableStakes: string[]
+  leapfrogOpportunities: string[]
+  avoidPatterns: string[]
+  competitorNames: string[]
+}
+
+export async function buildCategoryBrief(
+  appIdea: string,
+  appCategory: string
+): Promise<CategoryBrief | null> {
+  try {
+    const research = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 800,
+      tools: [
+        {
+          type: 'web_search_20250305' as const,
+          name: 'web_search',
+        },
+      ],
+      messages: [
+        {
+          role: 'user',
+          content: `You are researching competitors for a new app in the ${appCategory} category.
+
+App idea: "${appIdea}"
+
+Do 2 quick web searches:
+1. Search for the top 2-3 existing apps/competitors in this exact niche
+2. Search for user complaints about those competitors (Reddit, Product Hunt reviews, app store reviews)
+
+Then respond ONLY with a JSON object (no markdown, no backticks) in this exact shape:
+{
+  "category": "${appCategory}",
+  "tableStakes": ["feature users expect as minimum", "another must-have"],
+  "leapfrogOpportunities": ["pain point competitors have that you can solve", "another gap"],
+  "avoidPatterns": ["UX mistake competitors make", "another antipattern"],
+  "competitorNames": ["CompetitorA", "CompetitorB"]
+}
+
+Keep each array to 2-3 items maximum. Be specific and actionable, not generic.`,
+        },
+      ],
+    })
+
+    // Extract the final text block (after tool use)
+    const textBlock = research.content
+      .filter((b) => b.type === 'text')
+      .map((b) => (b as { type: 'text'; text: string }).text)
+      .join('')
+
+    if (!textBlock) return null
+
+    const parsed = JSON.parse(textBlock) as CategoryBrief
+    return parsed
+  } catch (e) {
+    console.error('[categoryIntelligence] failed, continuing without brief:', e)
+    return null
+  }
+}
+
+export function formatCategoryBriefForPrompt(brief: CategoryBrief): string {
+  return `
+CATEGORY INTELLIGENCE BRIEF
+============================
+Category: ${brief.category}
+Competitors researched: ${brief.competitorNames.join(', ')}
+
+TABLE STAKES (must include or users will leave):
+${brief.tableStakes.map((f) => `- ${f}`).join('\n')}
+
+LEAPFROG OPPORTUNITIES (what competitors are missing — build these to win):
+${brief.leapfrogOpportunities.map((f) => `- ${f}`).join('\n')}
+
+AVOID (patterns that frustrate users in this category):
+${brief.avoidPatterns.map((f) => `- ${f}`).join('\n')}
+
+Use this intelligence to make design and feature decisions.
+Table stakes must appear in the generated app.
+Leapfrog opportunities should be included where feasible.
+============================
+`
+}

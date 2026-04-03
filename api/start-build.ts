@@ -86,6 +86,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       appCategory,
       competitors,
       parityFeatures,
+      leapfrogFeatures,
       // CLI-only fields: when both tokens are present, skip OAuth and go straight to 'queued'
       github_token: githubToken,
       vercel_token: vercelToken,
@@ -145,6 +146,7 @@ export default async function handler(req: any, res: any): Promise<void> {
         app_category: appCategory ?? null,
         competitors: competitors ?? null,
         parity_features: parityFeatures ?? null,
+        leapfrog_features: leapfrogFeatures ?? null,
         // CLI flow: tokens supplied directly → skip OAuth, go straight to queued
         ...(githubToken ? { github_token: githubToken } : {}),
         ...(vercelToken ? { vercel_token: vercelToken } : {}),
