@@ -1272,7 +1272,7 @@ export default async function handler(req: any, res: any): Promise<void> {
                 NET,
               )
               if (ssoRes.ok) {
-                const ssoBody = await ssoRes.json().catch(() => null)
+                const ssoBody = await ssoRes.json().catch(() => null) as Record<string, unknown> | null
                 console.log('[run-build] Vercel: SSO PATCH response —', JSON.stringify(ssoBody?.ssoProtection))
               } else {
                 const ssoBody = await ssoRes.text().catch(() => '')
@@ -1286,7 +1286,7 @@ export default async function handler(req: any, res: any): Promise<void> {
                 NET,
               )
               if (verifyRes.ok) {
-                const verifyBody = await verifyRes.json().catch(() => null)
+                const verifyBody = await verifyRes.json().catch(() => null) as Record<string, unknown> | null
                 const stillOn = verifyBody?.ssoProtection != null
                 if (stillOn) {
                   console.error('[run-build] Vercel: SSO still ON after PATCH —', JSON.stringify(verifyBody?.ssoProtection))
