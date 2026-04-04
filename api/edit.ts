@@ -1136,7 +1136,7 @@ Apply the change. Keep everything else identical. Return the complete updated in
           process.env.SUPABASE_URL!,
           process.env.SUPABASE_SERVICE_ROLE_KEY!,
         )
-          .then((url) => {
+          .then((url: string | null) => {
             if (url) {
               supabase.from('builds')
                 .update({ screenshot_url: url })
