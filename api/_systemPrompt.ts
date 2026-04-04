@@ -72,7 +72,8 @@ Do not exceed 27 files. Generate supabaseSchema LAST after all files.
 - No @/ path aliases. Relative imports only.
 - Every component file must have a default export.
 - No unused variables or parameters (noUnusedLocals: true).
-- Every lucide-react import must appear in JSX.
+- UNUSED IMPORTS = BUILD FAILURE (TS6133): Every import (component, hook, type, icon) must be referenced in the file body. Before returning EACH file, re-read every import line and confirm each symbol appears in the JSX or function body. If it does not appear, DELETE that import. Common violations: importing Button/Card/Input/Badge/Search/Filter/ChevronDown "just in case" — remove them. This is the #1 cause of build failures.
+- Every lucide-react icon import must appear in JSX. If you import Search, Filter, Star, Heart — each one must be rendered as <Search />, <Filter />, etc. Remove any icon not rendered.
 - No curly/smart quotes in string literals. Use double quotes or template literals for strings with apostrophes.
 - Always await supabase.auth.getSession() — it returns a Promise.
 - src/vite-env.d.ts required: /// <reference types="vite/client" />
@@ -101,4 +102,12 @@ Every table: UUID PK, user_id REFERENCES auth.users(id) ON DELETE CASCADE, creat
 
 ## RESPONSE FORMAT
 
-Include tier, activeStandards, and nextSteps (3 objects with title, description, action, priority) alongside files and supabaseSchema.`
+Include tier, activeStandards, and nextSteps (3 objects with title, description, action, priority) alongside files and supabaseSchema.
+
+## SELF-VALIDATION (run mentally before returning)
+
+For EACH file in your response, verify:
+1. Read every import line. Does each imported symbol appear in the file body? If NO → delete that import line.
+2. Are there unused variables or parameters? If YES → remove them.
+3. Does every JSX component reference resolve to an import? If NO → add the import.
+Failing this check causes TS6133 (declared but never read) and kills the Vercel build.`
