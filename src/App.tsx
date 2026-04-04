@@ -408,73 +408,138 @@ interface AppSpec {
   heroImageUrl?: string | null
 }
 
-// ── callGenerateAPI — SSE-aware fetch helper ──────────────────────────
+// ── callGenerateAPI — polling with SSE fast-path ──────────────────────
 type GenerateResult = { spec: AppSpec } | { error: string }
+
+const PROGRESS_MESSAGES = [
+  'Researching your category...',
+  'Building your app architecture...',
+  'Writing your components...',
+  'Generating your pages...',
+  'Adding your data layer...',
+  'Polishing the design...',
+  'Almost there...',
+]
 
 async function callGenerateAPI(
   body: Record<string, unknown>,
   onProgress: (msg: string) => void,
 ): Promise<GenerateResult> {
+  const pendingId = crypto.randomUUID()
+  const POLL_INTERVAL = 6000
+  const MAX_WAIT = 900_000 // 15 min
+
+  // Resolved externally when SSE delivers the result before polling
+  let sseResult: GenerateResult | null = null
+  let sseResolved = false
+
+  // Fire SSE request — processes progress events in real-time,
+  // and if the connection survives, gets the result immediately.
+  // If it drops, polling picks up seamlessly.
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 900_000) // 15 min
-  const res = await fetch('/api/generate', {
+  fetch('/api/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, pending_build_id: pendingId }),
     signal: controller.signal,
+  }).then(async (res) => {
+    const contentType = res.headers.get('content-type') ?? ''
+    if (!contentType.includes('text/event-stream')) {
+      // Pre-flight error (rate limit, validation) — JSON response
+      const data = await res.json() as { error?: string; message?: string }
+      sseResult = { error: data.error ?? data.message ?? 'Generation failed. Try again.' }
+      sseResolved = true
+      return
+    }
+    if (!res.body) return
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const json = line.slice(6).trim()
+        if (!json) continue
+        try {
+          const event = JSON.parse(json) as { type: string; message?: string; spec?: AppSpec; error?: string }
+          if (event.type === 'progress' && event.message) {
+            onProgress(event.message)
+          } else if (event.type === 'done' && event.spec) {
+            sseResult = { spec: event.spec }
+            sseResolved = true
+          } else if (event.type === 'error') {
+            sseResult = { error: event.error ?? 'Generation failed.' }
+            sseResolved = true
+          }
+        } catch { /* ignore parse errors */ }
+      }
+    }
+  }).catch(() => {
+    console.log('[generate] SSE connection closed — polling continues')
   })
-  clearTimeout(timeoutId)
 
-  const contentType = res.headers.get('content-type') ?? ''
-  if (!contentType.includes('text/event-stream')) {
-    // Pre-flight error (rate limit, validation) — JSON response
-    const data = await res.json() as { error?: string; message?: string }
-    return { error: data.error ?? data.message ?? 'Generation failed. Try again.' }
-  }
-
-  // Stream SSE events
-  const reader = res.body!.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) {
-      if (buffer.trim()) {
-        console.warn('[generate] SSE stream closed with unprocessed buffer (' + buffer.length + ' chars):', buffer.slice(0, 300))
-      }
-      break
+  // Poll for completion — SSE may deliver first, but polling is the safety net
+  const startTime = Date.now()
+  let progressIdx = 0
+  const progressInterval = setInterval(() => {
+    if (!sseResolved) {
+      progressIdx = (progressIdx + 1) % PROGRESS_MESSAGES.length
+      onProgress(PROGRESS_MESSAGES[progressIdx])
     }
-    buffer += decoder.decode(value, { stream: true })
+  }, 12_000)
 
-    const lines = buffer.split('\n')
-    buffer = lines.pop() ?? ''
+  try {
+    while (Date.now() - startTime < MAX_WAIT) {
+      // Check if SSE already delivered
+      if (sseResolved && sseResult) {
+        clearInterval(progressInterval)
+        controller.abort()
+        return sseResult
+      }
 
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
-      const json = line.slice(6).trim()
-      if (!json) continue
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL))
+
+      // Check SSE again after sleep
+      if (sseResolved && sseResult) {
+        clearInterval(progressInterval)
+        controller.abort()
+        return sseResult
+      }
+
+      // Poll the server
       try {
-        const event = JSON.parse(json) as {
-          type: string
-          message?: string
-          spec?: AppSpec
-          error?: string
+        const pollRes = await fetch('/api/poll-spec?id=' + encodeURIComponent(pendingId))
+        if (pollRes.ok) {
+          const data = await pollRes.json() as { ready: boolean; spec?: AppSpec; error?: string }
+          if (data.ready && data.spec) {
+            clearInterval(progressInterval)
+            controller.abort()
+            return { spec: data.spec }
+          }
+          if (data.error) {
+            clearInterval(progressInterval)
+            controller.abort()
+            return { error: data.error }
+          }
         }
-        if (event.type === 'progress' && event.message) {
-          onProgress(event.message)
-        } else if (event.type === 'done' && event.spec) {
-          return { spec: event.spec }
-        } else if (event.type === 'error') {
-          return { error: event.error ?? 'Generation failed.' }
-        }
-      } catch (parseErr) {
-        console.warn('[generate] Failed to parse SSE line:', String(parseErr), line.slice(0, 200))
+      } catch {
+        // Poll failed — keep trying
       }
     }
-  }
 
-  return { error: 'Generation stream ended without result.' }
+    clearInterval(progressInterval)
+    controller.abort()
+    return { error: 'Generation took too long — please try again with a shorter idea.' }
+  } catch {
+    clearInterval(progressInterval)
+    controller.abort()
+    return { error: 'Generation failed — please try again.' }
+  }
 }
 
 function NdevPanel({ locale }: { locale: Locale }) {

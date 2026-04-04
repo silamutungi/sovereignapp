@@ -84,12 +84,14 @@ export default async function handler(req: any, res: any): Promise<void> {
   let email: string
   let variationHint: string
   let attempt: number
+  let pendingBuildId: string
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
     idea          = (body?.idea          as string | undefined)?.trim() ?? ''
     email         = (body?.email         as string | undefined)?.trim() ?? ''
     variationHint = (body?.variationHint as string | undefined)?.trim() ?? ''
     attempt       = typeof body?.attempt === 'number' ? body.attempt : 1
+    pendingBuildId = (body?.pending_build_id as string | undefined)?.trim() ?? ''
   } catch {
     res.status(400).json({ error: 'Invalid JSON body' })
     return
@@ -208,6 +210,32 @@ ${idea}`
     ? `\n\nVARIATION INSTRUCTION (attempt ${attempt} of 3): ${variationHint}`
     : ''
   const userMessage = (baseMessage + hint + lessonContext).slice(0, MAX_COMBINED_LENGTH)
+
+  // ── Create pending_specs row for polling clients ────────────────────────
+  if (pendingBuildId) {
+    try {
+      const psUrl = process.env.SUPABASE_URL
+      const psKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+      if (psUrl && psKey) {
+        await fetch(`${psUrl}/rest/v1/pending_specs`, {
+          method: 'POST',
+          headers: {
+            apikey: psKey,
+            Authorization: `Bearer ${psKey}`,
+            'Content-Type': 'application/json',
+            Prefer: 'return=minimal',
+          },
+          body: JSON.stringify({
+            id: pendingBuildId,
+            spec: {},
+            status: 'generating',
+          }),
+        })
+      }
+    } catch {
+      console.warn('[generate] pending_specs insert failed (non-fatal)')
+    }
+  }
 
   // ── All validation passed — switch to SSE streaming ─────────────────────
   const startedAt = Date.now()
@@ -775,6 +803,30 @@ Return only the image prompt text, nothing else. Max 100 words.`
     console.log('[generate] Sending done event, payload_bytes:', doneJson.length)
     await sendEvent(donePayload)
     console.log('[generate] Done event write callback fired, ending stream. elapsed_ms:', Date.now() - startedAt)
+
+    // Save spec to pending_specs for polling clients (decoupled from SSE)
+    if (pendingBuildId) {
+      try {
+        const psUrl = process.env.SUPABASE_URL
+        const psKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+        if (psUrl && psKey) {
+          await fetch(`${psUrl}/rest/v1/pending_specs?id=eq.${encodeURIComponent(pendingBuildId)}`, {
+            method: 'PATCH',
+            headers: {
+              apikey: psKey,
+              Authorization: `Bearer ${psKey}`,
+              'Content-Type': 'application/json',
+              Prefer: 'return=minimal',
+            },
+            body: JSON.stringify({ spec: donePayload.spec, status: 'done' }),
+          })
+          console.log('[generate] spec saved to pending_specs for polling:', pendingBuildId)
+        }
+      } catch (psErr) {
+        console.warn('[generate] pending_specs save failed (non-fatal):', psErr)
+      }
+    }
+
     endStream()
   } catch (err) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -793,6 +845,27 @@ Return only the image prompt text, nothing else. Max 100 words.`
           ? err.message
           : String(err)
     await sendEvent({ type: 'error', error: errMsg })
+
+    // Save error to pending_specs for polling clients
+    if (pendingBuildId) {
+      try {
+        const psUrl = process.env.SUPABASE_URL
+        const psKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+        if (psUrl && psKey) {
+          await fetch(`${psUrl}/rest/v1/pending_specs?id=eq.${encodeURIComponent(pendingBuildId)}`, {
+            method: 'PATCH',
+            headers: {
+              apikey: psKey,
+              Authorization: `Bearer ${psKey}`,
+              'Content-Type': 'application/json',
+              Prefer: 'return=minimal',
+            },
+            body: JSON.stringify({ status: 'error', error: errMsg }),
+          })
+        }
+      } catch { /* non-fatal */ }
+    }
+
     endStream()
   }
 }
