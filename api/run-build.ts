@@ -33,6 +33,9 @@ import { checkRateLimit } from './_rateLimit.js'
 import { scoreApp } from './_scoreApp.js'
 import { runDesignAudit } from './audit-generated-app.js'
 import { indexComponents } from './lib/componentIndex.js'
+import { captureScreenshot } from './lib/screenshot.js'
+import { autofixBuild } from './lib/autofixBuild.js'
+import { createLessonsFile } from './lib/lessons.js'
 
 export const maxDuration = 300
 
@@ -204,6 +207,7 @@ interface BuildRecord {
   supabase_url: string | null
   supabase_anon_key: string | null
   supabase_project_ref: string | null
+  screenshot_url: string | null
 }
 
 async function getBuild(
@@ -1437,17 +1441,53 @@ export default async function handler(req: any, res: any): Promise<void> {
           await step('Deploying to Vercel…')
           const fallbackUrl = `https://${repoName}.vercel.app`
           const pollBudgetMs = 32_000 // 32s of polling within the overall 50s budget
-          const deployResult = await waitForVercelDeployment(
+          let deployResult = await waitForVercelDeployment(
             vcProjectId, vcTeamId,
             fallbackUrl, pollBudgetMs,
           )
 
           if (deployResult.ok === false) {
-            // Deployment errored on Vercel's side
+            // ── Attempt Brain autofix before giving up ───────────────────
+            console.log('[run-build] deploy failed — attempting autofix')
             await updateBuild(supabaseUrl, serviceKey, buildId, {
-              status: 'error', step: 'Vercel deploy failed', error: deployResult.error,
+              status: 'fixing',
+              step: 'Fixing a small issue…',
+              error: deployResult.error,
             })
-            return
+
+            const { result: fixResult } = await autofixBuild(
+              deployResult.error,
+              ghOwner,
+              repoName,
+              build.github_token,
+            )
+
+            if (fixResult === 'fixed') {
+              // Vercel auto-redeploys on commit — wait then re-poll
+              console.log('[run-build] autofix applied — waiting for redeploy')
+              await sleep(10_000)
+              const retryResult = await waitForVercelDeployment(
+                vcProjectId, vcTeamId,
+                fallbackUrl, 60_000, // 60s budget for the fix redeploy
+              )
+              if (retryResult.ok) {
+                // Autofix succeeded — clear error and continue to success path
+                await updateBuild(supabaseUrl, serviceKey, buildId, { error: null })
+                deployResult = retryResult
+              } else {
+                // Autofix committed but build still fails
+                await updateBuild(supabaseUrl, serviceKey, buildId, {
+                  status: 'error', step: 'Vercel deploy failed after autofix', error: retryResult.error,
+                })
+                return
+              }
+            } else {
+              // Autofix skipped or failed — mark as error
+              await updateBuild(supabaseUrl, serviceKey, buildId, {
+                status: 'error', step: 'Vercel deploy failed', error: deployResult.error,
+              })
+              return
+            }
           }
 
           await updateBuild(supabaseUrl, serviceKey, buildId, {
@@ -1534,6 +1574,44 @@ export default async function handler(req: any, res: any): Promise<void> {
             console.log(`[run-build] component index: ${count} components`)
           } catch (e) {
             console.warn('[run-build] component index failed (non-fatal):', e)
+          }
+
+          // ── Capture screenshot of live app ─────────────────────────────────
+          let screenshotUrl: string | null = null
+          try {
+            screenshotUrl = await captureScreenshot(
+              buildId as string,
+              deployResult.deployUrl,
+              supabaseUrl!,
+              serviceKey!,
+            )
+            if (screenshotUrl) {
+              await updateBuild(supabaseUrl, serviceKey, buildId, {
+                screenshot_url: screenshotUrl,
+              })
+              console.log('[run-build] screenshot saved:', screenshotUrl)
+            }
+          } catch (e) {
+            console.warn('[run-build] screenshot failed (non-fatal):', e)
+          }
+
+          // ── Create Brain memory file in generated app repo ─────────────
+          try {
+            await createLessonsFile(
+              {
+                id: buildId as string,
+                idea: build.idea,
+                app_name: build.app_name,
+                app_type: build.app_type,
+                deploy_url: deployResult.deployUrl,
+              },
+              generatedFiles.map((f) => f.path),
+              ghOwner,
+              repoName,
+              build.github_token,
+            )
+          } catch (e) {
+            console.warn('[run-build] LESSONS.md creation failed (non-fatal):', e)
           }
 
           // ── Mark build complete ──────────────────────────────────────────

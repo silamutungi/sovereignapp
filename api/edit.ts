@@ -24,6 +24,7 @@ import { reindexFiles } from './lib/componentIndex.js'
 import { visionMap } from './lib/visionMap.js'
 import type { VisionMapResult } from './lib/visionMap.js'
 import { captureScreenshot } from './lib/screenshot.js'
+import { readLessons, appendLesson } from './lib/lessons.js'
 
 export const MODEL_GENERATION = 'claude-sonnet-4-6'
 export const MODEL_FAST = 'claude-haiku-4-5-20251001'
@@ -136,6 +137,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     }
 
     const repoPath = String(repoUrl).replace('https://github.com/', '')
+    const [repoOwner, repoName] = repoPath.split('/')
     console.log('[edit] repo target:', repoPath, 'buildId:', buildId)
 
     const ghHeaders = {
@@ -224,7 +226,22 @@ export default async function handler(req: any, res: any): Promise<void> {
         !screenshotUrl ? 'no screenshot' : 'no component index')
     }
 
-    // ── STEP 1: Instruction Classifier (Haiku — Prompt A) ───────────────────
+    // ── Read Brain memory for this app ────────────────────────────────────
+    let lessonsContext = ''
+    try {
+      const lessonsContent = await readLessons(
+        repoOwner, repoName,
+        process.env.SOVEREIGN_GITHUB_TOKEN ?? githubToken,
+      )
+      if (lessonsContent) {
+        lessonsContext = 'BRAIN MEMORY FOR THIS APP:\n' +
+          lessonsContent.slice(0, 3000) + '\n\n'
+      }
+    } catch (e) {
+      console.warn('[edit] lessons read failed (non-fatal):', e)
+    }
+
+    // ── STEP 1: Instruction Classifier (Haiku — Prompt A) ───���────────────���──
     let classifierResult: ClassifierResult = {
       instruction_type: 'style_change',
       relevant_files: [],
@@ -238,7 +255,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     try {
       const classifierPrompt = `You are Visila's pre-edit intelligence layer. You analyze a user's instruction before any code is written. You do four things at once.
 
-${visionContext}${indexContext}APP CONTEXT:
+${lessonsContext}${visionContext}${indexContext}APP CONTEXT:
 - App type: ${build.app_type ?? 'web app'}
 - App idea: ${build.idea ?? 'unknown'}
 - File tree (src/ only):
@@ -1111,6 +1128,62 @@ Apply the change. Keep everything else identical. Return the complete updated in
             }
           })
           .catch((e: unknown) => console.warn('[edit] screenshot refresh failed:', e))
+      }
+
+      // Append to Brain memory — fire-and-forget
+      const editEntry = String(editRequest).slice(0, 100) +
+        ' \u2192 ' + classifierResult.relevant_files.join(', ')
+      appendLesson(editRepoOwner, editRepoName, 'edit_history', editEntry,
+        process.env.SOVEREIGN_GITHUB_TOKEN ?? githubToken)
+        .catch((e: unknown) => console.warn('[lessons] append failed:', e))
+
+      // Founder pattern tracking — every 3rd edit, Haiku analyzes patterns
+      try {
+        const { count: editCount } = await supabase
+          .from('edit_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('build_id', build.id)
+          .eq('role', 'user')
+
+        if (editCount && editCount > 0 && editCount % 3 === 0) {
+          const { data: recentEdits } = await supabase
+            .from('edit_messages')
+            .select('content')
+            .eq('build_id', build.id)
+            .eq('role', 'user')
+            .order('created_at', { ascending: false })
+            .limit(9)
+
+          if (recentEdits && recentEdits.length > 0) {
+            const patternMsg = await anthropic.messages.create({
+              model: MODEL_FAST,
+              max_tokens: 200,
+              messages: [{
+                role: 'user',
+                content: 'Analyze these edit instructions from a founder ' +
+                  'and describe their pattern in one sentence. ' +
+                  'What do they care about most? What are they building toward?\n\n' +
+                  'Edits:\n' +
+                  recentEdits.map((e: { content: string }) => '- ' + e.content).join('\n') +
+                  '\n\nReturn only the one-sentence pattern. No preamble.',
+              }],
+            })
+
+            const pattern = patternMsg.content
+              .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+              .map((b) => b.text)
+              .join('').trim()
+
+            if (pattern) {
+              appendLesson(editRepoOwner, editRepoName, 'founder_patterns',
+                'Pattern after ' + editCount + ' edits: ' + pattern,
+                process.env.SOVEREIGN_GITHUB_TOKEN ?? githubToken)
+                .catch(() => {})
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[edit] founder pattern tracking failed (non-fatal):', e)
       }
     }
 
