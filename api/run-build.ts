@@ -208,6 +208,10 @@ interface BuildRecord {
   supabase_anon_key: string | null
   supabase_project_ref: string | null
   screenshot_url: string | null
+  try_mode: boolean | null
+  app_type: string | null
+  app_category: string | null
+  primary_color: string | null
 }
 
 async function getBuild(
@@ -1113,7 +1117,17 @@ export default async function handler(req: any, res: any): Promise<void> {
 
     // Staging builds use SOVEREIGN_VERCEL_TOKEN — only github_token is required from the user.
     // vercel_token is preserved on the build record for future use in the claim flow (transfer).
-    if (!build.github_token) {
+    // Try mode: use SOVEREIGN_GITHUB_TOKEN — founder hasn't connected GitHub yet.
+    if (build.try_mode && !build.github_token) {
+      const sovereignGhToken = process.env.SOVEREIGN_GITHUB_TOKEN
+      if (!sovereignGhToken) {
+        console.error('[run-build] try_mode but SOVEREIGN_GITHUB_TOKEN not set')
+        res.status(500).json({ error: 'Visila GitHub token not configured for try mode' })
+        return
+      }
+      build.github_token = sovereignGhToken
+      console.log('[run-build] try_mode — using SOVEREIGN_GITHUB_TOKEN')
+    } else if (!build.github_token) {
       console.log('[run-build] missing github_token — vercel_token:', build.vercel_token ? 'SET' : 'NULL')
       res.status(400).json({ error: 'Build is missing GitHub OAuth token — complete the GitHub OAuth step first' })
       return
@@ -1602,7 +1616,7 @@ export default async function handler(req: any, res: any): Promise<void> {
                 id: buildId as string,
                 idea: build.idea,
                 app_name: build.app_name,
-                app_type: build.app_type,
+                app_type: build.app_type ?? 'web app',
                 deploy_url: deployResult.deployUrl,
               },
               generatedFiles.map((f) => f.path),

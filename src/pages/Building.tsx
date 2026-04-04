@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface BuildStatus {
-  status: 'pending_github' | 'pending_vercel' | 'queued' | 'building' | 'auditing' | 'complete' | 'error'
+  status: 'pending_github' | 'pending_vercel' | 'queued' | 'building' | 'auditing' | 'fixing' | 'complete' | 'error'
   step: string | null
   appName: string
   repoUrl: string | null
@@ -12,6 +12,8 @@ interface BuildStatus {
   error: string | null
   audit_score: number | null
   audit_top_fixes: string[] | null
+  try_mode: boolean | null
+  expires_at: string | null
 }
 
 // ── Step definitions (ordered) ────────────────────────────────────────────────
@@ -35,6 +37,7 @@ const LOG_STEPS: LogStep[] = [
   { matchOn: 'Securing your tables…',         icon: '⚙',  label: 'Securing your tables…' },
   { matchOn: 'Database ready ✓',              icon: '✅', label: 'Database ready ✓' },
   { matchOn: 'Deploying to Vercel…',          icon: '⚙',  label: 'Deploying to Vercel…' },
+  { matchOn: 'Fixing a small issue…',        icon: '🔧', label: 'Fixing a small issue…' },
   { matchOn: ['Live at', 'Sending your live URL…', 'done'], icon: '✅', label: 'Live on Vercel', urlKey: 'deployUrl' },
   { matchOn: 'done',                          icon: '✦', label: 'Your app is live. GitHub, Vercel, database — all yours.', terminal: true },
 ]
@@ -544,7 +547,7 @@ export default function Building() {
 
           <p style={S.subtitle}>
             {isDone
-              ? 'This is yours now. You own everything.'
+              ? (status?.try_mode ? 'Your app is live.' : 'This is yours now. You own everything.')
               : needsSupabaseRetry
               ? ''
               : isFailed
@@ -636,8 +639,117 @@ export default function Building() {
           )}
 
           {/* Done CTAs */}
-          {isDone && status?.deployUrl && (
+          {isDone && status?.deployUrl && status?.try_mode && (
             <>
+              {/* Try mode completion — aha moment first, claim later */}
+              <p style={{
+                fontFamily: "'Playfair Display', Georgia, serif",
+                fontSize: '28px',
+                fontWeight: 700,
+                color: '#ffffff',
+                margin: '0 0 4px',
+                textAlign: 'center',
+              }}>
+                {status.appName}
+              </p>
+              <a
+                href={status.deployUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'inline-block',
+                  padding: '6px 16px',
+                  background: 'rgba(255,255,255,0.08)',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontFamily: "'DM Mono', 'Courier New', monospace",
+                  color: 'rgba(255,255,255,0.6)',
+                  textDecoration: 'none',
+                  marginBottom: '8px',
+                }}
+              >
+                {status.deployUrl}
+              </a>
+              <p style={{
+                fontSize: '11px',
+                color: 'rgba(255,255,255,0.3)',
+                fontFamily: "'DM Mono', 'Courier New', monospace",
+                marginBottom: '20px',
+                textAlign: 'center',
+              }}>
+                Hosted by Visila · expires in {status.expires_at
+                  ? Math.max(0, Math.ceil((new Date(status.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                  : 7} days
+              </p>
+              <a href={status.deployUrl} target="_blank" rel="noreferrer" style={S.ctaBtn}>
+                View Live App →
+              </a>
+              {status.repoUrl && (
+                <a href={status.repoUrl} target="_blank" rel="noreferrer" style={S.secondaryBtn}>
+                  View on GitHub →
+                </a>
+              )}
+
+              {/* Audit badge */}
+              {status.audit_score != null && (
+                <p style={{
+                  marginTop: '12px',
+                  fontSize: '11px',
+                  color: status.audit_score >= 80 ? 'rgba(138,184,0,0.9)' : 'rgba(255,255,255,0.4)',
+                  textAlign: 'center',
+                  fontFamily: "'DM Mono', 'Courier New', monospace",
+                  letterSpacing: '0.04em',
+                }}>
+                  ✦ Design audit · {status.audit_score === 100 ? '35/35 passed' : `${status.audit_score}/100`}
+                </p>
+              )}
+
+              {/* Claim prompt */}
+              <div style={{
+                marginTop: '32px',
+                padding: '24px',
+                borderTop: '1px solid rgba(255,255,255,0.08)',
+                textAlign: 'center',
+              }}>
+                <p style={{
+                  fontFamily: "'Playfair Display', Georgia, serif",
+                  fontSize: '18px',
+                  fontWeight: 600,
+                  color: '#ffffff',
+                  margin: '0 0 8px',
+                }}>
+                  This is yours. Keep it forever.
+                </p>
+                <p style={{
+                  fontSize: '13px',
+                  color: 'rgba(255,255,255,0.5)',
+                  lineHeight: 1.5,
+                  margin: '0 0 16px',
+                  maxWidth: '360px',
+                  marginLeft: 'auto',
+                  marginRight: 'auto',
+                }}>
+                  Connect your accounts to own the code, the deployment, and the data.
+                  Free forever — no subscription required to claim.
+                </p>
+                <a
+                  href={`/dashboard`}
+                  style={{
+                    ...S.secondaryBtn,
+                    display: 'inline-block',
+                    borderColor: '#FF1F6E',
+                    color: '#FF1F6E',
+                  }}
+                >
+                  Claim your app →
+                </a>
+              </div>
+            </>
+          )}
+
+          {isDone && status?.deployUrl && !status?.try_mode && (
+            <>
+              {/* Owned build completion — unchanged Developer path */}
               <a href={status.deployUrl} target="_blank" rel="noreferrer" style={S.ctaBtn}>
                 View Live App →
               </a>

@@ -46,7 +46,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     let dbRes: any
     try {
       dbRes = await fetch(
-        `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&deleted_at=is.null&select=status,step,app_name,repo_url,deploy_url,error,vercel_project_id,updated_at,claim_status,audit_score,audit_top_fixes,staging,claimed_at`,
+        `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}&deleted_at=is.null&select=status,step,app_name,repo_url,deploy_url,error,vercel_project_id,updated_at,claim_status,audit_score,audit_top_fixes,staging,claimed_at,screenshot_url,try_mode,expires_at`,
         {
           headers: {
             apikey: serviceKey,
@@ -83,6 +83,9 @@ export default async function handler(req: any, res: any): Promise<void> {
       audit_top_fixes: string[] | null
       staging: boolean | null
       claimed_at: string | null
+      screenshot_url: string | null
+      try_mode: boolean | null
+      expires_at: string | null
     }>
 
     if (!rows.length) {
@@ -97,11 +100,14 @@ export default async function handler(req: any, res: any): Promise<void> {
     // 'auditing' stuck > 5 minutes → resolve (audit is non-blocking, longer budget).
     const buildingThresholdMs = 30 * 1000       // 30s — enough for a redeploy to be queued
     const auditingThresholdMs = 5 * 60 * 1000   // 5 minutes for audit step
+    const fixingThresholdMs   = 2 * 60 * 1000   // 2 minutes for autofix + redeploy
     const updatedAt = row.updated_at ? new Date(row.updated_at).getTime() : 0
-    const stuckThresholdMs = row.status === 'auditing' ? auditingThresholdMs : buildingThresholdMs
+    const stuckThresholdMs = row.status === 'auditing' ? auditingThresholdMs
+      : row.status === 'fixing' ? fixingThresholdMs
+      : buildingThresholdMs
     const isStuck = Date.now() - updatedAt > stuckThresholdMs
 
-    if ((row.status === 'building' || row.status === 'auditing') && row.vercel_project_id && isStuck) {
+    if ((row.status === 'building' || row.status === 'auditing' || row.status === 'fixing') && row.vercel_project_id && isStuck) {
       const vcToken  = process.env.SOVEREIGN_VERCEL_TOKEN
       const vcTeamId = process.env.SOVEREIGN_VERCEL_TEAM_ID
 
@@ -186,6 +192,9 @@ export default async function handler(req: any, res: any): Promise<void> {
       audit_top_fixes: row.audit_top_fixes,
       staging:      row.staging,
       claimed_at:   row.claimed_at,
+      screenshot_url: row.screenshot_url,
+      try_mode:     row.try_mode,
+      expires_at:   row.expires_at,
     })
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : String(err) })

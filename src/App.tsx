@@ -599,7 +599,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
     await runGeneration(trimmed)
   }, [briefEditText, runGeneration])
 
-  const handleEmailSubmit = useCallback((e: FormEvent) => {
+  const handleEmailSubmit = useCallback(async (e: FormEvent) => {
     e.preventDefault()
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email.trim())) {
@@ -607,7 +607,8 @@ function NdevPanel({ locale }: { locale: Locale }) {
       return
     }
     setEmailError(null)
-    // Fire-and-forget — don't block the connect screen on email delivery
+
+    // Fire-and-forget welcome email
     void fetch('/api/send-welcome', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -618,8 +619,43 @@ function NdevPanel({ locale }: { locale: Locale }) {
         repoUrl: 'https://github.com/silamutungi/visila',
       }),
     })
-    setStage('connect')
-  }, [email, spec])
+
+    // Try mode — skip OAuth, start build on Visila infrastructure
+    if (!spec) return
+    setStarting(true)
+    setStartError(null)
+    try {
+      const res = await fetch('/api/start-build', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          appName: spec.appName,
+          idea: resolvedIdea || value.trim(),
+          files: spec.files,
+          supabaseSchema: spec.supabaseSchema,
+          setupInstructions: spec.setupInstructions,
+          try_mode: true,
+        }),
+      })
+      const data = await res.json() as { buildId?: string; error?: string }
+      if (data.error === 'rate_limited') {
+        setRateLimited(true)
+        setStarting(false)
+        return
+      }
+      if (!data.buildId) {
+        setStartError(data.error ?? 'Could not start build. Please try again.')
+        setStarting(false)
+        return
+      }
+      // Redirect to building page — no OAuth needed
+      window.location.href = `/building?id=${encodeURIComponent(data.buildId)}`
+    } catch {
+      setStartError('Network error. Please try again.')
+      setStarting(false)
+    }
+  }, [email, spec, resolvedIdea, value])
 
   const handleEditEmail = useCallback(() => {
     setStage('result')
@@ -1128,6 +1164,9 @@ function NdevPanel({ locale }: { locale: Locale }) {
                 {emailError && (
                   <p className="ndev-email-err" role="alert">{emailError}</p>
                 )}
+                {startError && (
+                  <p className="ndev-email-err" role="alert">{startError}</p>
+                )}
                 {(() => {
                   const isLight = parseInt(spec.primaryColor.replace('#', ''), 16) > 0x888888
                   return (
@@ -1137,10 +1176,11 @@ function NdevPanel({ locale }: { locale: Locale }) {
                       style={{
                         background: spec.primaryColor,
                         color: isLight ? '#0e0d0b' : '#f2efe8',
+                        opacity: starting ? 0.7 : 1,
                       }}
-                      disabled={!email.trim()}
+                      disabled={!email.trim() || starting}
                     >
-                      Continue →
+                      {starting ? 'Starting your build…' : 'Build my app →'}
                     </button>
                   )
                 })()}

@@ -90,7 +90,10 @@ export default async function handler(req: any, res: any): Promise<void> {
       // CLI-only fields: when both tokens are present, skip OAuth and go straight to 'queued'
       github_token: githubToken,
       vercel_token: vercelToken,
+      // Try mode: idea person path — skip OAuth, build on Visila infrastructure
+      try_mode: tryModeRaw,
     } = body as Record<string, any> ?? {}
+    const tryMode = tryModeRaw === true || tryModeRaw === 'true'
     if (!rawEmail || !appName) {
       res.status(400).json({ error: '`email` and `appName` are required' })
       return
@@ -150,8 +153,10 @@ export default async function handler(req: any, res: any): Promise<void> {
         // CLI flow: tokens supplied directly → skip OAuth, go straight to queued
         ...(githubToken ? { github_token: githubToken } : {}),
         ...(vercelToken ? { vercel_token: vercelToken } : {}),
-        status: (githubToken && vercelToken) ? 'queued' : 'pending_github',
-        step: (githubToken && vercelToken) ? 'Queued for build…' : 'Waiting for GitHub connection…',
+        // Try mode: skip OAuth, build on Visila infrastructure
+        ...(tryMode ? { try_mode: true } : { try_mode: false }),
+        status: (githubToken && vercelToken) || tryMode ? 'queued' : 'pending_github',
+        step: (githubToken && vercelToken) || tryMode ? 'Queued for build…' : 'Waiting for GitHub connection…',
       }),
     })
 
