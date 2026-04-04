@@ -36,6 +36,7 @@ import { indexComponents } from './lib/componentIndex.js'
 import { captureScreenshot } from './lib/screenshot.js'
 import { autofixBuild } from './lib/autofixBuild.js'
 import { createLessonsFile } from './lib/lessons.js'
+import { qualityGate } from './lib/qualityGate.js'
 
 export const maxDuration = 300
 
@@ -1556,6 +1557,39 @@ export default async function handler(req: any, res: any): Promise<void> {
                 `High audit fix count on build ${buildId as string}: ${auditResult.fixes_applied} fixes needed. Review generation prompt.`,
                 'Audit',
               )
+            }
+
+            // ── Brain quality gate — fix before customer sees the app ──────
+            if (auditResult.score < 85 && auditResult.breakdown) {
+              await updateBuild(supabaseUrl, serviceKey, buildId, {
+                status: 'fixing',
+                step: 'Polishing your app…',
+              })
+
+              const gateResult = await qualityGate(
+                auditResult.score,
+                auditResult.breakdown,
+                ghOwner,
+                repoName,
+                new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! }),
+                build.github_token,
+              )
+              console.log(`[run-build] quality gate: ${gateResult} (was ${auditResult.score}/100)`)
+
+              if (gateResult === 'fixed') {
+                // Re-run audit to get updated score
+                try {
+                  const reaudit = await runDesignAudit(ghOwner, repoName, build.github_token)
+                  await updateBuild(supabaseUrl, serviceKey, buildId, {
+                    audit_score: reaudit.score,
+                    audit_flags: reaudit.breakdown,
+                    audit_top_fixes: reaudit.top_fixes,
+                  })
+                  console.log(`[run-build] re-audit score: ${reaudit.score}/100`)
+                } catch (reauditErr) {
+                  console.warn('[run-build] re-audit failed (non-fatal):', reauditErr)
+                }
+              }
             }
           } catch (auditErr) {
             // Non-fatal — audit failure does not block build completion

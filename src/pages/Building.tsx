@@ -39,7 +39,8 @@ const LOG_STEPS: LogStep[] = [
   { matchOn: 'Deploying to Vercel…',          icon: '⚙',  label: 'Deploying to Vercel…' },
   { matchOn: 'Fixing a small issue…',        icon: '🔧', label: 'Fixing a small issue…' },
   { matchOn: ['Live at', 'Sending your live URL…', 'done'], icon: '✅', label: 'Live on Vercel', urlKey: 'deployUrl' },
-  { matchOn: 'done',                          icon: '✦', label: 'Your app is live. GitHub, Vercel, database — all yours.', terminal: true },
+  { matchOn: 'Polishing your app…',           icon: '✨', label: 'Polishing your app…' },
+  { matchOn: 'done',                          icon: '✦', label: 'Your app is live.', terminal: true },
 ]
 
 // Returns index of the most advanced step reached given the current step string.
@@ -693,21 +694,34 @@ export default function Building() {
                 View Live App →
               </a>
 
-              {/* Audit badge + fixes */}
-              {status.audit_score != null && (
+              {/* Trust signal — never show numeric score */}
+              {status.audit_score != null && status.audit_score >= 85 && (
                 <p style={{
-                  marginTop: '12px',
-                  fontSize: '11px',
-                  color: status.audit_score >= 80 ? 'rgba(138,184,0,0.9)' : 'rgba(255,255,255,0.4)',
-                  textAlign: 'center',
                   fontFamily: "'DM Mono', 'Courier New', monospace",
-                  letterSpacing: '0.04em',
+                  fontSize: '11px',
+                  color: 'rgba(255,255,255,0.5)',
+                  margin: '8px 0 0',
+                  textAlign: 'center',
                 }}>
-                  ✦ Design audit · {status.audit_score === 100 ? '35/35 passed' : `${status.audit_score}/100`}
+                  ✦ Built to professional standards
+                </p>
+              )}
+              {status.audit_score != null && status.audit_score > 0 && status.audit_score < 85 && (
+                <p style={{
+                  fontFamily: "'DM Mono', 'Courier New', monospace",
+                  fontSize: '11px',
+                  color: 'rgba(255,255,255,0.5)',
+                  margin: '8px 0 0',
+                  textAlign: 'center',
+                }}>
+                  ✦ Quality checked — ready to share
                 </p>
               )}
               {status.audit_top_fixes && status.audit_top_fixes.length > 0 && (
                 <div style={{ marginTop: '8px' }}>
+                  <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontFamily: "'DM Mono', 'Courier New', monospace", margin: '0 0 4px', textAlign: 'center' }}>
+                    Suggested next steps:
+                  </p>
                   {status.audit_top_fixes.map((fix, i) => (
                     <p key={i} style={{
                       fontFamily: "'DM Mono', 'Courier New', monospace",
@@ -777,36 +791,47 @@ export default function Building() {
                   View on GitHub →
                 </a>
               )}
-              {/* Audit badge — only shown when audit_score is present */}
-              {status.audit_score != null && (
+              {/* Trust signal — never show numeric score */}
+              {status.audit_score != null && status.audit_score >= 85 && (
                 <p style={{
-                  marginTop: '12px',
-                  fontSize: '11px',
-                  color: status.audit_score >= 80 ? 'rgba(138,184,0,0.9)' : 'rgba(255,255,255,0.4)',
-                  textAlign: 'center',
                   fontFamily: "'DM Mono', 'Courier New', monospace",
-                  letterSpacing: '0.04em',
+                  fontSize: '11px',
+                  color: 'rgba(255,255,255,0.5)',
+                  margin: '8px 0 0',
+                  textAlign: 'center',
                 }}>
-                  ✦ Design audit · {status.audit_score === 100 ? '35/35 passed' : `${status.audit_score}/100`}
+                  ✦ Built to professional standards
+                </p>
+              )}
+              {status.audit_score != null && status.audit_score > 0 && status.audit_score < 85 && (
+                <p style={{
+                  fontFamily: "'DM Mono', 'Courier New', monospace",
+                  fontSize: '11px',
+                  color: 'rgba(255,255,255,0.5)',
+                  margin: '8px 0 0',
+                  textAlign: 'center',
+                }}>
+                  ✦ Quality checked — ready to share
                 </p>
               )}
               {status.audit_top_fixes && status.audit_top_fixes.length > 0 && (
-                <ul style={{
-                  marginTop: '8px',
-                  paddingLeft: '16px',
-                  listStyle: 'none',
-                }}>
-                  {(status.audit_top_fixes).map((fix, i) => (
-                    <li key={i} style={{
+                <div style={{ marginTop: '8px' }}>
+                  <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontFamily: "'DM Mono', 'Courier New', monospace", margin: '0 0 4px', textAlign: 'center' }}>
+                    Suggested next steps:
+                  </p>
+                  {status.audit_top_fixes.map((fix, i) => (
+                    <p key={i} style={{
+                      fontFamily: "'DM Mono', 'Courier New', monospace",
                       fontSize: '10px',
                       color: 'rgba(255,255,255,0.35)',
-                      fontFamily: "'DM Mono', 'Courier New', monospace",
-                      lineHeight: '1.6',
+                      margin: '2px 0',
+                      lineHeight: 1.5,
+                      textAlign: 'center',
                     }}>
                       · {fix}
-                    </li>
+                    </p>
                   ))}
-                </ul>
+                </div>
               )}
               <p style={{ marginTop: '16px', fontSize: '12px', color: 'rgba(255,255,255,0.45)', textAlign: 'center' }}>
                 <a href="/dashboard" style={{ color: 'rgba(138,184,0,0.8)', textDecoration: 'none' }}>
