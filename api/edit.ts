@@ -25,6 +25,7 @@ import { visionMap } from './lib/visionMap.js'
 import type { VisionMapResult } from './lib/visionMap.js'
 import { captureScreenshot } from './lib/screenshot.js'
 import { readLessons, appendLesson } from './lib/lessons.js'
+import { scorePropensity, getTopPropensities, recordPattern } from './lib/propensity.js'
 
 export const MODEL_GENERATION = 'claude-sonnet-4-6'
 export const MODEL_FAST = 'claude-haiku-4-5-20251001'
@@ -241,7 +242,23 @@ export default async function handler(req: any, res: any): Promise<void> {
       console.warn('[edit] lessons read failed (non-fatal):', e)
     }
 
-    // ── STEP 1: Instruction Classifier (Haiku — Prompt A) ───���────────────���──
+    // ── Fetch founder propensity predictions ──────────────────────────────
+    let propensityContext = ''
+    try {
+      const propensities = await getTopPropensities(build.id, supabase, 3)
+      if (propensities.length > 0) {
+        propensityContext = 'FOUNDER PROPENSITY (what this founder likely needs next):\n' +
+          propensities.map((p) =>
+            '- ' + p.prediction.replace(/_/g, ' ') +
+            ' (confidence: ' + Math.round(p.score * 100) + '%) \u2192 ' +
+            (p.suggested_action ?? ''),
+          ).join('\n') + '\n\n'
+      }
+    } catch (e) {
+      console.warn('[edit] propensity fetch failed (non-fatal):', e)
+    }
+
+    // ── STEP 1: Instruction Classifier (Haiku — Prompt A) ───────────────────
     let classifierResult: ClassifierResult = {
       instruction_type: 'style_change',
       relevant_files: [],
@@ -255,7 +272,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     try {
       const classifierPrompt = `You are Visila's pre-edit intelligence layer. You analyze a user's instruction before any code is written. You do four things at once.
 
-${lessonsContext}${visionContext}${indexContext}APP CONTEXT:
+${lessonsContext}${propensityContext}${visionContext}${indexContext}APP CONTEXT:
 - App type: ${build.app_type ?? 'web app'}
 - App idea: ${build.idea ?? 'unknown'}
 - File tree (src/ only):
@@ -1136,6 +1153,27 @@ Apply the change. Keep everything else identical. Return the complete updated in
       appendLesson(editRepoOwner, editRepoName, 'edit_history', editEntry,
         process.env.SOVEREIGN_GITHUB_TOKEN ?? githubToken)
         .catch((e: unknown) => console.warn('[lessons] append failed:', e))
+
+      // Propensity scoring — fire-and-forget
+      scorePropensity({ id: build.id, app_type: build.app_type }, supabase)
+        .catch((e: unknown) => console.warn('[propensity] score failed:', e))
+
+      // Record real edit pattern — fire-and-forget
+      if (build.app_type) {
+        const { count: patternEditCount } = await supabase
+          .from('edit_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('build_id', build.id)
+          .eq('role', 'user')
+        const editSlug = String(editRequest).slice(0, 50).toLowerCase()
+          .replace(/[^a-z0-9]/g, '_')
+        recordPattern(
+          build.app_type,
+          'edit_' + (patternEditCount ?? 0),
+          editSlug,
+          supabase,
+        ).catch(() => {})
+      }
 
       // Founder pattern tracking — every 3rd edit, Haiku analyzes patterns
       try {

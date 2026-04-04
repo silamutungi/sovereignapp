@@ -503,9 +503,44 @@ Return only the image prompt text, nothing else. Max 100 words.`
     const mandatoryPagesInjection = MANDATORY_PAGES[appCategory.toUpperCase()]
       ? '\n\n' + MANDATORY_PAGES[appCategory.toUpperCase()] + '\n\n' + MANDATORY_PAGES_ENFORCEMENT
       : ''
+
+    // ── Fetch Brain wisdom for this category (best-effort, non-blocking) ──
+    let brainWisdomInjection = ''
+    try {
+      const bwSupabaseUrl = process.env.SUPABASE_URL
+      const bwServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+      if (bwSupabaseUrl && bwServiceKey) {
+        const bwController = new AbortController()
+        const bwTimeout = setTimeout(() => bwController.abort(), 2000)
+        const encodedType = encodeURIComponent(appCategory)
+        const bwRes = await fetch(
+          `${bwSupabaseUrl}/rest/v1/brain_patterns?app_type=eq.${encodedType}&pattern_type=eq.missing_feature&order=confidence.desc&limit=5&select=outcome,confidence`,
+          {
+            headers: { apikey: bwServiceKey, Authorization: `Bearer ${bwServiceKey}` },
+            signal: bwController.signal,
+          },
+        )
+        clearTimeout(bwTimeout)
+        if (bwRes.ok) {
+          const bwRows = await bwRes.json() as Array<{ outcome: string; confidence: number }>
+          if (bwRows.length > 0) {
+            brainWisdomInjection = '\n\nBRAIN WISDOM FOR ' + appCategory.toUpperCase() + ':\n' +
+              'These features are commonly missed by founders in this category and regretted later. Build them now:\n' +
+              bwRows.map((p) =>
+                '- ' + p.outcome.replace(/_/g, ' ') +
+                ' (' + Math.round(p.confidence * 100) + '% of founders needed this)',
+              ).join('\n')
+            console.log('[generate] injected', bwRows.length, 'brain wisdom patterns for', appCategory)
+          }
+        }
+      }
+    } catch {
+      console.warn('[generate] brain wisdom fetch skipped (non-fatal)')
+    }
+
     categoryBriefInjection = categoryBriefInjection.slice(0, 1500)
     competitiveContext = competitiveContext.slice(0, 500)
-    const finalUserMessage = categoryBriefInjection + mandatoryPagesInjection + userMessage + heroImageInjection + designSystemInjection.slice(0, 4000) + competitiveContext + contentLayer + uxLayer + a11yRules
+    const finalUserMessage = categoryBriefInjection + mandatoryPagesInjection + brainWisdomInjection + userMessage + heroImageInjection + designSystemInjection.slice(0, 4000) + competitiveContext + contentLayer + uxLayer + a11yRules
 
     const preProcessingMs = Date.now() - startedAt
     console.log('[generate] STREAM_OPEN pre_processing_ms:', preProcessingMs,
