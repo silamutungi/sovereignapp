@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, type KeyboardEvent, type FormEvent, type RefObject } from 'react'
-import { Menu, X, Database, Lock } from 'lucide-react'
+import { Menu, X, Lock } from 'lucide-react'
 import { t, type Locale } from './lib/i18n'
 import VisilaLogo from './components/VisilaLogo'
 import './styles/global.css'
@@ -483,7 +483,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
     return params.get('idea') ?? ''
   })
   const [phIdx, setPhIdx] = useState(0)
-  const [stage, setStage] = useState<'idle' | 'generating' | 'result' | 'connect' | 'briefConfirm'>('idle')
+  const [stage, setStage] = useState<'idle' | 'generating' | 'result' | 'briefConfirm'>('idle')
   const [spec, setSpec] = useState<AppSpec | null>(null)
   const [generateError, setGenerateError] = useState<string | null>(null)
   const [generatingMessage, setGeneratingMessage] = useState('Generating your app…')
@@ -491,7 +491,6 @@ function NdevPanel({ locale }: { locale: Locale }) {
   const [emailError, setEmailError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
-  const [rateLimited, setRateLimited] = useState(false)
   const [isExtracting, setIsExtracting] = useState(false)
   const [brief, setBrief] = useState<AppBrief | null>(null)
   const [resolvedIdea, setResolvedIdea] = useState('')
@@ -640,7 +639,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
       })
       const data = await res.json() as { buildId?: string; error?: string }
       if (data.error === 'rate_limited') {
-        setRateLimited(true)
+        setStartError('You have used all 3 free builds. Upgrade to Builder for unlimited builds.')
         setStarting(false)
         return
       }
@@ -656,11 +655,6 @@ function NdevPanel({ locale }: { locale: Locale }) {
       setStarting(false)
     }
   }, [email, spec, resolvedIdea, value])
-
-  const handleEditEmail = useCallback(() => {
-    setStage('result')
-    setTimeout(() => { emailInputRef.current?.focus() }, 0)
-  }, [])
 
   const handleProceedToBuild = useCallback(() => {
     setReadyToBuild(true)
@@ -709,51 +703,6 @@ function NdevPanel({ locale }: { locale: Locale }) {
     setCurrentSpecIdx(newIdx)
     setSpec(allSpecs[newIdx])
   }, [currentSpecIdx, allSpecs])
-
-  // Called when the user clicks "Connect GitHub".
-  // 1. Creates a build record in Supabase (returns buildId).
-  // 2. Redirects to GitHub OAuth with buildId as `state`.
-  const handleGitHubConnect = useCallback(async () => {
-    if (!email || !spec || starting) return
-    setStartError(null)
-    setStarting(true)
-    try {
-      const res = await fetch('/api/start-build', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          appName:          spec.appName,
-          idea:             resolvedIdea || value.trim(),
-          files:            spec.files,
-          supabaseSchema:   spec.supabaseSchema,
-          setupInstructions: spec.setupInstructions,
-        }),
-      })
-      const data = await res.json() as { buildId?: string; error?: string; message?: string }
-      if (data.error === 'rate_limited') {
-        setRateLimited(true)
-        setStarting(false)
-        return
-      }
-      if (!data.buildId) {
-        setStartError(data.error ?? 'Could not start build. Please try again.')
-        setStarting(false)
-        return
-      }
-      const redirectUri = `${window.location.origin}/api/auth/github/callback`
-      const githubOAuthUrl =
-        `https://github.com/login/oauth/authorize` +
-        `?client_id=${encodeURIComponent(import.meta.env.VITE_GITHUB_CLIENT_ID ?? '')}` +
-        `&scope=repo` +
-        `&state=${encodeURIComponent(data.buildId)}` +
-        `&redirect_uri=${encodeURIComponent(redirectUri)}`
-      window.location.href = githubOAuthUrl
-    } catch {
-      setStartError('Network error. Please try again.')
-      setStarting(false)
-    }
-  }, [email, spec, resolvedIdea, value, starting])
 
   const CHIPS = [
     'A booking app for my yoga studio',
@@ -955,7 +904,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
           </div>
         )}
 
-        {(stage === 'result' || stage === 'connect') && spec && (
+        {stage === 'result' && spec && (
           <div className="gen-result">
             <div className="gen-header">
               <div
@@ -1187,86 +1136,6 @@ function NdevPanel({ locale }: { locale: Locale }) {
               </form>
             )}
 
-            {stage === 'connect' && rateLimited && (
-              <div className="gen-connect" role="alert">
-                <p className="gen-connect-lbl" style={{ color: 'var(--color-text-primary)', fontWeight: 500 }}>
-                  You've used your 3 free builds. Upgrade to Builder to keep building.
-                </p>
-                <a
-                  href="/#pricing"
-                  className="gobtn"
-                  style={{ display: 'block', textAlign: 'center', textDecoration: 'none', background: 'var(--color-brand)', color: 'var(--color-text-primary)', marginTop: '12px' }}
-                  onClick={(e) => {
-                    e.preventDefault()
-                    document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })
-                  }}
-                >
-                  Upgrade to Builder →
-                </a>
-              </div>
-            )}
-
-            {stage === 'connect' && !rateLimited && (
-              <div className="gen-connect">
-                <p className="gen-connect-lbl">Connect your accounts to deploy in 60 seconds</p>
-                <p style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', color: '#6b6862', margin: '0 0 20px' }}>
-                  Building for{' '}
-                  <span style={{ color: '#0e0d0b' }}>{email}</span>
-                  {' · '}
-                  <button
-                    onClick={handleEditEmail}
-                    style={{ fontFamily: 'DM Mono, monospace', fontSize: '11px', color: '#FF1F6E', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                    type="button"
-                  >
-                    Change
-                  </button>
-                </p>
-                {startError && (
-                  <p className="ndev-email-err" role="alert">{startError}</p>
-                )}
-                <div className="gen-connect-btns">
-                  <button
-                    className="gen-oauth-btn"
-                    style={{ borderColor: spec.primaryColor + '66' }}
-                    onClick={() => { void handleGitHubConnect() }}
-                    disabled={starting}
-                    aria-label="Connect GitHub — starts the deployment"
-                  >
-                    {starting ? (
-                      <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.75s linear infinite' }} aria-hidden="true" />
-                    ) : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
-                      </svg>
-                    )}
-                    {starting ? 'Starting…' : 'Connect GitHub'}
-                  </button>
-
-                  <div
-                    className="gen-oauth-btn"
-                    style={{ borderColor: spec.primaryColor + '33', opacity: 0.45, cursor: 'default' }}
-                    aria-label="Vercel connection happens automatically after GitHub"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                      <path d="M12 1L24 22H0L12 1z"/>
-                    </svg>
-                    Connect Vercel
-                  </div>
-
-                  <div
-                    className="gen-oauth-btn"
-                    style={{ borderColor: spec.primaryColor + '22', opacity: 0.3, cursor: 'default' }}
-                    aria-label="Database choice happens on the next screen"
-                  >
-                    <Database size={16} strokeWidth={1.5} aria-hidden="true" />
-                    Connect Database
-                  </div>
-                </div>
-                <p style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', textAlign: 'center', marginTop: '10px' }}>
-                  GitHub → Vercel → Database in sequence
-                </p>
-              </div>
-            )}
           </div>
         )}
       </div>
