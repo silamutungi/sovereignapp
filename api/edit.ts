@@ -21,6 +21,9 @@ import Anthropic from '@anthropic-ai/sdk'
 import { checkRateLimit } from './_rateLimit.js'
 import { resolveHeroImage } from './lib/images.js'
 import { reindexFiles } from './lib/componentIndex.js'
+import { visionMap } from './lib/visionMap.js'
+import type { VisionMapResult } from './lib/visionMap.js'
+import { captureScreenshot } from './lib/screenshot.js'
 
 export const MODEL_GENERATION = 'claude-sonnet-4-6'
 export const MODEL_FAST = 'claude-haiku-4-5-20251001'
@@ -110,7 +113,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     console.log('[edit] fetching build...', new Date().toISOString())
     const { data: build, error: buildError } = await supabase
       .from('builds')
-      .select('id, github_token, email, vercel_project_id, deploy_url, supabase_project_ref, repo_url, idea, app_type')
+      .select('id, github_token, email, vercel_project_id, deploy_url, screenshot_url, supabase_project_ref, repo_url, idea, app_type')
       .eq('id', buildId)
       .is('deleted_at', null)
       .single()
@@ -160,15 +163,19 @@ export default async function handler(req: any, res: any): Promise<void> {
 
     // ── Fetch component index for Brain-guided file identification ──────────
     let indexContext = ''
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let componentIndex: any[] | null = null
     try {
-      const { data: componentIndex } = await supabase
+      const { data: ciData } = await supabase
         .from('component_index')
         .select('name, file, line_start, line_end, type, description, visible_text')
         .eq('build_id', build.id)
 
+      componentIndex = ciData
+
       if (componentIndex && componentIndex.length > 0) {
         indexContext = 'COMPONENT INDEX:\n' + componentIndex.map((c: { name: string; file: string; line_start: number | null; line_end: number | null; type: string | null; description: string | null; visible_text: unknown }) =>
-          `${c.name} (${c.type ?? 'unknown'}) → ${c.file}:${c.line_start ?? '?'}-${c.line_end ?? '?'}\n` +
+          `${c.name} (${c.type ?? 'unknown'}) \u2192 ${c.file}:${c.line_start ?? '?'}-${c.line_end ?? '?'}\n` +
           `  What it does: ${c.description ?? 'no description'}\n` +
           `  Visible text: ${Array.isArray(c.visible_text) ? (c.visible_text as string[]).join(' | ') : 'none'}`
         ).join('\n\n') + '\n\n'
@@ -176,6 +183,45 @@ export default async function handler(req: any, res: any): Promise<void> {
       }
     } catch (idxErr) {
       console.warn('[edit] component index fetch failed (non-fatal):', idxErr)
+    }
+
+    // ── Phase 3: Vision mapping — Brain sees the page ───────────────────────
+    let visionResult: VisionMapResult | null = null
+    let visionContext = ''
+
+    const screenshotUrl = build.screenshot_url ?? null
+
+    if (screenshotUrl && componentIndex && componentIndex.length > 0) {
+      console.log('[edit] running vision map...')
+      visionResult = await visionMap(
+        String(editRequest),
+        screenshotUrl,
+        componentIndex.map((c: { name: string; file: string; line_start: number | null; line_end: number | null; type: string | null; description: string | null; visible_text: unknown }) => ({
+          name: c.name,
+          file: c.file,
+          line_start: c.line_start,
+          line_end: c.line_end,
+          type: c.type,
+          description: c.description,
+          visible_text: Array.isArray(c.visible_text) ? c.visible_text as string[] : [],
+        })),
+        anthropic,
+      )
+
+      if (visionResult) {
+        visionContext = 'VISION ANALYSIS:\n' +
+          'Visual zone identified: ' + visionResult.visual_zone + '\n' +
+          'Matched components: ' + visionResult.matched_components.join(', ') + '\n' +
+          'Suggested files: ' + visionResult.target_files.join(', ') + '\n' +
+          'Vision confidence: ' + visionResult.confidence + '\n' +
+          'Reasoning: ' + visionResult.reasoning + '\n\n' +
+          'Use the vision analysis to guide file selection. ' +
+          'If confidence is high, prioritize the suggested files. ' +
+          'If confidence is low, use the component index and file tree.\n\n'
+      }
+    } else {
+      console.log('[edit] vision map skipped —',
+        !screenshotUrl ? 'no screenshot' : 'no component index')
     }
 
     // ── STEP 1: Instruction Classifier (Haiku — Prompt A) ───────────────────
@@ -192,7 +238,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     try {
       const classifierPrompt = `You are Visila's pre-edit intelligence layer. You analyze a user's instruction before any code is written. You do four things at once.
 
-${indexContext}APP CONTEXT:
+${visionContext}${indexContext}APP CONTEXT:
 - App type: ${build.app_type ?? 'web app'}
 - App idea: ${build.idea ?? 'unknown'}
 - File tree (src/ only):
@@ -1045,6 +1091,26 @@ Apply the change. Keep everything else identical. Return the complete updated in
       if (changedPaths.length > 0) {
         reindexFiles(build.id, changedPaths, editRepoOwner, editRepoName, anthropic, supabase, githubToken)
           .catch((e: unknown) => console.warn('[edit] reindex failed (non-fatal):', e))
+      }
+
+      // Refresh screenshot after successful edit — fire-and-forget
+      const editDeployUrl = build.deploy_url
+      if (editDeployUrl) {
+        captureScreenshot(
+          build.id,
+          editDeployUrl,
+          process.env.SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        )
+          .then((url) => {
+            if (url) {
+              supabase.from('builds')
+                .update({ screenshot_url: url })
+                .eq('id', build.id)
+                .then(() => console.log('[edit] screenshot refreshed'))
+            }
+          })
+          .catch((e: unknown) => console.warn('[edit] screenshot refresh failed:', e))
       }
     }
 
