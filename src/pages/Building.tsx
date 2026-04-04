@@ -547,7 +547,9 @@ export default function Building() {
 
           <p style={S.subtitle}>
             {isDone
-              ? (status?.try_mode ? 'Your app is live.' : 'This is yours now. You own everything.')
+              ? (status?.try_mode
+                ? 'Your app is live. Hosted by Visila \u2014 claim it to own the code, deployment, and data forever.'
+                : 'Your app is live. GitHub, Vercel, database \u2014 all yours.')
               : needsSupabaseRetry
               ? ''
               : isFailed
@@ -668,7 +670,13 @@ export default function Building() {
                   marginBottom: '8px',
                 }}
               >
-                {status.deployUrl}
+                {(() => {
+                  const short = status.deployUrl
+                    .replace('https://', '')
+                    .replace('.vercel.app', '')
+                    .split('-visila')[0]
+                  return short + '.vercel.app'
+                })()}
               </a>
               <p style={{
                 fontSize: '11px',
@@ -684,13 +692,8 @@ export default function Building() {
               <a href={status.deployUrl} target="_blank" rel="noreferrer" style={S.ctaBtn}>
                 View Live App →
               </a>
-              {status.repoUrl && (
-                <a href={status.repoUrl} target="_blank" rel="noreferrer" style={S.secondaryBtn}>
-                  View on GitHub →
-                </a>
-              )}
 
-              {/* Audit badge */}
+              {/* Audit badge + fixes */}
               {status.audit_score != null && (
                 <p style={{
                   marginTop: '12px',
@@ -702,6 +705,22 @@ export default function Building() {
                 }}>
                   ✦ Design audit · {status.audit_score === 100 ? '35/35 passed' : `${status.audit_score}/100`}
                 </p>
+              )}
+              {status.audit_top_fixes && status.audit_top_fixes.length > 0 && (
+                <div style={{ marginTop: '8px' }}>
+                  {status.audit_top_fixes.map((fix, i) => (
+                    <p key={i} style={{
+                      fontFamily: "'DM Mono', 'Courier New', monospace",
+                      fontSize: '10px',
+                      color: 'rgba(255,255,255,0.35)',
+                      margin: '2px 0',
+                      lineHeight: 1.5,
+                      textAlign: 'center',
+                    }}>
+                      · {fix}
+                    </p>
+                  ))}
+                </div>
               )}
 
               {/* Claim prompt */}
