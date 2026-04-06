@@ -424,6 +424,7 @@ If not flagged, reason should be empty string.`,
     // ── Step 2b: Category Intelligence — live web research via Haiku + web search ──
     // Timeout: 15s max — web search can hang indefinitely and eat the 300s budget
     let categoryBriefInjection = ''
+    let designProfileInjection = ''
     let leapfrogFeatures: string[] = []
     try {
       console.log('[generate] building category brief for:', appCategory)
@@ -434,6 +435,18 @@ If not flagged, reason should be empty string.`,
         // Override static competitors with web-researched ones if available
         if (brief.competitorNames.length > 0) {
           competitors = brief.competitorNames
+        }
+        // Inject design vocabulary profile for this category
+        if (brief.designProfile) {
+          const dp = brief.designProfile
+          designProfileInjection = `\n\n## DESIGN SYSTEM\n` +
+            `UI Style: ${dp.style}\n` +
+            `Color mood: ${dp.colorMood}\n` +
+            `Suggested primary color: ${dp.primaryHex}\n` +
+            `Font pairing: ${dp.fontPairing}\n` +
+            `Layout pattern: ${dp.layoutPattern}\n` +
+            `Key effects: ${dp.keyEffects}\n` +
+            `Anti-patterns to avoid: ${dp.antiPatterns.join(', ')}\n`
         }
         console.log('[generate] category brief built, competitors:', brief.competitorNames)
       }
@@ -568,7 +581,7 @@ Return only the image prompt text, nothing else. Max 100 words.`
 
     categoryBriefInjection = categoryBriefInjection.slice(0, 1500)
     competitiveContext = competitiveContext.slice(0, 500)
-    const finalUserMessage = categoryBriefInjection + mandatoryPagesInjection + brainWisdomInjection + userMessage + heroImageInjection + designSystemInjection.slice(0, 4000) + competitiveContext + contentLayer + uxLayer + a11yRules
+    const finalUserMessage = categoryBriefInjection + designProfileInjection + mandatoryPagesInjection + brainWisdomInjection + userMessage + heroImageInjection + designSystemInjection.slice(0, 4000) + competitiveContext + contentLayer + uxLayer + a11yRules
 
     const preProcessingMs = Date.now() - startedAt
     console.log('[generate] STREAM_OPEN pre_processing_ms:', preProcessingMs,

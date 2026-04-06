@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { matchDesignProfile, type DesignProfile } from './designVocabulary.js'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -10,6 +11,7 @@ export type CategoryBrief = {
   leapfrogOpportunities: string[]
   avoidPatterns: string[]
   competitorNames: string[]
+  designProfile: DesignProfile
 }
 
 export async function buildCategoryBrief(
@@ -72,8 +74,11 @@ Keep each array to 2-3 items maximum. Be specific and actionable, not generic.`,
       cleaned = jsonMatch[0]
     }
 
-    const parsed = JSON.parse(cleaned) as CategoryBrief
-    return parsed
+    const parsed = JSON.parse(cleaned) as Omit<CategoryBrief, 'designProfile'>
+    return {
+      ...parsed,
+      designProfile: matchDesignProfile(parsed.category),
+    }
   } catch (e) {
     console.error('[categoryIntelligence] failed, continuing without brief:', e)
     return null
