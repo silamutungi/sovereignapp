@@ -72,8 +72,8 @@ Do not exceed 27 files. Generate supabaseSchema LAST after all files.
 - No @/ path aliases. Relative imports only.
 - Every component file must have a default export.
 - No unused variables or parameters (noUnusedLocals: true).
-- UNUSED IMPORTS = BUILD FAILURE (TS6133): Every import (component, hook, type, icon) must be referenced in the file body. Before returning EACH file, re-read every import line and confirm each symbol appears in the JSX or function body. If it does not appear, DELETE that import. Common violations: importing Button/Card/Input/Badge/Search/Filter/ChevronDown "just in case" — remove them. This is the #1 cause of build failures.
-- Every lucide-react icon import must appear in JSX. If you import Search, Filter, Star, Heart — each one must be rendered as <Search />, <Filter />, etc. Remove any icon not rendered.
+- CRITICAL — UNUSED IMPORTS = FATAL BUILD FAILURE (TS6133): noUnusedLocals is ON. ANY imported symbol not referenced in the file body kills the entire Vercel build. Before returning EACH file, count every symbol in every import line and verify each one appears as <Component />, a function call, a type annotation, or a variable reference in the code below. If a symbol does NOT appear — DELETE it from the import. If the import line becomes empty — DELETE the entire line. Common violations: importing icons, UI components, or hooks "just in case" then not rendering them. This is the #1 cause of build failures.
+- lucide-react icons are the worst offender: ONLY import icons that appear as <IconName /> in the JSX return. If you import { Shield, TrendingUp, AlertTriangle } but only render <Shield /> and <AlertTriangle />, you MUST remove TrendingUp from the import. Every single icon in the import must have a corresponding <IconName /> in the JSX. No exceptions. No "might use later". If it is not in JSX, it cannot be in the import.
 - No curly/smart quotes in string literals. Use double quotes or template literals for strings with apostrophes.
 - Always await supabase.auth.getSession() — it returns a Promise.
 - src/vite-env.d.ts required: /// <reference types="vite/client" />
@@ -107,7 +107,7 @@ Include tier, activeStandards, and nextSteps (3 objects with title, description,
 ## SELF-VALIDATION (run mentally before returning)
 
 For EACH file in your response, verify:
-1. Read every import line. Does each imported symbol appear in the file body? If NO → delete that import line.
+1. Read every import line. For each symbol: grep the rest of the file. Does it appear as <Symbol />, Symbol(, : Symbol, or Symbol.something? If NO → delete that symbol from the import. If the import line is now empty → delete the entire line. Pay special attention to lucide-react: every icon name must appear as <IconName /> in the JSX return statement.
 2. Are there unused variables or parameters? If YES → remove them.
 3. Does every JSX component reference resolve to an import? If NO → add the import.
-Failing this check causes TS6133 (declared but never read) and kills the Vercel build.`
+Failing this check causes TS6133 (declared but never read) and kills the Vercel build. This has caused production failures on real apps — treat it as the highest priority check.`
