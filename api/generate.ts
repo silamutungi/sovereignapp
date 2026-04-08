@@ -86,6 +86,8 @@ export default async function handler(req: any, res: any): Promise<void> {
   let variationHint: string
   let attempt: number
   let pendingBuildId: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let brandTokensRaw: any
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
     idea          = (body?.idea          as string | undefined)?.trim() ?? ''
@@ -93,6 +95,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     variationHint = (body?.variationHint as string | undefined)?.trim() ?? ''
     attempt       = typeof body?.attempt === 'number' ? body.attempt : 1
     pendingBuildId = (body?.pending_build_id as string | undefined)?.trim() ?? ''
+    brandTokensRaw = body?.brand_tokens ?? null
   } catch {
     res.status(400).json({ error: 'Invalid JSON body' })
     return
@@ -594,7 +597,28 @@ Return only the image prompt text, nothing else. Max 100 words.`
 
     categoryBriefInjection = categoryBriefInjection.slice(0, 1500)
     competitiveContext = competitiveContext.slice(0, 500)
-    const finalUserMessage = intentInjection + categoryBriefInjection + designProfileInjection + mandatoryPagesInjection + brainWisdomInjection + userMessage + heroImageInjection + designSystemInjection.slice(0, 4000) + competitiveContext + contentLayer + uxLayer + a11yRules
+
+    // ── Brand token injection (founder's existing brand) ──────────────────────
+    let brandInjection = ''
+    if (brandTokensRaw && typeof brandTokensRaw === 'object' && brandTokensRaw.primaryColor) {
+      const bt = brandTokensRaw as { primaryColor: string; secondaryColor?: string; backgroundColor?: string; fontFamily?: string; tone?: string }
+      brandInjection = '\n\nBRAND TOKENS — OVERRIDE DESIGN SYSTEM\n' +
+        'The founder has an existing brand. Use these exact values.\n' +
+        'These override all default color and font decisions.\n' +
+        `Primary color: ${bt.primaryColor}\n` +
+        (bt.secondaryColor ? `Secondary color: ${bt.secondaryColor}\n` : '') +
+        (bt.backgroundColor ? `Background: ${bt.backgroundColor}\n` : '') +
+        (bt.fontFamily ? `Font family: ${bt.fontFamily} — import from Google Fonts\n` : '') +
+        `Tone: ${bt.tone ?? 'professional'}\n` +
+        'Rules:\n' +
+        '- Use primaryColor as the main accent throughout\n' +
+        '- All CSS custom properties must reference these values\n' +
+        '- Do not invent new brand colors — use only what is provided and neutral whites/grays for the rest\n' +
+        '- If fontFamily is provided, import it via Google Fonts CDN and use it for all headings'
+      console.log('[generate] brand tokens injected:', bt.primaryColor, bt.fontFamily ?? 'no font')
+    }
+
+    const finalUserMessage = intentInjection + categoryBriefInjection + designProfileInjection + brandInjection + mandatoryPagesInjection + brainWisdomInjection + userMessage + heroImageInjection + designSystemInjection.slice(0, 4000) + competitiveContext + contentLayer + uxLayer + a11yRules
 
     const preProcessingMs = Date.now() - startedAt
     console.log('[generate] STREAM_OPEN pre_processing_ms:', preProcessingMs,

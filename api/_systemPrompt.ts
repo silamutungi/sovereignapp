@@ -84,6 +84,7 @@ Do not exceed 27 files. Generate supabaseSchema LAST after all files.
 ## KEY FILE CONTRACTS
 
 package.json: react@^18, react-dom@^18, react-router-dom@^6, @supabase/supabase-js@^2, cva@^0.7, clsx@^2, tailwind-merge@^2, lucide-react@^0.400, @radix-ui/react-slot@^1, @radix-ui/react-label@^2. Dev: typescript@^5, vite@^5, @vitejs/plugin-react@^4, tailwindcss@^3, autoprefixer@^10, postcss@^8, @types/react@^18, @types/react-dom@^18. No engines field.
+vite.config.ts: MUST include build.rollupOptions.output.manualChunks to split the bundle. Vendor chunk: ['react','react-dom','react-router-dom']. UI chunk: ['lucide-react']. If recharts is in dependencies, add charts chunk: ['recharts']. Set chunkSizeWarningLimit: 600. Example: defineConfig({ plugins: [react()], build: { rollupOptions: { output: { manualChunks: { vendor: ['react','react-dom','react-router-dom'], ui: ['lucide-react'] } } }, chunkSizeWarningLimit: 600 } }).
 tailwind.config.js: fontFamily.sans=["Geist","system-ui"]. Colors: shadcn/ui hsl(var(--name)) pattern.
 src/index.css: @tailwind directives + shadcn/ui CSS vars in :root and .dark. primaryColor→--primary HSL.
 shadcn/ui: Button(cva,6 variants), Input, Label(@radix-ui), Card(4 parts), Badge(cva). Use for ALL buttons/inputs/labels/cards.

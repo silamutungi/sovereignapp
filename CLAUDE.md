@@ -1496,3 +1496,13 @@ Wrong assumption: the generation prompt would infer from context that a founder 
 Correct behaviour: without explicit intent signalling, the generator defaults to a landing page for every idea. Founders who describe dashboards, stat cards, feeds, and data tables get a hero section and pricing grid instead.
 Fix: `detectIntent(idea)` in `api/lib/categoryIntelligence.ts` scans the idea for APP_INTENT signals (dashboard, sidebar, tabs, charts, authenticated, etc.) vs LANDING_INTENT signals (hero, pricing, testimonials, waitlist). Returns `'app'` | `'landing'` | `'both'`. Injected as the first block in `finalUserMessage` in `api/generate.ts`. `'app'` intent forces dashboard-first generation. `'both'` (default when unclear) generates landing + app shell.
 Learned: 2026-04-07.
+
+**Vite bundle size: manualChunks required in every generated vite.config.ts**
+Wrong assumption: a minimal vite.config.ts with just `plugins: [react()]` is sufficient.
+Correct behaviour: without `manualChunks`, Vite bundles everything into one 833KB chunk and emits a warning. Generated apps with recharts are especially large. The warning is noisy and makes founders think something is wrong.
+Fix: vite.config.ts KEY FILE CONTRACT in `_systemPrompt.ts` now requires `build.rollupOptions.output.manualChunks` splitting vendor (react stack), ui (lucide-react), and charts (recharts, if present) into separate chunks. `chunkSizeWarningLimit: 600` suppresses the warning for the vendor chunk which legitimately reaches ~500KB.
+Learned: 2026-04-07.
+
+**Brand extraction: URL scrape + logo upload → design token override in generation**
+`extractBrandFromUrl` (api/lib/extractBrandFromUrl.ts) scrapes CSS custom properties → meta theme-color → most-repeated hex → Google Fonts link → logo img/favicon. 8s timeout, never throws, returns BrandTokens | null. `extractBrandFromLogo` (api/lib/extractBrandFromLogo.ts) sends base64 image to Haiku vision for color/tone analysis, returns BrandTokens | null. Both wired through POST /api/extract-brand (api/extract-brand.ts, maxDuration=15, 30/hr rate limit). Brand tokens injected into generation prompt after design profile, before mandatory pages — max ~300 chars. Stored as brand_tokens JSONB on builds row via start-build.ts. UI: collapsible inline section on idea screen (NdevPanel in src/App.tsx), URL field blur-triggered, logo drop zone with 2MB limit, color swatch preview on detection. Migration required: `ALTER TABLE builds ADD COLUMN IF NOT EXISTS brand_tokens JSONB DEFAULT NULL;`
+Learned: 2026-04-07.

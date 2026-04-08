@@ -92,6 +92,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       vercel_token: vercelToken,
       // Try mode: idea person path — skip OAuth, build on Visila infrastructure
       try_mode: tryModeRaw,
+      brand_tokens: brandTokensRaw,
     } = body as Record<string, any> ?? {}
     const tryMode = tryModeRaw === true || tryModeRaw === 'true'
     if (!rawEmail || !appName) {
@@ -155,6 +156,7 @@ export default async function handler(req: any, res: any): Promise<void> {
         ...(vercelToken ? { vercel_token: vercelToken } : {}),
         // Try mode: skip OAuth, build on Visila infrastructure
         ...(tryMode ? { try_mode: true } : { try_mode: false }),
+        ...(brandTokensRaw && typeof brandTokensRaw === 'object' ? { brand_tokens: brandTokensRaw } : {}),
         status: (githubToken && vercelToken) || tryMode ? 'queued' : 'pending_github',
         step: (githubToken && vercelToken) || tryMode ? 'Queued for build…' : 'Waiting for GitHub connection…',
       }),

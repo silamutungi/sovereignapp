@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, type KeyboardEvent, type FormEvent, type RefObject } from 'react'
-import { Menu, X, Lock } from 'lucide-react'
+import { Menu, X, Lock, ChevronRight, Upload } from 'lucide-react'
 import { t, type Locale } from './lib/i18n'
 import VisilaLogo from './components/VisilaLogo'
 import './styles/global.css'
@@ -564,6 +564,70 @@ function NdevPanel({ locale }: { locale: Locale }) {
   const emailInputRef = useRef<HTMLInputElement | null>(null)
   const ideaRef = useRef<HTMLTextAreaElement | null>(null)
 
+  // ── Brand extraction state ──────────────────────────────────────────────────
+  const [brandExpanded, setBrandExpanded] = useState(false)
+  const [brandTokens, setBrandTokens] = useState<{
+    primaryColor: string
+    secondaryColor?: string
+    backgroundColor?: string
+    fontFamily?: string
+    logoUrl?: string
+    tone?: string
+    sourceUrl: string
+  } | null>(null)
+  const [brandLoading, setBrandLoading] = useState(false)
+  const [brandUrl, setBrandUrl] = useState('')
+  const [brandLogoFile, setBrandLogoFile] = useState<File | null>(null)
+  const [brandLogoPreview, setBrandLogoPreview] = useState<string | null>(null)
+  const [brandUrlDetected, setBrandUrlDetected] = useState(false)
+  const [brandLogoDetected, setBrandLogoDetected] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const handleBrandUrlBlur = useCallback(async () => {
+    const trimmed = brandUrl.trim()
+    if (!trimmed) return
+    setBrandLoading(true)
+    setBrandUrlDetected(false)
+    try {
+      const res = await fetch('/api/extract-brand', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: trimmed }),
+      })
+      if (!res.ok) { setBrandLoading(false); return }
+      const data = await res.json() as { tokens: typeof brandTokens }
+      if (data.tokens) {
+        setBrandTokens((prev) => ({ ...data.tokens!, ...(prev?.sourceUrl === 'logo-upload' ? prev : {}) }))
+        setBrandUrlDetected(true)
+      }
+    } catch { /* non-fatal */ }
+    setBrandLoading(false)
+  }, [brandUrl])
+
+  const handleLogoUpload = useCallback(async (file: File) => {
+    if (file.size > 2 * 1024 * 1024) return // 2MB max
+    setBrandLogoFile(file)
+    setBrandLogoPreview(URL.createObjectURL(file))
+    setBrandLoading(true)
+    setBrandLogoDetected(false)
+    try {
+      const buffer = await file.arrayBuffer()
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)))
+      const res = await fetch('/api/extract-brand', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ logoBase64: base64, mimeType: file.type }),
+      })
+      if (!res.ok) { setBrandLoading(false); return }
+      const data = await res.json() as { tokens: typeof brandTokens }
+      if (data.tokens) {
+        setBrandTokens((prev) => ({ ...(prev ?? {}), ...data.tokens! }))
+        setBrandLogoDetected(true)
+      }
+    } catch { /* non-fatal */ }
+    setBrandLoading(false)
+  }, [])
+
   // Auto-resize the idea textarea whenever value changes (handles chip clicks too)
   useEffect(() => {
     const el = ideaRef.current
@@ -590,7 +654,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
     setStage('generating')
     try {
       const result = await callGenerateAPI(
-        { idea: ideaToUse, ...(email ? { email } : {}) },
+        { idea: ideaToUse, ...(email ? { email } : {}), ...(brandTokens ? { brand_tokens: brandTokens } : {}) },
         (msg) => setGeneratingMessage(msg),
       )
       if ('error' in result) {
@@ -609,7 +673,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
       setGenerateError('Network error. Please try again.')
       setStage('idle')
     }
-  }, [email])
+  }, [email, brandTokens])
 
   const handleSubmitIdea = useCallback(async () => {
     if (stage !== 'idle' || isExtracting) return
@@ -700,6 +764,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
           supabaseSchema: spec.supabaseSchema,
           setupInstructions: spec.setupInstructions,
           try_mode: true,
+          ...(brandTokens ? { brand_tokens: brandTokens } : {}),
         }),
       })
       const data = await res.json() as { buildId?: string; error?: string }
@@ -736,7 +801,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
     setPreviewAttempt(nextAttempt)
     try {
       const result = await callGenerateAPI(
-        { idea: resolvedIdea || value.trim(), variationHint, attempt: nextAttempt, ...(email ? { email } : {}) },
+        { idea: resolvedIdea || value.trim(), variationHint, attempt: nextAttempt, ...(email ? { email } : {}), ...(brandTokens ? { brand_tokens: brandTokens } : {}) },
         () => { /* progress during regen — no visible indicator needed */ },
       )
       if ('error' in result) {
@@ -811,6 +876,122 @@ function NdevPanel({ locale }: { locale: Locale }) {
                 {value.length} character{value.length !== 1 ? 's' : ''}{value.length > 1000 ? ' — we\'ll focus your idea automatically' : ''}
               </p>
             )}
+            {/* ── Brand extraction (optional) ─────────────────────────── */}
+            <div style={{ margin: '8px 0 0' }}>
+              <button
+                type="button"
+                onClick={() => setBrandExpanded((v) => !v)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontFamily: 'DM Mono, monospace',
+                  fontSize: '12px',
+                  color: '#6b6862',
+                }}
+              >
+                <ChevronRight size={14} style={{ transform: brandExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 150ms ease' }} />
+                + Add your brand (optional)
+              </button>
+
+              {brandExpanded && (
+                <div style={{ display: 'flex', gap: '12px', marginTop: '10px', flexWrap: 'wrap' }}>
+                  {/* Website URL */}
+                  <div style={{ flex: '1 1 160px', minWidth: '140px' }}>
+                    <input
+                      type="text"
+                      value={brandUrl}
+                      onChange={(e) => { setBrandUrl(e.target.value); setBrandUrlDetected(false) }}
+                      onBlur={() => { void handleBrandUrlBlur() }}
+                      placeholder="yoursite.com"
+                      style={{
+                        width: '100%',
+                        fontFamily: 'DM Mono, monospace',
+                        fontSize: '12px',
+                        padding: '8px 10px',
+                        border: '1px solid #d8d4ca',
+                        borderRadius: '6px',
+                        background: '#f9f7f2',
+                        color: '#0e0d0b',
+                        outline: 'none',
+                      }}
+                      aria-label="Your website URL for brand extraction"
+                    />
+                    {brandLoading && !brandLogoFile && (
+                      <p style={{ margin: '4px 0 0', fontSize: '11px', fontFamily: 'DM Mono, monospace', color: '#a3a3a3' }}>Extracting brand…</p>
+                    )}
+                    {brandUrlDetected && (
+                      <p style={{ margin: '4px 0 0', fontSize: '11px', fontFamily: 'DM Mono, monospace', color: '#8ab800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {brandTokens?.primaryColor && (
+                          <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: brandTokens.primaryColor, border: '1px solid #d8d4ca', flexShrink: 0 }} />
+                        )}
+                        Brand detected
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Logo upload */}
+                  <div style={{ flex: '1 1 160px', minWidth: '140px' }}>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) void handleLogoUpload(file)
+                      }}
+                    />
+                    {!brandLogoPreview ? (
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          const file = e.dataTransfer.files[0]
+                          if (file && file.type.startsWith('image/')) void handleLogoUpload(file)
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          border: '1px dashed #d8d4ca',
+                          borderRadius: '6px',
+                          background: '#f9f7f2',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          fontFamily: 'DM Mono, monospace',
+                          fontSize: '12px',
+                          color: '#a3a3a3',
+                        }}
+                        aria-label="Upload logo image"
+                      >
+                        <Upload size={14} />
+                        Drop logo or click
+                      </button>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <img src={brandLogoPreview} alt="Logo preview" style={{ width: 28, height: 28, borderRadius: '4px', objectFit: 'contain', border: '1px solid #d8d4ca' }} />
+                        {brandLogoDetected && (
+                          <p style={{ margin: 0, fontSize: '11px', fontFamily: 'DM Mono, monospace', color: '#8ab800' }}>Brand detected</p>
+                        )}
+                        {brandLoading && brandLogoFile && (
+                          <p style={{ margin: 0, fontSize: '11px', fontFamily: 'DM Mono, monospace', color: '#a3a3a3' }}>Analyzing…</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {generateError && (
               <p className="ndev-email-err" role="alert">{generateError}</p>
             )}
