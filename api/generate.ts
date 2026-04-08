@@ -12,7 +12,7 @@ import { buildContentLayer } from './lib/content-strategy.js'
 import { UX_KNOWLEDGE_LAYER } from './lib/ux-knowledge.js'
 import { SYSTEM_PROMPT } from './_systemPrompt.js'
 import { resolveHeroImage } from './lib/images.js'
-import { buildCategoryBrief, formatCategoryBriefForPrompt } from './lib/categoryIntelligence.js'
+import { buildCategoryBrief, formatCategoryBriefForPrompt, detectIntent } from './lib/categoryIntelligence.js'
 import { MANDATORY_PAGES, MANDATORY_PAGES_ENFORCEMENT } from './lib/mandatoryPages.js'
 import { validateGenerated } from './lib/validateGenerated.js'
 
@@ -375,6 +375,18 @@ If not flagged, reason should be empty string.`,
       console.warn('[generate] category classification failed (non-fatal):', classifyErr instanceof Error ? classifyErr.message : String(classifyErr))
     }
 
+    // ── Step 1b: Detect intent — app vs landing vs both ─────────────────────
+    const intentType = detectIntent(userMessage)
+    let intentInjection = ''
+    if (intentType === 'app') {
+      intentInjection = '\n\nINTENT: Build the authenticated product, not the marketing landing page. The primary page the user lands on after this URL should be the main app interface (dashboard, feed, or core tool). Include a landing/login page as the entry point, but the majority of pages must be the product itself. Build ALL pages described in the idea — do not summarise them as future work.\n'
+    } else if (intentType === 'landing') {
+      intentInjection = '\n\nINTENT: Build the marketing landing page. Focus on conversion, social proof, and sign-up flow.\n'
+    } else {
+      intentInjection = '\n\nINTENT: Build both the marketing landing page AND the core authenticated product interface. Minimum pages: landing, sign-in, and the primary app dashboard or tool.\n'
+    }
+    console.log('[generate] intentType:', intentType)
+
     // ── Step 2: Research parity features for top 2 competitors ─────────────
     if (competitors.length > 0) {
       const topTwo = competitors.slice(0, 2)
@@ -582,7 +594,7 @@ Return only the image prompt text, nothing else. Max 100 words.`
 
     categoryBriefInjection = categoryBriefInjection.slice(0, 1500)
     competitiveContext = competitiveContext.slice(0, 500)
-    const finalUserMessage = categoryBriefInjection + designProfileInjection + mandatoryPagesInjection + brainWisdomInjection + userMessage + heroImageInjection + designSystemInjection.slice(0, 4000) + competitiveContext + contentLayer + uxLayer + a11yRules
+    const finalUserMessage = intentInjection + categoryBriefInjection + designProfileInjection + mandatoryPagesInjection + brainWisdomInjection + userMessage + heroImageInjection + designSystemInjection.slice(0, 4000) + competitiveContext + contentLayer + uxLayer + a11yRules
 
     const preProcessingMs = Date.now() - startedAt
     console.log('[generate] STREAM_OPEN pre_processing_ms:', preProcessingMs,

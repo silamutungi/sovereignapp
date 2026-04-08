@@ -1490,3 +1490,9 @@ Fix: three functions wired in one session:
   verifyDeployment → api/edit.ts (fire-and-forget, post-commit, non-fatal)
 Rule: before ending any session that creates a new api/lib/ function, run `grep -rn "functionName" api/ --include="*.ts"` and confirm at least two results (definition + call site). One result = dead code.
 Learned: 2026-04-07.
+
+**Intent detection: detailed app descriptions must generate the app, not the landing page**
+Wrong assumption: the generation prompt would infer from context that a founder describing an authenticated product with named pages, sidebar, tabs, and data components wants the product built — not a marketing site.
+Correct behaviour: without explicit intent signalling, the generator defaults to a landing page for every idea. Founders who describe dashboards, stat cards, feeds, and data tables get a hero section and pricing grid instead.
+Fix: `detectIntent(idea)` in `api/lib/categoryIntelligence.ts` scans the idea for APP_INTENT signals (dashboard, sidebar, tabs, charts, authenticated, etc.) vs LANDING_INTENT signals (hero, pricing, testimonials, waitlist). Returns `'app'` | `'landing'` | `'both'`. Injected as the first block in `finalUserMessage` in `api/generate.ts`. `'app'` intent forces dashboard-first generation. `'both'` (default when unclear) generates landing + app shell.
+Learned: 2026-04-07.

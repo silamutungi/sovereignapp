@@ -5,6 +5,35 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 })
 
+export type IntentType = 'app' | 'landing' | 'both'
+
+const APP_INTENT_SIGNALS = [
+  'dashboard', 'sidebar', 'nav items', 'tabs', 'cards', 'charts',
+  'logged-in', 'logged in', 'authenticated', 'admin', 'panel',
+  'feed', 'data table', 'settings', 'profile page', 'stat card',
+  'toggle', 'pie chart', 'bar chart', 'line chart', 'notifications',
+  'inbox', 'activity feed', 'kanban', 'calendar view', 'user list',
+]
+
+const LANDING_INTENT_SIGNALS = [
+  'hero section', 'pricing section', 'testimonials', 'waitlist',
+  'landing page', 'homepage', 'above the fold', 'call to action',
+  'social proof', 'feature grid', 'how it works',
+]
+
+export function detectIntent(idea: string): IntentType {
+  const lower = idea.toLowerCase()
+  const appHits = APP_INTENT_SIGNALS.filter((s) => lower.includes(s)).length
+  const landingHits = LANDING_INTENT_SIGNALS.filter((s) => lower.includes(s)).length
+
+  if (appHits >= 2 && landingHits === 0) return 'app'
+  if (landingHits >= 2 && appHits === 0) return 'landing'
+  if (appHits >= 1 && landingHits >= 1) return 'both'
+  // If the idea describes specific interior pages or UI components, it's an app
+  if (appHits >= 1) return 'app'
+  return 'both'
+}
+
 export type CategoryBrief = {
   category: string
   tableStakes: string[]
@@ -12,6 +41,7 @@ export type CategoryBrief = {
   avoidPatterns: string[]
   competitorNames: string[]
   designProfile: DesignProfile
+  intentType: IntentType
 }
 
 export async function buildCategoryBrief(
@@ -74,10 +104,11 @@ Keep each array to 2-3 items maximum. Be specific and actionable, not generic.`,
       cleaned = jsonMatch[0]
     }
 
-    const parsed = JSON.parse(cleaned) as Omit<CategoryBrief, 'designProfile'>
+    const parsed = JSON.parse(cleaned) as Omit<CategoryBrief, 'designProfile' | 'intentType'>
     return {
       ...parsed,
       designProfile: matchDesignProfile(parsed.category),
+      intentType: detectIntent(appIdea),
     }
   } catch (e) {
     console.error('[categoryIntelligence] failed, continuing without brief:', e)
