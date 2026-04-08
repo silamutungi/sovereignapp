@@ -1463,15 +1463,16 @@ export default async function handler(req: any, res: any): Promise<void> {
 
           if (deployResult.ok === false) {
             // ── Attempt Brain autofix before giving up ───────────────────
+            const deployError = deployResult.error
             console.log('[run-build] deploy failed — attempting autofix')
             await updateBuild(supabaseUrl, serviceKey, buildId, {
               status: 'fixing',
               step: 'Fixing a small issue…',
-              error: deployResult.error,
+              error: deployError,
             })
 
             const { result: fixResult } = await autofixBuild(
-              deployResult.error,
+              deployError,
               ghOwner,
               repoName,
               build.github_token,
@@ -1500,7 +1501,7 @@ export default async function handler(req: any, res: any): Promise<void> {
             } else {
               // Autofix skipped or failed — mark as error
               await updateBuild(supabaseUrl, serviceKey, buildId, {
-                status: 'error', step: 'Vercel deploy failed', error: deployResult.error,
+                status: 'error', step: 'Vercel deploy failed', error: deployError,
               })
               return
             }
