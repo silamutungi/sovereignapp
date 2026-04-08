@@ -1,3 +1,12 @@
+SUPERVISOR RULE — READ THIS FIRST:
+Run /project:integrity at the start of every session.
+Fix all failures before writing new code.
+No new features on a broken foundation.
+Supervisor cron runs daily at 9am UTC — check audit_log
+in Supabase for overnight alerts.
+
+---
+
 # VISILA SELF-IMPROVING SYSTEM
 
 Visila gets smarter with every session. This is not optional. This is how Visila stays ahead.
