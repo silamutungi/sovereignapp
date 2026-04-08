@@ -78,7 +78,7 @@ export default async function handler(req: any, res: any): Promise<void> {
   }
 
   // ── Helper: Insert audit_log entry ──────────────────────────────────────
-  async function logAlert(checkName: string, severity: string, message: string, metadata: Record<string, unknown>): Promise<void> {
+  async function logAlert(checkName: string, severity: string, _message: string, metadata: Record<string, unknown>): Promise<void> {
     try {
       await fetch(`${supabaseUrl}/rest/v1/audit_log`, {
         method: 'POST',
