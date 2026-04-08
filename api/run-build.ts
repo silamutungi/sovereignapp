@@ -1492,7 +1492,7 @@ export default async function handler(req: any, res: any): Promise<void> {
                 deployResult = retryResult
               } else {
                 // Autofix committed but build still fails
-                const retryError = retryResult.ok ? 'Unknown error' : retryResult.error
+                const retryError = retryResult.ok === false ? retryResult.error : 'Unknown error'
                 await updateBuild(supabaseUrl, serviceKey, buildId, {
                   status: 'error', step: 'Vercel deploy failed after autofix', error: retryError,
                 })
