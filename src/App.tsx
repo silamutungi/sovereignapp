@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, type KeyboardEvent, type FormEvent, type RefObject } from 'react'
-import { Menu, X, Lock, ChevronRight, Upload } from 'lucide-react'
+import { Menu, X, Lock, ChevronRight, Upload, FileText } from 'lucide-react'
 import { t, type Locale } from './lib/i18n'
 import VisilaLogo from './components/VisilaLogo'
 import './styles/global.css'
@@ -573,15 +573,35 @@ function NdevPanel({ locale }: { locale: Locale }) {
     fontFamily?: string
     logoUrl?: string
     tone?: string
+    brandVoice?: string
     sourceUrl: string
   } | null>(null)
   const [brandLoading, setBrandLoading] = useState(false)
   const [brandUrl, setBrandUrl] = useState('')
-  const [brandLogoFile, setBrandLogoFile] = useState<File | null>(null)
-  const [brandLogoPreview, setBrandLogoPreview] = useState<string | null>(null)
+  const [brandFigmaUrl, setBrandFigmaUrl] = useState('')
+  const [brandFigmaDetected, setBrandFigmaDetected] = useState(false)
+  const [brandFiles, setBrandFiles] = useState<{ file: File; preview: string | null; type: 'logo' | 'pdf' | 'screenshot' }[]>([])
   const [brandUrlDetected, setBrandUrlDetected] = useState(false)
   const [brandLogoDetected, setBrandLogoDetected] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const mergeBrandTokens = useCallback((incoming: typeof brandTokens) => {
+    if (!incoming) return
+    setBrandTokens((prev) => {
+      if (!prev) return incoming
+      return {
+        ...prev,
+        primaryColor: prev.primaryColor || incoming.primaryColor,
+        secondaryColor: prev.secondaryColor ?? incoming.secondaryColor,
+        backgroundColor: prev.backgroundColor ?? incoming.backgroundColor,
+        fontFamily: prev.fontFamily ?? incoming.fontFamily,
+        logoUrl: prev.logoUrl ?? incoming.logoUrl,
+        tone: prev.tone ?? incoming.tone,
+        brandVoice: prev.brandVoice ?? incoming.brandVoice,
+        sourceUrl: prev.sourceUrl,
+      }
+    })
+  }, [])
 
   const handleBrandUrlBlur = useCallback(async () => {
     const trimmed = brandUrl.trim()
@@ -597,35 +617,90 @@ function NdevPanel({ locale }: { locale: Locale }) {
       if (!res.ok) { setBrandLoading(false); return }
       const data = await res.json() as { tokens: typeof brandTokens }
       if (data.tokens) {
-        setBrandTokens((prev) => ({ ...data.tokens!, ...(prev?.sourceUrl === 'logo-upload' ? prev : {}) }))
+        mergeBrandTokens(data.tokens)
         setBrandUrlDetected(true)
       }
     } catch { /* non-fatal */ }
     setBrandLoading(false)
-  }, [brandUrl])
+  }, [brandUrl, mergeBrandTokens])
 
-  const handleLogoUpload = useCallback(async (file: File) => {
-    if (file.size > 2 * 1024 * 1024) return // 2MB max
-    setBrandLogoFile(file)
-    setBrandLogoPreview(URL.createObjectURL(file))
+  const handleFigmaUrlBlur = useCallback(async () => {
+    const trimmed = brandFigmaUrl.trim()
+    if (!trimmed || !/figma\.com\/(?:file|design)\//.test(trimmed)) return
     setBrandLoading(true)
-    setBrandLogoDetected(false)
+    setBrandFigmaDetected(false)
     try {
-      const buffer = await file.arrayBuffer()
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)))
       const res = await fetch('/api/extract-brand', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ logoBase64: base64, mimeType: file.type }),
+        body: JSON.stringify({ figmaUrl: trimmed }),
       })
       if (!res.ok) { setBrandLoading(false); return }
       const data = await res.json() as { tokens: typeof brandTokens }
       if (data.tokens) {
-        setBrandTokens((prev) => ({ ...(prev ?? {}), ...data.tokens! }))
+        mergeBrandTokens(data.tokens)
+        setBrandFigmaDetected(true)
+      }
+    } catch { /* non-fatal */ }
+    setBrandLoading(false)
+  }, [brandFigmaUrl, mergeBrandTokens])
+
+  const handleBrandFileUpload = useCallback(async (file: File) => {
+    if (file.size > 10 * 1024 * 1024) return // 10MB max
+    if (brandFiles.length >= 3) return // max 3 files
+
+    const isPdf = file.type === 'application/pdf'
+    const isImage = file.type.startsWith('image/')
+    if (!isPdf && !isImage) return
+
+    // Classify: logo if image and no logo yet, otherwise screenshot
+    const hasLogo = brandFiles.some((f) => f.type === 'logo')
+    const fileType: 'logo' | 'pdf' | 'screenshot' = isPdf ? 'pdf' : (!hasLogo ? 'logo' : 'screenshot')
+    const preview = isImage ? URL.createObjectURL(file) : null
+
+    setBrandFiles((prev) => [...prev, { file, preview, type: fileType }])
+    setBrandLoading(true)
+    setBrandLogoDetected(false)
+
+    try {
+      const buffer = await file.arrayBuffer()
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)))
+
+      // Build request payload based on file type
+      const payload: Record<string, string> = {}
+      if (isPdf) {
+        payload.pdfBase64 = base64
+      } else if (fileType === 'logo') {
+        payload.logoBase64 = base64
+        payload.mimeType = file.type
+      } else {
+        payload.screenshotBase64 = base64
+        payload.screenshotMimeType = file.type
+      }
+
+      const res = await fetch('/api/extract-brand', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) { setBrandLoading(false); return }
+      const data = await res.json() as { tokens: typeof brandTokens }
+      if (data.tokens) {
+        mergeBrandTokens(data.tokens)
         setBrandLogoDetected(true)
       }
     } catch { /* non-fatal */ }
     setBrandLoading(false)
+  }, [brandFiles, mergeBrandTokens])
+
+  const handleClearBrand = useCallback(() => {
+    setBrandTokens(null)
+    setBrandUrl('')
+    setBrandFigmaUrl('')
+    setBrandFiles([])
+    setBrandUrlDetected(false)
+    setBrandFigmaDetected(false)
+    setBrandLogoDetected(false)
   }, [])
 
   // Auto-resize the idea textarea whenever value changes (handles chip clicks too)
@@ -890,8 +965,9 @@ function NdevPanel({ locale }: { locale: Locale }) {
                   alignItems: 'center',
                   gap: '4px',
                   fontFamily: 'DM Mono, monospace',
-                  fontSize: '12px',
-                  color: '#6b6862',
+                  fontSize: '13px',
+                  color: '#6B7280',
+                  marginBottom: brandExpanded ? '24px' : '16px',
                 }}
               >
                 <ChevronRight size={14} style={{ transform: brandExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 150ms ease' }} />
@@ -899,9 +975,10 @@ function NdevPanel({ locale }: { locale: Locale }) {
               </button>
 
               {brandExpanded && (
-                <div style={{ display: 'flex', gap: '12px', marginTop: '10px', flexWrap: 'wrap' }}>
-                  {/* Website URL */}
-                  <div style={{ flex: '1 1 160px', minWidth: '140px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {/* INPUT 1 — Website URL */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontFamily: 'DM Mono, monospace', color: '#6B7280', marginBottom: '4px' }}>Your website</label>
                     <input
                       type="text"
                       value={brandUrl}
@@ -921,73 +998,165 @@ function NdevPanel({ locale }: { locale: Locale }) {
                       }}
                       aria-label="Your website URL for brand extraction"
                     />
-                    {brandLoading && !brandLogoFile && (
+                    {brandLoading && !brandFigmaUrl && brandFiles.length === 0 && !brandUrlDetected && (
                       <p style={{ margin: '4px 0 0', fontSize: '11px', fontFamily: 'DM Mono, monospace', color: '#a3a3a3' }}>Extracting brand…</p>
                     )}
                     {brandUrlDetected && (
-                      <p style={{ margin: '4px 0 0', fontSize: '11px', fontFamily: 'DM Mono, monospace', color: '#8ab800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {brandTokens?.primaryColor && (
-                          <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: brandTokens.primaryColor, border: '1px solid #d8d4ca', flexShrink: 0 }} />
-                        )}
-                        Brand detected
-                      </p>
+                      <p style={{ margin: '4px 0 0', fontSize: '11px', fontFamily: 'DM Mono, monospace', color: '#8ab800' }}>Brand detected ✓</p>
                     )}
                   </div>
 
-                  {/* Logo upload */}
-                  <div style={{ flex: '1 1 160px', minWidth: '140px' }}>
+                  {/* INPUT 2 — Figma file URL */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontFamily: 'DM Mono, monospace', color: '#6B7280', marginBottom: '4px' }}>Figma file URL</label>
+                    <input
+                      type="text"
+                      value={brandFigmaUrl}
+                      onChange={(e) => { setBrandFigmaUrl(e.target.value); setBrandFigmaDetected(false) }}
+                      onBlur={() => { void handleFigmaUrlBlur() }}
+                      placeholder="figma.com/file/..."
+                      style={{
+                        width: '100%',
+                        fontFamily: 'DM Mono, monospace',
+                        fontSize: '12px',
+                        padding: '8px 10px',
+                        border: '1px solid #d8d4ca',
+                        borderRadius: '6px',
+                        background: '#f9f7f2',
+                        color: '#0e0d0b',
+                        outline: 'none',
+                      }}
+                      aria-label="Figma file URL for brand extraction"
+                    />
+                    {brandLoading && brandFigmaUrl && !brandFigmaDetected && (
+                      <p style={{ margin: '4px 0 0', fontSize: '11px', fontFamily: 'DM Mono, monospace', color: '#a3a3a3' }}>Extracting from Figma…</p>
+                    )}
+                    {brandFigmaDetected && (
+                      <p style={{ margin: '4px 0 0', fontSize: '11px', fontFamily: 'DM Mono, monospace', color: '#8ab800' }}>Brand detected ✓</p>
+                    )}
+                  </div>
+
+                  {/* INPUT 3 — File upload drop zone (multi-file) */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontFamily: 'DM Mono, monospace', color: '#6B7280', marginBottom: '2px' }}>Upload brand assets</label>
+                    <p style={{ margin: '0 0 6px', fontSize: '13px', fontFamily: 'DM Mono, monospace', color: '#9CA3AF' }}>Logo, brand guide PDF, or screenshot of your existing app</p>
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml,application/pdf"
                       style={{ display: 'none' }}
                       onChange={(e) => {
                         const file = e.target.files?.[0]
-                        if (file) void handleLogoUpload(file)
+                        if (file) void handleBrandFileUpload(file)
+                        if (fileInputRef.current) fileInputRef.current.value = ''
                       }}
                     />
-                    {!brandLogoPreview ? (
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
-                        onDrop={(e) => {
-                          e.preventDefault()
-                          const file = e.dataTransfer.files[0]
-                          if (file && file.type.startsWith('image/')) void handleLogoUpload(file)
-                        }}
-                        style={{
-                          width: '100%',
-                          padding: '8px 10px',
-                          border: '1px dashed #d8d4ca',
-                          borderRadius: '6px',
-                          background: '#f9f7f2',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          fontFamily: 'DM Mono, monospace',
-                          fontSize: '12px',
-                          color: '#a3a3a3',
-                        }}
-                        aria-label="Upload logo image"
-                      >
-                        <Upload size={14} />
-                        Drop logo or click
-                      </button>
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <img src={brandLogoPreview} alt="Logo preview" style={{ width: 28, height: 28, borderRadius: '4px', objectFit: 'contain', border: '1px solid #d8d4ca' }} />
-                        {brandLogoDetected && (
-                          <p style={{ margin: 0, fontSize: '11px', fontFamily: 'DM Mono, monospace', color: '#8ab800' }}>Brand detected</p>
-                        )}
-                        {brandLoading && brandLogoFile && (
-                          <p style={{ margin: 0, fontSize: '11px', fontFamily: 'DM Mono, monospace', color: '#a3a3a3' }}>Analyzing…</p>
-                        )}
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        const file = e.dataTransfer.files[0]
+                        if (file) void handleBrandFileUpload(file)
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '12px 10px',
+                        border: '1px dashed #d8d4ca',
+                        borderRadius: '6px',
+                        background: '#f9f7f2',
+                        cursor: brandFiles.length >= 3 ? 'default' : 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '2px',
+                        opacity: brandFiles.length >= 3 ? 0.5 : 1,
+                      }}
+                      disabled={brandFiles.length >= 3}
+                      aria-label="Upload brand assets"
+                    >
+                      <Upload size={16} style={{ color: '#9CA3AF' }} />
+                      <span style={{ fontFamily: 'DM Mono, monospace', fontSize: '12px', color: '#6B7280' }}>Drop files here</span>
+                      <span style={{ fontFamily: 'DM Mono, monospace', fontSize: '13px', color: '#9CA3AF' }}>or click to browse</span>
+                    </button>
+
+                    {/* Uploaded file thumbnails */}
+                    {brandFiles.length > 0 && (
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                        {brandFiles.map((bf, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 8px', background: '#f9f7f2', borderRadius: '4px', border: '1px solid #d8d4ca' }}>
+                            {bf.preview ? (
+                              <img src={bf.preview} alt={bf.type} style={{ width: 24, height: 24, borderRadius: '3px', objectFit: 'contain' }} />
+                            ) : (
+                              <FileText size={16} style={{ color: '#6B7280' }} />
+                            )}
+                            <span style={{ fontSize: '11px', fontFamily: 'DM Mono, monospace', color: '#6B7280' }}>
+                              {bf.file.name.length > 20 ? bf.file.name.slice(0, 17) + '...' : bf.file.name}
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     )}
+
+                    {brandLoading && brandFiles.length > 0 && !brandLogoDetected && (
+                      <p style={{ margin: '4px 0 0', fontSize: '11px', fontFamily: 'DM Mono, monospace', color: '#a3a3a3' }}>Analyzing…</p>
+                    )}
+                    {brandLogoDetected && (
+                      <p style={{ margin: '4px 0 0', fontSize: '11px', fontFamily: 'DM Mono, monospace', color: '#8ab800' }}>Brand detected ✓</p>
+                    )}
                   </div>
+
+                  {/* DETECTED BRAND PREVIEW */}
+                  {brandTokens && (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '8px 12px',
+                      background: '#f9f7f2',
+                      borderRadius: '6px',
+                      border: '1px solid #d8d4ca',
+                      flexWrap: 'wrap',
+                    }}>
+                      {brandTokens.primaryColor && (
+                        <span style={{ display: 'inline-block', width: 16, height: 16, borderRadius: '50%', background: brandTokens.primaryColor, border: '1px solid #d8d4ca', flexShrink: 0 }} />
+                      )}
+                      {brandTokens.fontFamily && (
+                        <span style={{ fontSize: '11px', fontFamily: 'DM Mono, monospace', color: '#6B7280' }}>{brandTokens.fontFamily}</span>
+                      )}
+                      {brandTokens.tone && (
+                        <span style={{
+                          fontSize: '10px',
+                          fontFamily: 'DM Mono, monospace',
+                          color: '#6B7280',
+                          background: '#e5e7eb',
+                          padding: '2px 6px',
+                          borderRadius: '3px',
+                          textTransform: 'capitalize',
+                        }}>
+                          {brandTokens.tone}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleClearBrand}
+                        style={{
+                          marginLeft: 'auto',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '2px',
+                          display: 'flex',
+                          alignItems: 'center',
+                        }}
+                        aria-label="Clear brand"
+                      >
+                        <X size={14} style={{ color: '#9CA3AF' }} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

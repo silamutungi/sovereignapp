@@ -1512,6 +1512,15 @@ Correct behaviour: without `manualChunks`, Vite bundles everything into one 833K
 Fix: vite.config.ts KEY FILE CONTRACT in `_systemPrompt.ts` now requires `build.rollupOptions.output.manualChunks` splitting vendor (react stack), ui (lucide-react), and charts (recharts, if present) into separate chunks. `chunkSizeWarningLimit: 600` suppresses the warning for the vendor chunk which legitimately reaches ~500KB.
 Learned: 2026-04-07.
 
-**Brand extraction: URL scrape + logo upload → design token override in generation**
-`extractBrandFromUrl` (api/lib/extractBrandFromUrl.ts) scrapes CSS custom properties → meta theme-color → most-repeated hex → Google Fonts link → logo img/favicon. 8s timeout, never throws, returns BrandTokens | null. `extractBrandFromLogo` (api/lib/extractBrandFromLogo.ts) sends base64 image to Haiku vision for color/tone analysis, returns BrandTokens | null. Both wired through POST /api/extract-brand (api/extract-brand.ts, maxDuration=15, 30/hr rate limit). Brand tokens injected into generation prompt after design profile, before mandatory pages — max ~300 chars. Stored as brand_tokens JSONB on builds row via start-build.ts. UI: collapsible inline section on idea screen (NdevPanel in src/App.tsx), URL field blur-triggered, logo drop zone with 2MB limit, color swatch preview on detection. Migration required: `ALTER TABLE builds ADD COLUMN IF NOT EXISTS brand_tokens JSONB DEFAULT NULL;`
-Learned: 2026-04-07.
+**Brand extraction expanded to 5 inputs — all produce BrandTokens**
+Five brand input types, all wired through POST /api/extract-brand (maxDuration=15, 30/hr rate limit):
+1. Website URL (api/lib/extractBrandFromUrl.ts) — CSS scrape: custom properties → meta theme-color → most-repeated hex → Google Fonts → logo/favicon. 8s timeout.
+2. Figma file URL (api/lib/extractBrandFromFigma.ts) — Figma REST API: reads color styles (FILL) and text styles (TEXT) via /v1/files/{key}/styles + /v1/files/{key}/nodes. Requires FIGMA_ACCESS_TOKEN env var.
+3. Logo image (api/lib/extractBrandFromLogo.ts) — Haiku vision: base64 image → color/tone analysis.
+4. Brand guide PDF (api/lib/extractBrandFromPdf.ts) — Sonnet vision: PDF document → brand tokens + brandVoice extraction.
+5. Screenshot (reuses extractBrandFromLogo) — Haiku vision on app screenshot.
+Merge priority (highest first): logo → figma → url → pdf → screenshot. Each source fills missing fields only.
+brandVoice field added to BrandTokens — injected as tone instruction in generation prompt.
+UI: collapsible multi-input panel in NdevPanel (src/App.tsx). URL + Figma URL are blur-triggered. File drop zone accepts images + PDFs up to 10MB, max 3 files. Detected brand preview row with color swatch, font name, tone badge, and clear button.
+FIGMA_ACCESS_TOKEN must be added to Vercel env vars.
+Learned: 2026-04-08.

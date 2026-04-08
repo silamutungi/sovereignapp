@@ -601,7 +601,7 @@ Return only the image prompt text, nothing else. Max 100 words.`
     // ── Brand token injection (founder's existing brand) ──────────────────────
     let brandInjection = ''
     if (brandTokensRaw && typeof brandTokensRaw === 'object' && brandTokensRaw.primaryColor) {
-      const bt = brandTokensRaw as { primaryColor: string; secondaryColor?: string; backgroundColor?: string; fontFamily?: string; tone?: string }
+      const bt = brandTokensRaw as { primaryColor: string; secondaryColor?: string; backgroundColor?: string; fontFamily?: string; tone?: string; brandVoice?: string }
       brandInjection = '\n\nBRAND TOKENS — OVERRIDE DESIGN SYSTEM\n' +
         'The founder has an existing brand. Use these exact values.\n' +
         'These override all default color and font decisions.\n' +
@@ -610,6 +610,7 @@ Return only the image prompt text, nothing else. Max 100 words.`
         (bt.backgroundColor ? `Background: ${bt.backgroundColor}\n` : '') +
         (bt.fontFamily ? `Font family: ${bt.fontFamily} — import from Google Fonts\n` : '') +
         `Tone: ${bt.tone ?? 'professional'}\n` +
+        (bt.brandVoice ? `Brand voice: ${bt.brandVoice} — match this tone throughout.\n` : '') +
         'Rules:\n' +
         '- Use primaryColor as the main accent throughout\n' +
         '- All CSS custom properties must reference these values\n' +

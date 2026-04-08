@@ -12,6 +12,7 @@ export interface BrandTokens {
   fontFamily?: string
   logoUrl?: string
   tone?: 'minimal' | 'bold' | 'playful' | 'professional'
+  brandVoice?: string
   sourceUrl: string
 }
 
