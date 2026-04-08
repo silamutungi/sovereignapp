@@ -362,6 +362,34 @@ Every generated app is classified as SIMPLE, STANDARD, or COMPLEX based on the i
 
 The authoritative quality reference is **VISILA_STANDARDS.md** in the repo root. It defines all 14 expert standards, the tier activation rules, and the quality bar checklist. When adding new standards or updating generation prompts, update both VISILA_STANDARDS.md and api/_systemPrompt.ts in the same session — they must stay in sync.
 
+## Product Principles
+
+### The Founder's Time Rule
+**Never ask the customer something Visila could do on their behalf.**
+
+Every prompt, error message, or manual step shown to a customer is a product failure. Before shipping any feature, apply this test:
+
+"If a world-class engineer sat next to this founder, would they ask this question — or would they just handle it quietly?"
+
+If the answer is "just handle it" — automate it.
+
+**Applied examples:**
+- Build error → Brain detects, fixes, redeploys. Customer sees: "We made a small adjustment. Your app is ready."
+- Unused import → auto-removed before deploy, never surfaced.
+- Supabase provisioning → Visila does it. Customer never sees a token, a project ID, or a SQL editor.
+- Network timeout → generation runs in background, customer gets email when done. Never sees "please try again."
+- Category selection → classified from idea description. Never asked.
+- Migration → run automatically at build time. Never manual.
+- SSO protection → disabled immediately after provisioning. Customer never hits a login wall.
+
+**The standard:**
+Visila is a co-founder, not a form. Co-founders handle complexity so their partner doesn't have to.
+
+**Every new feature must pass this test before shipping:**
+1. Does this require the customer to do something?
+2. Could Visila do it instead?
+3. If yes to both — automate it. Ship the automation, not the prompt.
+
 ## Hard-Won Lessons
 
 STANDING RULE: Every time a bug is fixed, a wrong assumption is corrected, or an API behaves differently than expected — add it here immediately in the same session. Do not wait. The lesson is most accurate right after the fix. Format: bold title, what went wrong, what the fix was, date learned.
@@ -1446,3 +1474,19 @@ Learned: 2026-04-03.
 Built once at generation time via indexComponents(), re-indexed per-file after every edit via reindexFiles(). Both functions in api/lib/componentIndex.ts. Never throws — non-fatal to build and edit pipelines. Injected into the Haiku file-identification prompt in api/edit.ts so Brain can match user descriptions against component names and visible_text. Foundation for screenshot vision layer.
 Migration: api/migrations/add_component_index.sql — run in Supabase SQL Editor before deploying.
 Learned: 2026-04-03.
+
+**Edit engine unified into single 3-step flow — dual-path NEW_PAGE/FILE_EDIT removed**
+Wrong assumption: a regex-based NEW_PAGE pattern match and a separate single-file fallback path were reliable for handling different edit types.
+Correct behaviour: all edits use one flow: (1) Haiku classifier identifies existing files (`relevant_files`) AND new files to create (`create_files`), (2) Sonnet edits/creates all files in one call returning JSON `{ files }`, (3) Git Trees API atomic commit with per-file zero-change detection. The classifier's `create_files` array enables new pages without a separate code path. Never use individual PUT /contents calls for multi-file edits — race conditions and missing sha errors. Zero-change detection compares each returned file to its original content; only actually-changed files are committed. If zero files changed, the response returns `{ ok: false, changed: false }` instead of a silent 200.
+Fix: removed ~240 lines of dead code (NEW_PAGE_PATTERN regex, single-file fallback with CANDIDATE_FILES loop, separate Sonnet prompt for single files). Single unified `executionPrompt` handles all instruction types including new pages. `max_tokens` raised from 8000 to 12000 to accommodate multi-file returns.
+Learned: 2026-04-07.
+
+**Wiring rule: every api/lib function must be called in the live request path before the session ends**
+Wrong assumption: defining a function in api/lib/ and exporting it is sufficient — it will be wired later.
+Correct behaviour: an exported function with zero call sites is dead code. It ships but never runs. Proof of wiring = grep returns a result in the calling file. No grep result = not shipped.
+Fix: three functions wired in one session:
+  validateGenerated → api/generate.ts (pre-commit, static analysis, <100ms)
+  brainHint → api/edit.ts (fire-and-forget, post-commit, non-fatal)
+  verifyDeployment → api/edit.ts (fire-and-forget, post-commit, non-fatal)
+Rule: before ending any session that creates a new api/lib/ function, run `grep -rn "functionName" api/ --include="*.ts"` and confirm at least two results (definition + call site). One result = dead code.
+Learned: 2026-04-07.

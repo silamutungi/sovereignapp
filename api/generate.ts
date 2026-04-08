@@ -14,6 +14,7 @@ import { SYSTEM_PROMPT } from './_systemPrompt.js'
 import { resolveHeroImage } from './lib/images.js'
 import { buildCategoryBrief, formatCategoryBriefForPrompt } from './lib/categoryIntelligence.js'
 import { MANDATORY_PAGES, MANDATORY_PAGES_ENFORCEMENT } from './lib/mandatoryPages.js'
+import { validateGenerated } from './lib/validateGenerated.js'
 
 // Model constants — change here to swap models across the file
 // MODEL_GENERATION: multi-file React app codegen (18+ files, structured tool call)
@@ -780,6 +781,15 @@ Return only the image prompt text, nothing else. Max 100 words.`
       await sendEvent({ type: 'error', error: `files array missing or empty — stop_reason: ${message.stop_reason}, output_tokens: ${message.usage.output_tokens}` })
       endStream()
       return
+    }
+
+    // Pre-commit validation — static analysis, no AI, <100ms
+    const fileMap: Record<string, string> = {}
+    for (const f of spec.files) fileMap[f.path] = f.content
+    const { files: correctedMap, fixes } = validateGenerated(fileMap)
+    if (fixes.length > 0) {
+      for (const fix of fixes) console.log('[generate] validateGenerated:', fix)
+      spec.files = spec.files.map((f) => ({ ...f, content: correctedMap[f.path] ?? f.content }))
     }
 
     const donePayload = {

@@ -2,15 +2,12 @@
 //
 // POST /api/edit
 // Body: { buildId, appName, repoUrl, editRequest }
-// Returns: { ok: true, brain_followup? } immediately after triggering redeploy.
+// Returns: { ok: true, changed, changedFiles[], commitSha } after triggering redeploy.
 //
-// Two edit modes:
-//   NEW_PAGE  — instruction matches "add/create/build/make X page|section|screen"
-//               → reads router + nav + pages list from GitHub, generates all
-//                 changed files atomically via one Claude call, commits via
-//                 GitHub Trees API (one atomic commit, no conflicts).
-//   FILE_EDIT — all other instructions
-//               → detects and edits a single file (Home.tsx → App.tsx → index.html)
+// Unified 3-step flow (all instruction types):
+//   1. Haiku classifier — identifies existing files to edit + new files to create
+//   2. Sonnet execution — edits/creates all files in one call, returns JSON { files }
+//   3. Atomic commit — Git Trees API, single commit, zero-change detection
 //
 // Status resolution happens in build-status.ts.
 //
@@ -48,13 +45,11 @@ function getSupabase() {
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
-// Matches: "add a pricing page", "create a contact section", "build an about screen"
-const NEW_PAGE_PATTERN = /\b(add|create|build|make)\s+(?:a\s+|an\s+)?(\w+)\s+(?:page|section|screen)\b/i
-
 // ── Classifier result type ──────────────────────────────────────────────────
 interface ClassifierResult {
   instruction_type: string
   relevant_files: string[]
+  create_files: string[]
   atomic_requirements: string[]
   risk: string
   risk_reason: string
@@ -262,6 +257,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     let classifierResult: ClassifierResult = {
       instruction_type: 'style_change',
       relevant_files: [],
+      create_files: [],
       atomic_requirements: [editRequest],
       risk: 'medium',
       risk_reason: 'Classifier did not run.',
@@ -285,6 +281,7 @@ TASK — return a single JSON object with these exact keys:
 {
   "instruction_type": one of ["style_change", "content_change", "feature_add", "new_page", "schema_change", "bug_fix", "layout_change", "multi_system"],
   "relevant_files": [],
+  "create_files": [],
   "atomic_requirements": [],
   "risk": "low" | "medium" | "high",
   "risk_reason": "one sentence",
@@ -292,7 +289,15 @@ TASK — return a single JSON object with these exact keys:
   "plan_summary": "One plain-English sentence describing what will change and why."
 }
 
-relevant_files: Array of file paths from the tree that need to be READ or EDITED. Max 6. Include the router file if instruction_type is "new_page". Include the nav component if navigation changes are needed. Be precise — wrong file selection is the #1 cause of silent failures. Use the COMPONENT INDEX above (if present) to match the user's description against component names and visible_text — this gives you exact file paths and line numbers.
+relevant_files: Array of EXISTING file paths from the tree that need to be READ or EDITED. Max 6. Include the router file if instruction_type is "new_page". Include the nav component if navigation changes are needed. Be precise — wrong file selection is the #1 cause of silent failures. Use the COMPONENT INDEX above (if present) to match the user's description against component names and visible_text — this gives you exact file paths and line numbers. Every path here MUST exist in the file tree above.
+
+create_files: Array of NEW file paths that need to be CREATED. These do NOT exist in the tree yet. Use this for new pages, new components, new utilities. Example for "add a pricing page": ["src/pages/Pricing.tsx"]. Leave empty if no new files are needed.
+
+CRITICAL — new page detection:
+If the instruction asks to add a new page or route (e.g. "add a pricing page", "create an about page"), you MUST:
+- Add the new page file to create_files (e.g. "src/pages/Pricing.tsx")
+- Add the router file to relevant_files (e.g. src/App.tsx or whichever exists in the tree)
+- Add the nav/header component to relevant_files (e.g. src/components/Nav.tsx or src/components/Navbar.tsx — whichever exists)
 
 atomic_requirements: Array of ALL changes required for this instruction to work end-to-end. Example for "new_page": ["create src/pages/Pricing.tsx", "add route in src/App.tsx", "add nav link in src/components/Nav.tsx"]. Every item must be actionable. Nothing vague.
 
@@ -328,6 +333,9 @@ RULES:
         relevant_files: Array.isArray(parsed.relevant_files)
           ? (parsed.relevant_files as unknown[]).filter((f): f is string => typeof f === 'string' && fileTree.includes(f)).slice(0, 6)
           : [],
+        create_files: Array.isArray(parsed.create_files)
+          ? (parsed.create_files as unknown[]).filter((f): f is string => typeof f === 'string' && !fileTree.includes(f)).slice(0, 4)
+          : [],
         atomic_requirements: Array.isArray(parsed.atomic_requirements)
           ? (parsed.atomic_requirements as unknown[]).filter((r): r is string => typeof r === 'string').slice(0, 8)
           : [editRequest],
@@ -339,7 +347,7 @@ RULES:
         plan_summary: typeof parsed.plan_summary === 'string' ? parsed.plan_summary : 'Apply the requested change.',
       }
 
-      console.log(`[edit] classifier — type:${classifierResult.instruction_type} risk:${classifierResult.risk} files:${classifierResult.relevant_files.length} reqs:${classifierResult.atomic_requirements.length}`)
+      console.log(`[edit] classifier — type:${classifierResult.instruction_type} risk:${classifierResult.risk} existing:${classifierResult.relevant_files.length} create:${classifierResult.create_files.length} reqs:${classifierResult.atomic_requirements.length}`)
     } catch (classErr) {
       console.warn('[edit] classifier failed (using defaults):', classErr)
     }
@@ -350,7 +358,7 @@ RULES:
       res.status(200).json({
         plan: {
           summary: classifierResult.plan_summary,
-          files: classifierResult.relevant_files,
+          files: [...classifierResult.relevant_files, ...classifierResult.create_files.map((f) => `[NEW] ${f}`)],
           changes: classifierResult.atomic_requirements.map((r) => {
             const fileMatch = r.match(/(?:in |update |create |add .* in )(src\/\S+)/)
             return { file: fileMatch?.[1] ?? '', what: r }
@@ -486,155 +494,24 @@ RULES:
       // Non-fatal — proceed without lesson context
     }
 
-    // ── Detect edit mode ─────────────────────────────────────────────────────
-    const isNewPage = NEW_PAGE_PATTERN.test(editRequest)
     let brainFollowup: string | null = null
     let commitSha: string | null = null
     let editConfidence: string | null = null
     let editValidationResults: Array<{ check: string; passed: boolean; note?: string }> | null = null
+    let committedPaths: string[] = []
 
     // ════════════════════════════════════════════════════════════════════════
-    // NEW_PAGE PATH
+    // UNIFIED MULTI-FILE EDIT — single path for all instruction types
+    // Step 1: Classifier already identified relevant_files + create_files
+    // Step 2: Fetch content of all identified files
+    // Step 3: Sonnet edits all files in one call
+    // Step 4: Compare originals vs new → filter to actual changes
+    // Step 5: Atomic commit via Git Trees API
     // ════════════════════════════════════════════════════════════════════════
-    if (isNewPage) {
-      console.log('[edit] NEW_PAGE detected:', editRequest)
+    {
+      console.log('[edit] unified path — type:', classifierResult.instruction_type, new Date().toISOString())
 
-      const pageMatch = editRequest.match(NEW_PAGE_PATTERN)
-      const pageName = pageMatch
-        ? pageMatch[2].charAt(0).toUpperCase() + pageMatch[2].slice(1).toLowerCase()
-        : 'New'
-
-      // Fetch router file (try candidates in order)
-      const ROUTER_CANDIDATES = ['src/App.tsx', 'src/router.tsx', 'src/routes.tsx']
-      let routerFile: { content: string; sha: string; path: string } | null = null
-      for (const c of ROUTER_CANDIDATES) {
-        routerFile = await fetchGitHubFile(c)
-        if (routerFile) break
-      }
-
-      // Fetch nav file (try candidates in order)
-      const NAV_CANDIDATES = ['src/components/Nav.tsx', 'src/components/Navbar.tsx', 'src/components/Header.tsx']
-      let navFile: { content: string; sha: string; path: string } | null = null
-      for (const c of NAV_CANDIDATES) {
-        navFile = await fetchGitHubFile(c)
-        if (navFile) break
-      }
-
-      // List existing pages
-      let existingPages: string[] = []
-      try {
-        const pagesRes = await fetch(
-          `https://api.github.com/repos/${repoPath}/contents/src/pages`,
-          { headers: ghHeaders },
-        )
-        if (pagesRes.ok) {
-          const pagesData = await pagesRes.json() as Array<{ name: string }>
-          existingPages = pagesData.map((f) => f.name)
-        }
-      } catch { /* non-fatal */ }
-
-      await setBuildStatus('building', 'Generating new page…')
-
-      const newPagePrompt = `You are Visila's world-class engineering agent. Add a new "${pageName}" page to this React app.
-
-User instruction: "${editRequest}"
-
-Router file (${routerFile?.path ?? 'src/App.tsx'}):
-${routerFile?.content ?? '(not found — generate a minimal router that includes the new route)'}
-
-Nav file (${navFile?.path ?? 'not found'}):
-${navFile?.content ?? '(not found — set nav_update to null in your response)'}
-
-Existing pages in src/pages/: ${existingPages.length > 0 ? existingPages.join(', ') : '(none)'}
-${editLessonContext}
-
-Return ONLY a raw JSON object — no markdown fences, no preamble, no trailing text. First character must be { and last must be }:
-{
-  "new_page": {
-    "path": "src/pages/${pageName}.tsx",
-    "content": "<complete TypeScript/JSX file>"
-  },
-  "router_update": {
-    "path": "${routerFile?.path ?? 'src/App.tsx'}",
-    "content": "<complete updated router file with new import and Route>"
-  },
-  "nav_update": ${navFile ? `{"path":"${navFile.path}","content":"<complete updated nav with new link>"}` : 'null'},
-  "brain_followup": "<one sentence: the single most valuable next thing to build on this page>"
-}
-
-Rules for the new page:
-- Complete, fully styled TypeScript React component using Tailwind
-- React Router v6: useNavigate not useHistory, Routes not Switch, <Link> not <a> for internal links
-- Named imports from 'react' — never React.* namespace (e.g. import { useState, type FormEvent } from 'react')
-- No @/ path aliases — use relative paths
-- All states designed: loading, error, empty, success
-- WCAG AA contrast on every element
-- Generous spacing: py-20 sections, max-w-5xl mx-auto px-6 content`
-
-      const newPageMsg = await anthropic.messages.create({
-        model: MODEL_GENERATION,
-        max_tokens: 8000,
-        messages: [{ role: 'user', content: newPagePrompt }],
-      })
-
-      const rawNewPage = newPageMsg.content
-        .filter((b) => b.type === 'text')
-        .map((b) => (b as { type: 'text'; text: string }).text)
-        .join('')
-        .trim()
-
-      const cleanedNewPage = rawNewPage.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
-
-      let newPageSpec: {
-        new_page: { path: string; content: string }
-        router_update: { path: string; content: string }
-        nav_update: { path: string; content: string } | null
-        brain_followup: string
-      }
-
-      try {
-        newPageSpec = JSON.parse(cleanedNewPage)
-      } catch (parseErr) {
-        console.error('[edit] NEW_PAGE JSON parse failed:', parseErr, '\nraw (first 300):', cleanedNewPage.slice(0, 300))
-        await setBuildStatus('error', null, 'Could not generate new page')
-        res.status(500).json({ error: 'Could not generate the new page' })
-        return
-      }
-
-      brainFollowup = newPageSpec.brain_followup ?? null
-
-      // Build atomic commit file list
-      const filesToCommit: Array<{ path: string; content: string }> = [
-        { path: newPageSpec.new_page.path, content: newPageSpec.new_page.content },
-        { path: newPageSpec.router_update.path, content: newPageSpec.router_update.content },
-      ]
-      if (newPageSpec.nav_update) {
-        filesToCommit.push({ path: newPageSpec.nav_update.path, content: newPageSpec.nav_update.content })
-      }
-
-      console.log('[edit] atomic commit — files:', filesToCommit.map((f) => f.path).join(', '))
-      await setBuildStatus('building', 'Pushing new page…')
-
-      const atomicSha = await atomicCommit(filesToCommit, `feat: add ${pageName} page with route and nav`)
-
-      if (!atomicSha) {
-        console.error('[edit] atomic commit failed')
-        await setBuildStatus('error', null, 'Could not push new page to GitHub')
-        res.status(500).json({ error: 'Could not push the new page' })
-        return
-      }
-
-      commitSha = atomicSha
-      console.log('[edit] atomic commit succeeded', commitSha.slice(0, 7), new Date().toISOString())
-
-    // ════════════════════════════════════════════════════════════════════════
-    // FILE_EDIT PATH — multi-file context-aware edit with single-file fallback
-    // ════════════════════════════════════════════════════════════════════════
-    } else {
-      console.log('[edit] FILE_EDIT path — fetching file tree...', new Date().toISOString())
-
-      // ── Image pre-fetch (shared by both multi-file and fallback paths) ─────
-      // Priority: Gemini → OpenAI → Unsplash → Pexels → null
+      // ── Image pre-fetch ────────────────────────────────────────────────────
       let resolvedImageUrl: string | null = null
       const imageKeywords = editRequest.toLowerCase().match(
         /\b(image|photo|picture|hero|banner|background|portrait|scene|shot)\b/i
@@ -661,36 +538,56 @@ Rules for the new page:
         ? `\nIMAGES: Use this exact pre-fetched image URL (permanent, responsive): ${resolvedImageUrl}\nDo NOT use any other image URL — this one is already verified to load correctly. Implement as backgroundImage on the section element, never as an img tag.`
         : `\nIMAGES: Do not add any image URLs. If a hero image is needed, use a solid background color: background-color: var(--color-ink). Never use source.unsplash.com, placeholder.com, picsum.photos, or loremflickr.com.`
 
-      // ── STEP 2: Use classifier results to identify files ────────────────────
-      let relevantPaths = classifierResult.relevant_files.length > 0
-        ? [...classifierResult.relevant_files]
-        : []
+      // ── Merge existing + create file lists ─────────────────────────────────
+      let allTargetPaths = [
+        ...classifierResult.relevant_files,
+        ...classifierResult.create_files,
+      ]
 
-      // Fallback: if classifier returned no files, try common candidates
-      if (relevantPaths.length === 0 && fileTree.length > 0) {
+      // Fallback: if classifier returned no files at all, use common candidates
+      if (allTargetPaths.length === 0 && fileTree.length > 0) {
         const fallbackCandidates = ['src/pages/Home.tsx', 'src/App.tsx', 'src/index.css']
-        relevantPaths = fallbackCandidates.filter((c) => fileTree.includes(c)).slice(0, 3)
-        console.log('[edit] classifier returned no files, using fallbacks:', relevantPaths.join(', '))
+        allTargetPaths = fallbackCandidates.filter((c) => fileTree.includes(c)).slice(0, 3)
+        console.log('[edit] classifier returned no files, using fallbacks:', allTargetPaths.join(', '))
       }
 
-      let multiFileSucceeded = false
+      if (allTargetPaths.length === 0) {
+        console.error('[edit] no target files identified — cannot proceed')
+        await setBuildStatus('error', null, 'Could not identify which files to edit')
+        res.status(500).json({ error: 'Could not determine which files to edit. Please be more specific.' })
+        return
+      }
 
-      if (relevantPaths.length > 0) {
-        console.log('[edit] relevant files:', relevantPaths.join(', '))
+      // ── Fetch content of all identified files ──────────────────────────────
+      const createFileSet = new Set(classifierResult.create_files)
+      const filesToEdit = await Promise.all(
+        allTargetPaths.map(async (filePath) => {
+          const isNew = createFileSet.has(filePath)
+          if (isNew) {
+            return { path: filePath, content: '', sha: null as string | null, isNew: true }
+          }
+          const fetched = await fetchGitHubFile(filePath)
+          if (!fetched) {
+            // File listed as existing but not found — treat as new
+            return { path: filePath, content: '', sha: null as string | null, isNew: true }
+          }
+          return { path: fetched.path, content: fetched.content, sha: fetched.sha, isNew: false }
+        })
+      )
 
-        // ── STEP 3: Fetch content of each relevant file ──────────────────
-        const fetchedFiles = await Promise.all(relevantPaths.map((p) => fetchGitHubFile(p)))
-        const validFiles = fetchedFiles.filter((f): f is NonNullable<typeof f> => f !== null)
+      console.log('[edit] files to edit:', filesToEdit.map((f) => `${f.isNew ? '[NEW] ' : ''}${f.path}`).join(', '))
 
-        if (validFiles.length > 0) {
-          await setBuildStatus('building', 'Generating your edit…')
+      // ── Build file context for Sonnet ──────────────────────────────────────
+      const fileContextBlocks = filesToEdit
+        .map((f) => f.isNew
+          ? `### [NEW FILE] ${f.path}\n(This file does not exist yet — create it from scratch)`
+          : `### ${f.path}\n\`\`\`tsx\n${f.content}\n\`\`\``)
+        .join('\n\n')
 
-          const fileContextBlocks = validFiles
-            .map((f) => `### ${f.path}\n\`\`\`tsx\n${f.content}\n\`\`\``)
-            .join('\n\n')
+      await setBuildStatus('building', 'Generating your edit…')
 
-          // ── STEP 4: Execute edit with self-validation (Sonnet — Prompt B) ──
-          const executionPrompt = `You are Visila's execution agent. You edit React + Vite + TypeScript applications with the precision of a senior engineer and the design judgment of Jony Ive: calm, precise, trustworthy, quietly powerful.
+      // ── Sonnet execution prompt ────────────────────────────────────────────
+      const executionPrompt = `You are Visila's execution agent. You edit React + Vite + TypeScript applications with the precision of a senior engineer and the design judgment of Jony Ive: calm, precise, trustworthy, quietly powerful.
 
 You do NOT just respond to instructions. You:
 1. Execute the change completely and atomically
@@ -718,7 +615,7 @@ You MUST complete ALL of the following. Missing any one makes the edit broken:
 ${classifierResult.atomic_requirements.map((r, i) => `${i + 1}. ${r}`).join('\n')}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CURRENT FILE CONTENTS
+FILES (edit existing, create new as needed)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${fileContextBlocks}
 ${editLessonContext}
@@ -728,8 +625,8 @@ VALIDATION CHECKLIST (verify before returning)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 After writing your edits, check each of these against your output:
 ${classifierResult.validation_checks.length > 0
-            ? classifierResult.validation_checks.map((c, i) => `${i + 1}. ${c}`).join('\n')
-            : '1. Confirm all files that need to change are included in the output.'}
+          ? classifierResult.validation_checks.map((c, i) => `${i + 1}. ${c}`).join('\n')
+          : '1. Confirm all files that need to change are included in the output.'}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ENGINEERING RULES (non-negotiable)
@@ -737,8 +634,9 @@ ENGINEERING RULES (non-negotiable)
 - COLORS: Never hardcode hex values. Always use CSS custom properties: var(--color-primary), var(--color-background), var(--color-text), etc. If a color does not have a var(), use the closest existing var().
 - IMPORTS: All imports from local files require explicit .js extensions. Correct: import { Button } from './components/Button.js'. Wrong: import { Button } from './components/Button'.
 - EXPORTS: Every component file must retain its default export.
-- COMPLETENESS: Return the FULL file content for every file you change. Never return diffs, snippets, or partial files.
-- ATOMICITY: If instruction_type is "new_page", you MUST return: the new page file, the updated router file (with the new route added), the updated nav component (with the new link added). All three or none. A page without a route is unreachable.
+- COMPLETENESS: Return the FULL file content for every file you change or create. Never return diffs, snippets, or partial files.
+- ATOMICITY: If instruction_type is "new_page", you MUST return: the new page file, the updated router file (with the new import and Route), the updated nav component (with the new link). All three or none. A page without a route is unreachable.
+- NEW FILES: For files marked [NEW FILE], create a complete, production-ready component. Include all necessary imports, proper TypeScript types, default export, and full Tailwind styling.
 - SCOPE: Only change what is required. Do not refactor unrelated code. Do not rename variables, reorder imports, or clean up code you did not touch.
 - REACT: Never use React.* namespace — use named imports: import { useState, type FormEvent } from 'react'. No @/ path aliases. React Router v6 only (useNavigate not useHistory, Routes not Switch).
 - TAILWIND: Tailwind classes only — no inline styles except backgroundImage on hero sections.
@@ -747,7 +645,7 @@ ENGINEERING RULES (non-negotiable)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 OUTPUT FORMAT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Return a single JSON object:
+Return a single JSON object. The "files" object MUST contain an entry for EVERY file that was changed or created — including new files. The key is the file path, the value is the complete file content.
 
 {
   "files": {
@@ -768,236 +666,91 @@ The edit will still be committed — but the low confidence will be surfaced to 
 
 Return only valid JSON. No markdown fences. No preamble. First character must be { and last must be }.`
 
+      const editMsg = await anthropic.messages.create({
+        model: MODEL_GENERATION,
+        max_tokens: 12000,
+        messages: [{ role: 'user', content: executionPrompt }],
+      })
+
+      const rawEdit = editMsg.content
+        .filter((b) => b.type === 'text')
+        .map((b) => (b as { type: 'text'; text: string }).text)
+        .join('')
+        .trim()
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```\s*$/, '')
+        .trim()
+
+      let editResult: {
+        files?: Record<string, string>
+        validation_results?: Array<{ check: string; passed: boolean; note?: string }>
+        changes_summary?: string
+        confidence?: string
+        confidence_reason?: string
+      }
+
+      try {
+        editResult = JSON.parse(rawEdit)
+      } catch {
+        // Try to extract JSON object from response
+        const match = rawEdit.match(/\{[\s\S]*\}/)
+        if (match) {
           try {
-            const editMsg = await anthropic.messages.create({
-              model: MODEL_GENERATION,
-              max_tokens: 8000,
-              messages: [{ role: 'user', content: executionPrompt }],
-            })
-
-            const rawEdit = editMsg.content
-              .filter((b) => b.type === 'text')
-              .map((b) => (b as { type: 'text'; text: string }).text)
-              .join('')
-              .trim()
-              .replace(/^```(?:json)?\s*/i, '')
-              .replace(/\s*```\s*$/, '')
-              .trim()
-
-            const editResult = JSON.parse(rawEdit) as {
-              files?: Record<string, string>
-              validation_results?: Array<{ check: string; passed: boolean; note?: string }>
-              changes_summary?: string
-              confidence?: string
-              confidence_reason?: string
-            }
-
-            // Extract confidence and validation metadata
-            editConfidence = editResult.confidence ?? null
-            editValidationResults = Array.isArray(editResult.validation_results) ? editResult.validation_results : null
-            brainFollowup = editResult.changes_summary ?? null
-
-            if (editConfidence) {
-              console.log(`[edit] confidence: ${editConfidence}${editResult.confidence_reason ? ' — ' + editResult.confidence_reason : ''}`)
-            }
-            if (editValidationResults) {
-              const passed = editValidationResults.filter((v) => v.passed).length
-              console.log(`[edit] validation: ${passed}/${editValidationResults.length} checks passed`)
-            }
-
-            // Extract and commit files
-            const changedFiles = editResult.files ?? {}
-            const entries = Object.entries(changedFiles).filter(([, v]) => typeof v === 'string' && v.length > 0)
-
-            if (entries.length > 0) {
-              const filesToCommit = entries.map(([path, content]) => ({ path, content }))
-              console.log('[edit] atomic commit — files changed:', filesToCommit.map((f) => f.path).join(', '))
-              await setBuildStatus('building', 'Pushing your change…')
-
-              const atomicSha = await atomicCommit(filesToCommit, `edit: ${editRequest.slice(0, 60)}`)
-              if (atomicSha) {
-                commitSha = atomicSha
-                multiFileSucceeded = true
-                console.log('[edit] atomic commit succeeded', commitSha.slice(0, 7), new Date().toISOString())
-              } else {
-                console.warn('[edit] atomic commit failed — falling back to single-file mode')
-              }
-            } else {
-              console.warn('[edit] execution returned no valid file entries — falling back')
-            }
-          } catch (e) {
-            console.warn('[edit] execution/parse failed (falling back):', e)
+            editResult = JSON.parse(match[0])
+          } catch {
+            console.error('[edit] JSON parse failed, raw (first 300):', rawEdit.slice(0, 300))
+            await setBuildStatus('error', null, 'Could not parse edit result')
+            res.status(500).json({ error: 'Could not generate the edit. Please try again.' })
+            return
           }
+        } else {
+          console.error('[edit] no JSON found in response, raw (first 300):', rawEdit.slice(0, 300))
+          await setBuildStatus('error', null, 'Could not parse edit result')
+          res.status(500).json({ error: 'Could not generate the edit. Please try again.' })
+          return
         }
       }
 
-      // ── STEP 5: Fallback — single-file edit if multi-file path failed ──────
-      if (!multiFileSucceeded) {
-        console.log('[edit] file-map failed, falling back to single-file mode')
+      // Extract confidence and validation metadata
+      editConfidence = editResult.confidence ?? null
+      editValidationResults = Array.isArray(editResult.validation_results) ? editResult.validation_results : null
+      brainFollowup = editResult.changes_summary ?? null
 
-        const CANDIDATE_FILES = ['src/pages/Home.tsx', 'src/App.tsx', 'index.html']
-        let targetFile: { content: string; sha: string; path: string } | null = null
-        for (const candidate of CANDIDATE_FILES) {
-          targetFile = await fetchGitHubFile(candidate)
-          if (targetFile) { console.log('[edit] editing file:', candidate); break }
-        }
+      if (editConfidence) {
+        console.log(`[edit] confidence: ${editConfidence}${editResult.confidence_reason ? ' — ' + editResult.confidence_reason : ''}`)
+      }
+      if (editValidationResults) {
+        const passed = editValidationResults.filter((v) => v.passed).length
+        console.log(`[edit] validation: ${passed}/${editValidationResults.length} checks passed`)
+      }
 
-        if (!targetFile) {
-          console.error('[edit] no editable file found in repo')
-          await setBuildStatus('error', null, 'Could not read app code from GitHub')
-          res.status(500).json({ error: 'Could not read your app code' })
-          return
-        }
+      // ── Zero-change detection — compare each file to original ──────────────
+      const returnedFiles = editResult.files ?? {}
+      const changedFiles = Object.entries(returnedFiles).filter(([path, newContent]) => {
+        if (typeof newContent !== 'string' || newContent.length === 0) return false
+        const original = filesToEdit.find((f) => f.path === path)
+        // New file (not in originals) or content differs → changed
+        return !original || original.isNew || original.content !== newContent
+      })
 
-        const isReact = targetFile.path.endsWith('.tsx') || targetFile.path.endsWith('.ts')
-        console.log('[edit] file:', targetFile.path, 'isReact:', isReact, 'length:', targetFile.content.length, new Date().toISOString())
+      if (changedFiles.length === 0) {
+        console.warn('[edit] zero files actually changed — Sonnet returned identical content', new Date().toISOString())
+        // commitSha stays null → empty edit guard below handles the response
+      } else {
+        const filesToCommit = changedFiles.map(([path, content]) => ({ path, content }))
+        console.log('[edit] atomic commit — files:', filesToCommit.map((f) => f.path).join(', '))
+        await setBuildStatus('building', 'Pushing your change…')
 
-        console.log('[edit] generating edit...', new Date().toISOString())
-        await setBuildStatus('building', 'Generating your edit…')
-
-        const prompt = isReact
-          ? `You are Visila's world-class design + engineering agent. You embody the Jony Ive standard: calm, precise, trustworthy, quietly powerful, inevitable to use. A founder is asking you to improve their app. You don't apply changes mechanically — you apply design judgment at every level.
-
-Return ONLY the complete updated file. No explanation, no markdown, no code fences. Just the raw TypeScript/JSX.
-
-## DESIGN PHILOSOPHY — THE JONY IVE STANDARD
-
-**7 Operating Rules (apply to every edit):**
-1. Start with user intent, not feature inventory — ask what the user is trying to accomplish
-2. Reduce until the remaining elements become stronger — every addition must earn its place
-3. Treat polish as trust, not ornament — alignment, spacing, and timing signal care
-4. Use motion only when it improves comprehension — entrance animations orient, not entertain
-5. Make complexity the system's burden, not the user's — never expose machinery prematurely
-6. Design full journeys, not isolated screens — every state (loading, error, empty, success) must feel designed
-7. Judge every decision by clarity, coherence, and respect — does this save the user effort?
-
-**6 Quality Heuristics (check before returning):**
-- CLARITY: Is the primary action obvious within 2 seconds? Is information hierarchy unmistakable?
-- REDUCTION: What can be removed without harming outcomes? Are we showing complexity users don't need?
-- COHERENCE: Do layout, copy, motion, and interaction feel like one system? Does this feel native, not bolted on?
-- CRAFT: Are spacing, typography, timing, and all states (loading/error/empty/success) consistently intentional?
-- RESPECT: Does this save the user time, effort, or uncertainty? Are we asking users to do work the system should do?
-- INTEGRITY: Is this truly better, or just more impressive-looking? Would it still be good without animations?
-
-**Anti-patterns (never do these):**
-- Mistaking minimal visuals for true simplicity
-- Adding delight as decoration instead of product quality
-- Overusing animation to create a "premium" feel
-- Hiding too much and hurting discoverability
-- Designing disconnected moments instead of end-to-end coherence
-- Using personality, AI, or motion to compensate for weak product logic
-
-**UX Writing Rules:**
-- Short, clear, direct, calm, confident without hype
-- Avoid: jargon, over-explaining, feature boasting, decorative copy
-- No lorem ipsum — not even in development
-
-## THE IMAGE RULE (non-negotiable)
-There is exactly ONE image per app — the hero background. ZERO images in feature cards, ZERO img tags in content sections. If a section needs visual interest, use a large emoji (text-4xl), bold typography, or color contrast. Random stock photos in cards = template design. This is not a template.
-
-Hero image: ALWAYS use backgroundImage inline style on the section — NEVER an img tag. img with h-full breaks on iOS Safari when parent has min-height only. Required pattern:
-    <section style={{ backgroundImage: 'url(IMAGE_URL)', backgroundSize: 'cover', backgroundPosition: 'center' }} className="relative min-h-screen flex items-center overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80" />
-      <div className="relative z-10 ...">content</div>
-    </section>
-
-If the user asks to "add image" without a specific location → hero only.
-If the user asks to "add images to the features section" → use emoji icons instead (explain this is intentional design).
-
-## LAYOUT & SPACING
-- Generous spacing: py-20 md:py-32. Sections breathe. Content max-w-5xl mx-auto px-6.
-- One primary action per screen. Supporting elements recede visually.
-
-## MOTION
-- Entrance animations only: opacity-0 translate-y-4 → opacity-100 translate-y-0, transition-all duration-500
-- Hover: scale-[0.97] on buttons. No decorative spinning or bouncing.
-- Elements below fold animate only when scrolled into view (IntersectionObserver).
-
-${imageGuidance}
-
-CODE RULES:
-- Never use React.* namespace (use named imports: import { useState } from 'react')
-- Never use @/ path aliases
-- Keep all existing imports unless replacing them
-- Tailwind classes only — no inline styles (except backgroundImage on hero sections)
-
-Here is the current ${targetFile.path}:
-
-${targetFile.content}
-
-The user wants this change: ${editRequest}
-${editLessonContext}
-Apply the change with full design judgment. Return the complete updated file.`
-          : `You are editing a web app. Return ONLY the complete updated index.html file. No explanation, no markdown, no code fences. Just the raw HTML.
-${imageGuidance}
-
-Here is the current index.html:
-
-${targetFile.content}
-
-The user wants this change: ${editRequest}
-${editLessonContext}
-Apply the change. Keep everything else identical. Return the complete updated index.html.`
-
-        const message = await anthropic.messages.create({
-          model: MODEL_GENERATION,
-          max_tokens: 8000,
-          messages: [{ role: 'user', content: prompt }],
-        })
-
-        const updatedContent = message.content
-          .filter((b) => b.type === 'text')
-          .map((b) => (b as { type: 'text'; text: string }).text)
-          .join('')
-          .trim()
-
-        const isValidOutput = isReact
-          ? updatedContent.length > 50
-          : updatedContent.includes('<!DOCTYPE') || updatedContent.includes('<html')
-
-        if (!isValidOutput) {
-          console.error('[edit] Claude returned unexpected output, length:', updatedContent.length)
-          await setBuildStatus('error', null, 'Could not generate the edit')
-          res.status(500).json({ error: 'Could not generate the edit' })
-          return
-        }
-        console.log('[edit] edit generated, length:', updatedContent.length, new Date().toISOString())
-
-        // Detect identical content — Sonnet returned the file unchanged
-        if (updatedContent === targetFile.content) {
-          console.warn('[edit] single-file: Sonnet returned identical content — no changes made', new Date().toISOString())
-          // commitSha stays null → empty edit guard below will return the helpful message
+        const atomicSha = await atomicCommit(filesToCommit, `edit: ${editRequest.slice(0, 60)}`)
+        if (atomicSha) {
+          commitSha = atomicSha
+          committedPaths = filesToCommit.map((f) => f.path)
+          console.log('[edit] atomic commit succeeded', commitSha.slice(0, 7), new Date().toISOString())
         } else {
-          console.log('[edit] pushing to github...', new Date().toISOString())
-          await setBuildStatus('building', 'Pushing your change…')
-
-          const pushRes = await fetch(
-            `https://api.github.com/repos/${repoPath}/contents/${targetFile.path}`,
-            {
-              method: 'PUT',
-              headers: {
-                ...ghHeaders,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                message: `Edit: ${editRequest.slice(0, 50)}`,
-                content: Buffer.from(updatedContent).toString('base64'),
-                sha: targetFile.sha,
-              }),
-            },
-          )
-
-          if (!pushRes.ok) {
-            const pushBody = await pushRes.text().catch(() => '')
-            console.error('[edit] GitHub push FAILED:', pushRes.status, pushBody)
-            await setBuildStatus('error', null, 'Could not push change to GitHub')
-            res.status(500).json({ error: 'Could not save the change' })
-            return
-          }
-
-          const pushData = await pushRes.json() as { commit?: { sha: string } }
-          commitSha = pushData.commit?.sha ?? null
-          console.log('[edit] pushed to github, commit sha:', commitSha ?? 'unknown', new Date().toISOString())
+          console.error('[edit] atomic commit failed')
+          await setBuildStatus('error', null, 'Could not push changes to GitHub')
+          res.status(500).json({ error: 'Could not save the changes. Please try again.' })
+          return
         }
       }
     }
@@ -1079,8 +832,12 @@ Apply the change. Keep everything else identical. Return the complete updated in
     void appName
     res.status(200).json({
       ok: true,
-      message: 'Edit deployed',
+      changed: committedPaths.length > 0,
+      message: committedPaths.length > 0
+        ? `Updated ${committedPaths.length} file(s): ${committedPaths.join(', ')}`
+        : 'Edit deployed',
       commitSha: commitSha ?? null,
+      changedFiles: committedPaths,
       deployUrl: build.deploy_url ?? null,
       ...(brainFollowup ? { brain_followup: brainFollowup } : {}),
       ...(editConfidence ? { confidence: editConfidence } : {}),
@@ -1116,14 +873,40 @@ Apply the change. Keep everything else identical. Return the complete updated in
           editRequest,
           confidence: editConfidence,
           validationResults: editValidationResults,
-          changedFiles: commitSha ? Object.keys(classifierResult.relevant_files) : [],
+          changedFiles: committedPaths,
         }),
       }).catch((err: unknown) => console.error('[edit] Monitor fire-and-forget failed:', err))
 
+      // Brain hint — fire and forget, non-fatal
+      fetch(`${editAppUrl}/api/brain-hint`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          build_id: buildId,
+          trigger: 'post_edit',
+          edit_instruction: editRequest,
+          changed_files: committedPaths,
+          commit_sha: commitSha,
+        }),
+      }).catch((err: unknown) => console.error('[brain-hint fire-and-forget]', err))
+
+      // Deployment verification — fire and forget, non-fatal
+      if (build.deploy_url) {
+        fetch(`${editAppUrl}/api/verify-deployment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            build_id: buildId,
+            commit_sha: commitSha,
+            deploy_url: build.deploy_url,
+          }),
+        }).catch((err: unknown) => console.error('[verify-deployment fire-and-forget]', err))
+      }
+
       // Re-index only the changed files — keep component index fresh
-      const changedPaths = classifierResult.relevant_files.filter((f) => f.endsWith('.tsx') || f.endsWith('.ts'))
-      if (changedPaths.length > 0) {
-        reindexFiles(build.id, changedPaths, editRepoOwner, editRepoName, anthropic, supabase, githubToken)
+      const reindexPaths = committedPaths.filter((f) => f.endsWith('.tsx') || f.endsWith('.ts'))
+      if (reindexPaths.length > 0) {
+        reindexFiles(build.id, reindexPaths, editRepoOwner, editRepoName, anthropic, supabase, githubToken)
           .catch((e: unknown) => console.warn('[edit] reindex failed (non-fatal):', e))
       }
 
@@ -1149,7 +932,7 @@ Apply the change. Keep everything else identical. Return the complete updated in
 
       // Append to Brain memory — fire-and-forget
       const editEntry = String(editRequest).slice(0, 100) +
-        ' \u2192 ' + classifierResult.relevant_files.join(', ')
+        ' \u2192 ' + committedPaths.join(', ')
       appendLesson(editRepoOwner, editRepoName, 'edit_history', editEntry,
         process.env.SOVEREIGN_GITHUB_TOKEN ?? githubToken)
         .catch((e: unknown) => console.warn('[lessons] append failed:', e))
