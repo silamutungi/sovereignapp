@@ -436,27 +436,11 @@ export default function Building() {
     !!status?.error &&
     status.error.toLowerCase().includes("login connection")
 
-  const canRetryFromCheckpoint = isFailed && !needsSupabaseRetry && !isLoginConnectionError && !retrying
-
-  const handleRetryFromCheckpoint = async () => {
-    if (!buildId || retrying) return
-    setRetrying(true)
-    try {
-      await fetch('/api/run-build', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: buildId, supabaseChoice: dbChoice ?? 'sovereign', forceRetry: true }),
-      })
-      setRetrying(false)
-    } catch {
-      setRetrying(false)
-    }
-  }
 
   return (
     <>
       {/* Spinner keyframe — can't use App.css from this standalone page */}
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} * { box-sizing: border-box; margin: 0; padding: 0; } @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important;scroll-behavior:auto!important}}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes pulse-breath{0%,100%{opacity:.3;transform:scale(.85)}50%{opacity:1;transform:scale(1)}} * { box-sizing: border-box; margin: 0; padding: 0; } @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important;scroll-behavior:auto!important}}`}</style>
 
       <main style={S.page}>
         <div style={S.card}>
@@ -554,7 +538,7 @@ export default function Building() {
               : needsSupabaseRetry
               ? ''
               : isFailed
-              ? 'Build failed. Try again or check the log for details.'
+              ? ''
               : dbChoice === null && status?.status === 'queued'
               ? ''
               : 'Provisioning your app — this takes about 60 seconds…'}
@@ -571,7 +555,7 @@ export default function Building() {
 
               const urlValue =
                 logStep.urlKey === 'repoUrl'   ? status?.repoUrl   ?? null :
-                logStep.urlKey === 'deployUrl' ? status?.deployUrl ?? null : null
+                logStep.urlKey === 'deployUrl' && isDone ? status?.deployUrl ?? null : null
 
               // For the "Repo created" and "Live at" entries, show the URL inline
               const displayLabel =
@@ -619,21 +603,52 @@ export default function Building() {
             </div>
           )}
 
-          {/* General error with retry-from-checkpoint */}
+          {/* General error — patient, transparent message */}
           {isFailed && !needsSupabaseRetry && !isLoginConnectionError && (
-            <div style={S.errorBox} role="alert">
-              <strong>Build failed:</strong>{' '}
-              {status?.error ?? 'Unknown error. Check your GitHub and Vercel connections.'}
+            <div style={{
+              textAlign: 'center',
+              padding: '24px 0',
+            }}>
+              <div style={{
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                background: '#FF1F6E',
+                margin: '0 auto 20px',
+                animation: 'pulse-breath 2.4s ease-in-out infinite',
+              }} />
+              <p style={{
+                fontFamily: "'Playfair Display', Georgia, serif",
+                fontSize: '22px',
+                fontWeight: 600,
+                color: '#ffffff',
+                margin: '0 0 12px',
+              }}>
+                We're still working on this.
+              </p>
+              <p style={{
+                fontSize: '13px',
+                color: 'rgba(255,255,255,0.55)',
+                lineHeight: 1.7,
+                maxWidth: '340px',
+                margin: '0 auto 24px',
+              }}>
+                Something unexpected came up during deployment.
+                We're on it — this usually resolves within a few minutes.
+                No action needed on your end.
+              </p>
+              <p style={{
+                fontSize: '11px',
+                color: 'rgba(255,255,255,0.3)',
+                lineHeight: 1.5,
+              }}>
+                If this takes longer than 5 minutes, email us at{' '}
+                <a href="mailto:sila@visila.com" style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'underline' }}>
+                  sila@visila.com
+                </a>{' '}
+                and we'll sort it out personally.
+              </p>
             </div>
-          )}
-          {canRetryFromCheckpoint && (
-            <button
-              onClick={() => { void handleRetryFromCheckpoint() }}
-              disabled={retrying}
-              style={{ ...S.ctaBtn, marginTop: '12px', opacity: retrying ? 0.6 : 1, cursor: retrying ? 'not-allowed' : 'pointer' }}
-            >
-              {retrying ? 'Trying again…' : 'Try again from last checkpoint →'}
-            </button>
           )}
 
           {/* Poll error */}
