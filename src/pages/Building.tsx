@@ -643,8 +643,8 @@ export default function Building() {
                 lineHeight: 1.5,
               }}>
                 If this takes longer than 5 minutes, email us at{' '}
-                <a href="mailto:sila@visila.com" style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'underline' }}>
-                  sila@visila.com
+                <a href="mailto:hello@visila.com" style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'underline' }}>
+                  hello@visila.com
                 </a>{' '}
                 and we'll sort it out personally.
               </p>
