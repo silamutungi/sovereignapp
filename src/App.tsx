@@ -534,7 +534,7 @@ async function callGenerateAPI(
 
     clearInterval(progressInterval)
     controller.abort()
-    return { error: 'Generation is taking longer than expected — we\'ll keep trying. If this persists, please contact us at help@visila.com' }
+    return { error: 'Generation is taking longer than expected — we\'ll keep trying. If this persists, please contact us at hello@visila.com' }
   } catch {
     clearInterval(progressInterval)
     controller.abort()
