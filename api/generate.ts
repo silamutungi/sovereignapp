@@ -23,6 +23,40 @@ import { validateGenerated } from './lib/validateGenerated.js'
 export const MODEL_GENERATION = 'claude-sonnet-4-6'
 export const MODEL_FAST = 'claude-haiku-4-5-20251001'
 
+async function summarizeIfLong(idea: string): Promise<string> {
+  const wordCount = idea.split(/\s+/).length;
+  if (wordCount <= 800) return idea;
+
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) return idea
+
+  const client = new Anthropic({ apiKey })
+  const response = await client.messages.create({
+    model: MODEL_FAST,
+    max_tokens: 600,
+    messages: [{
+      role: 'user',
+      content: `You are summarizing a product idea for an app builder. Extract and preserve:
+- What the app does (core purpose)
+- Who it's for (target user)
+- The 5-8 most important features
+- Any specific technical requirements or integrations mentioned
+- The business model if mentioned
+
+Discard: company background, market analysis, competitive landscape, roadmap phases beyond MVP, team bios, funding details.
+
+Respond with a concise product brief under 400 words. Do not add commentary.
+
+PRODUCT IDEA:
+${idea}`
+    }]
+  })
+
+  const summary = response.content[0].type === 'text' ? response.content[0].text : idea;
+  console.log(`[summarize] Compressed ${wordCount} words → ${summary.split(/\s+/).length} words`);
+  return summary;
+}
+
 export const config = {
   api: {
     bodyParser: {
@@ -151,27 +185,12 @@ export default async function handler(req: any, res: any): Promise<void> {
     }
   }
 
-  // ── Condense idea into a focused product brief via Haiku ────────────────────
-  let condensedIdea = idea
+  // ── Summarize long ideas (800+ words) via Haiku ────────────────────────────
+  let processedIdea = idea
   try {
-    const condenseClient = new Anthropic({ apiKey })
-    const condenseResponse = await condenseClient.messages.create({
-      model: process.env.MODEL_FAST || 'claude-haiku-4-5-20251001',
-      max_tokens: 500,
-      messages: [{
-        role: 'user',
-        content: `Summarize this app idea into a focused product brief. Extract: what it does, who it's for, and the 3-5 core features. Be specific and concrete. Remove any color/design specs, technical implementation details, or repeated points. Max 350 words. Return only the brief, no preamble.
-
-App idea:
-${idea}`
-      }]
-    })
-    condensedIdea = condenseResponse.content[0].type === 'text'
-      ? condenseResponse.content[0].text
-      : idea
-    console.log(`[generate] idea condensed from ${idea.length} chars to ${condensedIdea.length} chars`)
-  } catch (condenseErr) {
-    console.warn('[generate] idea condensation failed (non-fatal), using original idea:', condenseErr instanceof Error ? condenseErr.message : String(condenseErr))
+    processedIdea = await summarizeIfLong(idea)
+  } catch (summarizeErr) {
+    console.warn('[generate] summarizeIfLong failed (non-fatal), using original idea:', summarizeErr instanceof Error ? summarizeErr.message : String(summarizeErr))
   }
 
   // ── Fetch top recurring lessons from Brain (best-effort, non-blocking) ─────
@@ -209,7 +228,7 @@ ${idea}`
 
   // ── Build user message with combined length cap ──────────────────────────
   const MAX_COMBINED_LENGTH = 3500
-  const baseMessage = condensedIdea.slice(0, 1500)
+  const baseMessage = processedIdea.slice(0, 1500)
   const hint = variationHint
     ? `\n\nVARIATION INSTRUCTION (attempt ${attempt} of 3): ${variationHint}`
     : ''
