@@ -15,6 +15,7 @@ import { resolveHeroImage } from './lib/images.js'
 import { buildCategoryBrief, formatCategoryBriefForPrompt, detectIntent } from './lib/categoryIntelligence.js'
 import { MANDATORY_PAGES, MANDATORY_PAGES_ENFORCEMENT } from './lib/mandatoryPages.js'
 import { validateGenerated } from './lib/validateGenerated.js'
+import { checkBuildQuota } from './lib/quotaCheck.js'
 
 // Model constants — change here to swap models across the file
 // MODEL_GENERATION: multi-file React app codegen (18+ files, structured tool call)
@@ -135,16 +136,10 @@ export default async function handler(req: any, res: any): Promise<void> {
     return
   }
 
-  if (!idea) {
+  // idea is required — but use explicit null/undefined check so empty strings
+  // from brief extraction fallbacks don't incorrectly trigger 400
+  if (idea === null || idea === undefined || idea === '') {
     res.status(400).json({ error: '`idea` is required' })
-    return
-  }
-
-  const MAX_IDEA_LENGTH = 2000
-  if (idea.length > MAX_IDEA_LENGTH) {
-    res.status(400).json({
-      error: `Your idea description is too long. Please keep it under ${MAX_IDEA_LENGTH} characters (yours is ${idea.length}).`,
-    })
     return
   }
 
@@ -182,6 +177,20 @@ export default async function handler(req: any, res: any): Promise<void> {
         })
         return
       }
+    }
+  }
+
+  // ── Plan-based build quota ────────────────────────────────────────────────
+  if (email) {
+    const quota = await checkBuildQuota(email)
+    if (!quota.allowed) {
+      res.status(402).json({
+        error: 'quota_exceeded',
+        message: quota.reason,
+        current: quota.current,
+        limit: quota.limit,
+      })
+      return
     }
   }
 

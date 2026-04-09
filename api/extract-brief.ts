@@ -92,24 +92,41 @@ export default async function handler(req: any, res: any): Promise<void> {
     const msg = await anthropic.messages.create({
       // MODEL_FAST: brief extraction is classification + summarization — haiku is sufficient, 3x cheaper than sonnet
       model: MODEL_FAST,
-      max_tokens: 500,
+      max_tokens: 1200,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: truncated }],
     })
 
-    const raw = msg.content
+    const responseText = msg.content
       .filter((b) => b.type === 'text')
       .map((b) => (b as { type: 'text'; text: string }).text)
       .join('')
+      .trim()
+
+    // Strip markdown code fences — Haiku sometimes wraps JSON in ```json ... ```
+    const raw = responseText
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/```\s*$/i, '')
       .trim()
 
     try {
       const brief = JSON.parse(raw) as AppBrief
       res.status(200).json(brief)
     } catch {
-      // Haiku returned malformed JSON — fall back to raw idea so caller can proceed
-      console.error('[extract-brief] JSON parse failed, raw:', raw.slice(0, 200))
-      res.status(200).json({ error: 'extraction_failed', idea })
+      // JSON.parse still failed after fence-stripping — return a minimal valid brief
+      // so generate() is never called with null/undefined fields
+      console.warn('[extract-brief] JSON parse failed after fence-stripping, returning fallback brief. Raw:', raw.slice(0, 200))
+      const nameMatch = raw.match(/"name"\s*:\s*"([^"]+)"/)
+      const fallbackName = nameMatch ? nameMatch[1] : 'My App'
+      res.status(200).json({
+        name: fallbackName,
+        description: truncated.slice(0, 200),
+        target_user: 'founders and creators',
+        features: [],
+        entities: [],
+        tone: 'professional',
+      } satisfies AppBrief)
     }
   } catch (err) {
     console.error('[extract-brief] API error:', err)
