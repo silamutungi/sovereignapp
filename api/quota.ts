@@ -35,6 +35,9 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   const supabase = createClient(supabaseUrl, serviceKey)
 
+  const testQuery = await supabase.from('user_plans').select('*')
+  console.log('[quota] ALL rows:', JSON.stringify(testQuery.data), 'error:', JSON.stringify(testQuery.error))
+
   const { data: userPlan } = await supabase
     .from('user_plans')
     .select('plan')
