@@ -1,6 +1,7 @@
 {
   "functions": {
     "api/generate.ts": { "maxDuration": 800 },
+    "api/quota.ts":    { "maxDuration": 30 },
     "api/*.ts":        { "maxDuration": 300 },
     "api/**/*.ts":     { "maxDuration": 300 }
   },
@@ -12,6 +13,7 @@
   ],
   "rewrites": [
     { "source": "/auth/supabase/callback", "destination": "/api/auth/supabase/callback" },
+    { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [
