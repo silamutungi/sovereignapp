@@ -7,7 +7,7 @@ const getClientIp = (req: any): string =>  // eslint-disable-line @typescript-es
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function handler(req: any, res: any): Promise<void> {
-  if (req.method !== 'GET') {
+  if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' })
     return
   }
