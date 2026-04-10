@@ -1,4 +1,3 @@
-import { createClient } from '@supabase/supabase-js'
 import { getLimits } from './lib/planLimits.js'
 import { checkRateLimit } from './_rateLimit.js'
 
@@ -33,33 +32,45 @@ export default async function handler(req: any, res: any): Promise<void> {
     return
   }
 
-  const supabase = createClient(supabaseUrl, serviceKey)
-
-  const testQuery = await supabase.from('user_plans').select('*')
-  console.log('[quota] ALL rows:', JSON.stringify(testQuery.data), 'error:', JSON.stringify(testQuery.error))
-
-  const { data: userPlan } = await supabase
-    .from('user_plans')
-    .select('plan')
-    .eq('email', email)
-    .single()
-
-  console.log('[quota] email:', email, 'userPlan:', JSON.stringify(userPlan))
+  // Direct REST fetch — bypasses Supabase JS client which was returning null
+  const upRes = await fetch(
+    `${supabaseUrl}/rest/v1/user_plans?email=eq.${encodeURIComponent(email)}&select=plan&limit=1`,
+    {
+      headers: {
+        'apikey': serviceKey,
+        'Authorization': `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  )
+  const upRows = await upRes.json()
+  console.log('[quota] upRows:', JSON.stringify(upRows))
+  const userPlan = Array.isArray(upRows) && upRows.length > 0 ? upRows[0] : null
 
   const plan = userPlan?.plan ?? 'free'
   const limits = getLimits(plan)
 
-  const { count: buildCount } = await supabase
-    .from('builds')
-    .select('id', { count: 'exact', head: true })
-    .eq('email', email)
-    .is('deleted_at', null)
+  const bcRes = await fetch(
+    `${supabaseUrl}/rest/v1/builds?email=eq.${encodeURIComponent(email)}&deleted_at=is.null&select=id`,
+    {
+      headers: {
+        'apikey': serviceKey,
+        'Authorization': `Bearer ${serviceKey}`,
+        'Prefer': 'count=exact',
+        'Range-Unit': 'items',
+        'Range': '0-0',
+      },
+    }
+  )
+  const contentRange = bcRes.headers.get('content-range') ?? '0/0'
+  const countMatch = contentRange.match(/\/(\d+)$/)
+  const buildCount = countMatch ? parseInt(countMatch[1], 10) : 0
 
   res.setHeader("Cache-Control", "no-store")
   res.status(200).json({
     plan,
     builds: {
-      used: buildCount ?? 0,
+      used: buildCount,
       limit: limits.maxBuilds,
     },
     editsPerHour: limits.editsPerHour,
