@@ -23,6 +23,7 @@ import type { VisionMapResult } from './lib/visionMap.js'
 import { captureScreenshot } from './lib/screenshot.js'
 import { readLessons, appendLesson } from './lib/lessons.js'
 import { scorePropensity, getTopPropensities, recordPattern } from './lib/propensity.js'
+import { checkEditRate } from './lib/quotaCheck.js'
 
 export const MODEL_GENERATION = 'claude-sonnet-4-6'
 export const MODEL_FAST = 'claude-haiku-4-5-20251001'
@@ -92,6 +93,18 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   if (editRequest.length > 1000) {
     res.status(400).json({ error: 'Edit request too long (max 1000 chars)' })
+    return
+  }
+
+  // ── Plan-based edit rate limit ──────────────────────────────────────────
+  const editRateCheck = await checkEditRate(String(buildId))
+  if (!editRateCheck.allowed) {
+    res.status(429).json({
+      error: 'rate_limited',
+      message: editRateCheck.reason,
+      current: editRateCheck.current,
+      limit: editRateCheck.limit,
+    })
     return
   }
 
