@@ -52,6 +52,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     .eq('email', email)
     .is('deleted_at', null)
 
+  res.setHeader('Cache-Control', 'no-store')
   res.status(200).json({
     plan,
     builds: {
