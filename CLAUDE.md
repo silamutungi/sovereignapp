@@ -405,6 +405,14 @@ STANDING RULE: Every time a bug is fixed, a wrong assumption is corrected, or an
 
 If Claude Code is about to do something and there is a relevant lesson here that contradicts it — stop, follow the lesson, do not repeat the mistake.
 
+### Supabase API Key Migration (April 2026)
+- Supabase disabled legacy JWT-based `service_role` and `anon` keys on 2026-04-09
+- New key formats: `sb_secret_...` (replaces service_role) and `sb_publishable_...` (replaces anon)
+- SUPABASE_SERVICE_ROLE_KEY must use `sb_secret_...` format on Vercel
+- VITE_SUPABASE_ANON_KEY must use `sb_publishable_...` format
+- Legacy keys cannot be re-enabled once revoked
+- The new keys work with existing @supabase/supabase-js client — no SDK upgrade needed
+
 **New files must be explicitly git add-ed — untracked files are invisible to Vercel**
 Wrong assumption: committing with `git commit -a` or pushing after creating new files is sufficient to include them in the build.
 Correct behaviour: `git commit -a` only stages modifications to already-tracked files. New files remain untracked and are never sent to GitHub — Vercel builds without them, causing silent "cannot find module" errors or blank pages with no obvious cause.
