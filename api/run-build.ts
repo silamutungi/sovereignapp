@@ -1688,6 +1688,20 @@ export default async function handler(req: any, res: any): Promise<void> {
             }),
           }).catch((err: unknown) => console.error('[run-build] Brain audit fire-and-forget failed:', err))
 
+          // Integrity check — fire-and-forget, non-fatal
+          fetch(`${appUrl}/api/integrity-check`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              build_id: buildId,
+              deploy_url: deployResult.deployUrl,
+              repo_url: ghRepoUrl,
+              expected_file_count: build.files?.length ?? 0,
+            }),
+          }).catch((err: unknown) =>
+            console.error('[integrity-check fire-and-forget]', err)
+          )
+
           // ── Index components for Brain ─────────────────────────────────
           await step('Indexing components…')
           try {

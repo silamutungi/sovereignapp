@@ -327,6 +327,34 @@ export default async function handler(req: any, res: any): Promise<void> {
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    // CHECK 8 — Integrity check failures
+    // Builds that completed but scored below 80 on integrity checks
+    // ══════════════════════════════════════════════════════════════════════
+    const lowIntegrityBuilds = await supaQuery(
+      `builds?status=eq.complete&created_at=gte.${encodeURIComponent(twentyFourHoursAgo)}&integrity_score=lt.80&integrity_score=not.is.null&select=id,app_name,integrity_score,integrity_warnings,created_at`
+    )
+    const lowIntegrityCount = lowIntegrityBuilds.length
+
+    const check8: CheckResult = {
+      name:      'integrity_failures',
+      status:    lowIntegrityCount > 0 ? 'alert' : 'pass',
+      value:     lowIntegrityCount,
+      threshold: 0,
+    }
+    checks.push(check8)
+
+    if (check8.status === 'alert') {
+      alertsFired++
+      const msg = `${lowIntegrityCount} completed build(s) scored below 80 on integrity checks in last 24h`
+      await logAlert('supervisor_integrity', 'critical', msg, {
+        check: 'integrity_failures',
+        value: lowIntegrityCount,
+        builds: lowIntegrityBuilds,
+      })
+      await sendAlert('Visila Supervisor Alert — Integrity Check Failures', msg)
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // RESULTS
     // ══════════════════════════════════════════════════════════════════════
     console.log('[supervisor] done.', JSON.stringify({ checks, alerts_fired: alertsFired }))
