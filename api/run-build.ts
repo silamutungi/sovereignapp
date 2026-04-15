@@ -989,15 +989,22 @@ async function injectVercelEnvVars(
 // generation prompt requiring an app-slug prefix on every table.
 function addBuildIdToSchema(schema: string, buildId: string): string {
   // Ensure IF NOT EXISTS on every CREATE TABLE
-  const safe = schema.replace(
+  let safe = schema.replace(
     /CREATE\s+TABLE\s+(?!IF\s+NOT\s+EXISTS\s)(\S)/gi,
     'CREATE TABLE IF NOT EXISTS $1',
   )
   // Prepend build_id column for row-level isolation
-  return safe.replace(
+  safe = safe.replace(
     /(CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[^\s(]+\s*\()/gi,
     `$1\n  build_id UUID NOT NULL DEFAULT '${buildId}'::uuid,`,
   )
+  // Drop policies before recreating — CREATE POLICY has no IF NOT EXISTS
+  safe = safe.replace(
+    /CREATE\s+POLICY\s+"?(\w+)"?\s+ON\s+"?(\w+)"?/gi,
+    (match, policyName, tableName) =>
+      `DROP POLICY IF EXISTS "${policyName}" ON ${tableName};\n${match}`,
+  )
+  return safe
 }
 
 // ── Lessons: auto-capture build failures ──────────────────────────────────────
