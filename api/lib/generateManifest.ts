@@ -2,6 +2,12 @@
 // Pure analysis — no AI, no API calls. Runs in <50ms on a typical 19-file scaffold.
 // Called from api/generate.ts to embed visila.json in every commit, and from
 // api/run-build.ts to persist the same manifest to the builds table.
+//
+// The required-pages and required-features list is sourced from the same
+// CONTRACTS map that drives the generation prompt (api/lib/completenessContract.ts)
+// so generation requirements and post-generation verification can never drift.
+
+import { CONTRACTS, normaliseCategory } from './completenessContract.js'
 
 export interface ManifestPage {
   id: string         // kebab-case derived from file name
@@ -20,99 +26,6 @@ export interface AppManifest {
   features: string[]
   completenessScore: number
   completenessGaps: string[]
-}
-
-interface CategoryRequirement {
-  requiredPages: string[]
-  requiredFeatures: string[]
-}
-
-// Keyed by both the lowercase short categories that the codebase emits today
-// (saas, marketplace, ecommerce, …) and the longer canonical labels from the
-// product spec (SAAS_TOOL, BOOKING_SCHEDULING, …). Whichever category the
-// caller passes, lookup is via a normalised key so both forms hit the same row.
-const CATEGORY_REQUIREMENTS: Record<string, CategoryRequirement> = {
-  saas: {
-    requiredPages: ['dashboard', 'settings', 'login'],
-    requiredFeatures: ['auth', 'crud'],
-  },
-  saas_tool: {
-    requiredPages: ['dashboard', 'settings', 'pricing', 'login'],
-    requiredFeatures: ['auth', 'crud'],
-  },
-  marketplace: {
-    requiredPages: ['home', 'listings', 'profile', 'login'],
-    requiredFeatures: ['auth', 'crud', 'search'],
-  },
-  booking_scheduling: {
-    requiredPages: ['home', 'booking', 'confirmation', 'dashboard', 'login'],
-    requiredFeatures: ['auth', 'crud', 'calendar'],
-  },
-  ecommerce: {
-    requiredPages: ['home', 'products', 'cart', 'checkout'],
-    requiredFeatures: ['auth', 'payments', 'crud'],
-  },
-  ecommerce_retail: {
-    requiredPages: ['home', 'products', 'cart', 'checkout'],
-    requiredFeatures: ['auth', 'payments', 'crud'],
-  },
-  restaurant_hospitality: {
-    requiredPages: ['home', 'menu', 'reservations', 'contact'],
-    requiredFeatures: ['crud'],
-  },
-  directory_listing: {
-    requiredPages: ['home', 'listings', 'submit', 'login'],
-    requiredFeatures: ['auth', 'crud', 'search'],
-  },
-  social: {
-    requiredPages: ['home', 'feed', 'profile', 'login'],
-    requiredFeatures: ['auth', 'crud'],
-  },
-  community_social: {
-    requiredPages: ['home', 'feed', 'profile', 'messages', 'login'],
-    requiredFeatures: ['auth', 'crud'],
-  },
-  content: {
-    requiredPages: ['home', 'about', 'contact'],
-    requiredFeatures: [],
-  },
-  portfolio_showcase: {
-    requiredPages: ['home', 'work', 'about', 'contact'],
-    requiredFeatures: [],
-  },
-  tool: {
-    requiredPages: ['home', 'login'],
-    requiredFeatures: ['auth'],
-  },
-  internal_tool: {
-    requiredPages: ['dashboard', 'settings', 'login'],
-    requiredFeatures: ['auth', 'crud'],
-  },
-  productivity: {
-    requiredPages: ['dashboard', 'settings', 'login'],
-    requiredFeatures: ['auth', 'crud'],
-  },
-  finance: {
-    requiredPages: ['dashboard', 'settings', 'login'],
-    requiredFeatures: ['auth', 'crud'],
-  },
-  health: {
-    requiredPages: ['dashboard', 'login'],
-    requiredFeatures: ['auth', 'crud'],
-  },
-  game: {
-    requiredPages: ['home', 'play'],
-    requiredFeatures: [],
-  },
-}
-
-const DEFAULT_REQUIREMENTS: CategoryRequirement = {
-  requiredPages: ['home', 'login'],
-  requiredFeatures: ['auth'],
-}
-
-function normaliseCategoryKey(category: string): string {
-  return category.trim().toLowerCase().replace(/[\s-]+/g, '_')
 }
 
 function extractPages(files: Record<string, string>): ManifestPage[] {
@@ -169,43 +82,65 @@ function extractFeatures(files: Record<string, string>): string[] {
   return features
 }
 
+function pageNameToId(name: string): string {
+  return name.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '')
+}
+
 function computeCompleteness(
   pages: ManifestPage[],
   features: string[],
   files: Record<string, string>,
   category: string,
 ): { score: number; gaps: string[] } {
-  const requirements =
-    CATEGORY_REQUIREMENTS[normaliseCategoryKey(category)] ?? DEFAULT_REQUIREMENTS
+  const key = normaliseCategory(category)
+  const contract = CONTRACTS[key]
+
+  // No contract for this category — pure universal checks only.
+  if (!contract) {
+    const allContent = Object.values(files).join('\n')
+    const gaps: string[] = []
+    let hits = 0
+    let total = 0
+
+    total++
+    if (/empty[- ]?state|no\s+\w+\s+yet|nothing\s+here\s+yet/i.test(allContent)) hits++
+    else gaps.push('Add empty state UI for lists with no data')
+
+    total++
+    if (/ErrorBoundary|catch\s*\(|onError|error[- ]?state/.test(allContent)) hits++
+    else gaps.push('Add error boundary or error state handling')
+
+    return { score: total === 0 ? 100 : Math.round((hits / total) * 100), gaps }
+  }
 
   const pageIds = pages.map((p) => p.id)
   const gaps: string[] = []
   let hits = 0
   let total = 0
 
-  for (const requiredPage of requirements.requiredPages) {
+  for (const requiredPage of contract.pages) {
     total++
+    const requiredId = pageNameToId(requiredPage.name)
     const found = pageIds.some(
-      (id) => id.includes(requiredPage) || requiredPage.includes(id),
+      (pid) => pid.includes(requiredId) || requiredId.includes(pid),
     )
     if (found) {
       hits++
     } else {
-      gaps.push(`Missing page: ${requiredPage}`)
+      gaps.push(`Missing page: ${requiredPage.name} (${requiredPage.route})`)
     }
   }
 
-  for (const requiredFeature of requirements.requiredFeatures) {
+  for (const requiredFeature of contract.features) {
     total++
-    if (features.includes(requiredFeature)) {
+    if (features.includes(requiredFeature.id)) {
       hits++
     } else {
-      gaps.push(`Missing feature: ${requiredFeature}`)
+      gaps.push(`Missing feature: ${requiredFeature.id}`)
     }
   }
 
-  // Soft checks: scan for empty-state and error-state patterns across all files.
-  // Credit when present, gap when absent — both contribute to the score.
+  // Universal soft checks — empty and error states across the whole codebase
   const allContent = Object.values(files).join('\n')
   total++
   if (/empty[- ]?state|no\s+\w+\s+yet|nothing\s+here\s+yet/i.test(allContent)) {

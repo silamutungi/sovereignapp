@@ -17,6 +17,7 @@ import { MANDATORY_PAGES, MANDATORY_PAGES_ENFORCEMENT } from './lib/mandatoryPag
 import { validateGenerated } from './lib/validateGenerated.js'
 import { generateManifest } from './lib/generateManifest.js'
 import { buildTopology } from './lib/buildTopology.js'
+import { buildCompletenessContract } from './lib/completenessContract.js'
 import { checkBuildQuota } from './lib/quotaCheck.js'
 
 // Model constants — change here to swap models across the file
@@ -628,6 +629,15 @@ Return only the image prompt text, nothing else. Max 100 words.`
     categoryBriefInjection = categoryBriefInjection.slice(0, 1500)
     competitiveContext = competitiveContext.slice(0, 500)
 
+    // Completeness contract — tells Claude what a complete app looks like
+    // before it writes a single line of code. Injected at position 3 in
+    // finalUserMessage, immediately after the category intelligence brief
+    // and before design/UX/accessibility layers. ~1200 chars per category.
+    // Same CONTRACTS map is consumed by api/lib/generateManifest.ts so the
+    // generation contract and the manifest verification share a source of truth.
+    const completenessContractInjection =
+      '\n\n' + buildCompletenessContract(appCategory) + '\n'
+
     // ── Brand token injection (founder's existing brand) ──────────────────────
     let brandInjection = ''
     if (brandTokensRaw && typeof brandTokensRaw === 'object' && brandTokensRaw.primaryColor) {
@@ -649,13 +659,14 @@ Return only the image prompt text, nothing else. Max 100 words.`
       console.log('[generate] brand tokens injected:', bt.primaryColor, bt.fontFamily ?? 'no font')
     }
 
-    const finalUserMessage = intentInjection + categoryBriefInjection + designProfileInjection + brandInjection + mandatoryPagesInjection + brainWisdomInjection + userMessage + heroImageInjection + designSystemInjection.slice(0, 4000) + competitiveContext + contentLayer + uxLayer + a11yRules
+    const finalUserMessage = intentInjection + categoryBriefInjection + completenessContractInjection + designProfileInjection + brandInjection + mandatoryPagesInjection + brainWisdomInjection + userMessage + heroImageInjection + designSystemInjection.slice(0, 4000) + competitiveContext + contentLayer + uxLayer + a11yRules
 
     const preProcessingMs = Date.now() - startedAt
     console.log('[generate] STREAM_OPEN pre_processing_ms:', preProcessingMs,
       'finalUserMessage_chars:', finalUserMessage.length, 'target: <12000',
       'system_prompt_chars:', SYSTEM_PROMPT.length,
       'categoryBrief_chars:', categoryBriefInjection.length,
+      'completenessContract_chars:', completenessContractInjection.length,
       'mandatoryPages_chars:', mandatoryPagesInjection.length,
       'designSystem_chars:', designSystemInjection.slice(0, 4000).length,
       'contentLayer_chars:', contentLayer.length,
