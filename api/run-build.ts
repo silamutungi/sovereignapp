@@ -986,7 +986,11 @@ async function injectVercelEnvVars(
 // Prepend a build_id column to every CREATE TABLE statement in a SQL schema
 // so that all tables in visila-hosted databases are scoped per build.
 function addBuildIdToSchema(schema: string, buildId: string): string {
-  return schema.replace(
+  const safe = schema.replace(
+    /CREATE\s+TABLE\s+(?!IF\s+NOT\s+EXISTS\s)(\S)/gi,
+    'CREATE TABLE IF NOT EXISTS $1',
+  )
+  return safe.replace(
     /(CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[^\s(]+\s*\()/gi,
     `$1\n  build_id UUID NOT NULL DEFAULT '${buildId}'::uuid,`,
   )
@@ -1347,15 +1351,22 @@ export default async function handler(req: any, res: any): Promise<void> {
               const sovereignRef   = process.env.SOVEREIGN_SUPABASE_REF
               const mgmtToken      = process.env.SOVEREIGN_SUPABASE_MANAGEMENT_TOKEN
               if (sovereignRef && mgmtToken) {
-                await fetchWithTimeout(
+                const sqlRes = await fetchWithTimeout(
                   `https://api.supabase.com/v1/projects/${sovereignRef}/database/query`,
                   {
                     method: 'POST',
-                    headers: { Authorization: `Bearer ${mgmtToken}`, 'Content-Type': 'application/json' },
+                    headers: {
+                      Authorization: `Bearer ${mgmtToken}`,
+                      'Content-Type': 'application/json',
+                    },
                     body: JSON.stringify({ query: build.supabase_schema }),
                   },
                   NET,
-                ).catch(err => console.warn('[run-build] own-temp schema exec non-fatal:', err))
+                )
+                if (!sqlRes.ok) {
+                  const err = await sqlRes.json().catch(() => ({})) as { message?: string }
+                  throw new Error(`Schema migration failed: ${err.message ?? sqlRes.status}`)
+                }
                 // RLS safety net
                 await fetchWithTimeout(
                   `https://api.supabase.com/v1/projects/${sovereignRef}/database/query`,
@@ -1380,15 +1391,22 @@ export default async function handler(req: any, res: any): Promise<void> {
               const mgmtToken      = process.env.SOVEREIGN_SUPABASE_MANAGEMENT_TOKEN
               if (sovereignRef && mgmtToken) {
                 const scopedSchema = addBuildIdToSchema(build.supabase_schema, buildId as string)
-                await fetchWithTimeout(
+                const sqlRes = await fetchWithTimeout(
                   `https://api.supabase.com/v1/projects/${sovereignRef}/database/query`,
                   {
                     method: 'POST',
-                    headers: { Authorization: `Bearer ${mgmtToken}`, 'Content-Type': 'application/json' },
+                    headers: {
+                      Authorization: `Bearer ${mgmtToken}`,
+                      'Content-Type': 'application/json',
+                    },
                     body: JSON.stringify({ query: scopedSchema }),
                   },
                   NET,
-                ).catch(err => console.warn('[run-build] visila schema exec non-fatal:', err))
+                )
+                if (!sqlRes.ok) {
+                  const err = await sqlRes.json().catch(() => ({})) as { message?: string }
+                  throw new Error(`Schema migration failed: ${err.message ?? sqlRes.status}`)
+                }
                 // RLS safety net
                 await fetchWithTimeout(
                   `https://api.supabase.com/v1/projects/${sovereignRef}/database/query`,
@@ -1475,13 +1493,13 @@ export default async function handler(req: any, res: any): Promise<void> {
             console.warn('[run-build] manifest/topology generation failed (non-fatal):', analysisErr)
           }
 
-          // ── Save supabaseSchema to builds table (non-fatal) ───────────
+          // ── Save supabaseSchema text to builds table (best-effort) ───
           if (build.supabase_schema) {
             console.log('[run-build] saving supabase_schema, length:', build.supabase_schema.length)
             await updateBuild(supabaseUrl, serviceKey, buildId, {
               supabase_schema: build.supabase_schema,
             }).catch((err: unknown) => {
-              console.warn('[run-build] supabase_schema save failed (non-fatal):', err)
+              console.warn('[run-build] supabase_schema row save failed (best-effort):', err)
             })
           }
 

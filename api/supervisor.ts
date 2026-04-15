@@ -233,6 +233,71 @@ export default async function handler(req: any, res: any): Promise<void> {
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    // CHECK 5 — Schema integrity
+    // Completed builds whose step log contains a schema failure — these
+    // are apps that deployed with a broken database. Zero tolerance.
+    // ══════════════════════════════════════════════════════════════════════
+    const schemaFailures = await supaQuery(
+      `builds?status=eq.complete&created_at=gte.${encodeURIComponent(twentyFourHoursAgo)}&step=like.*schema*failed*&select=id,app_name,created_at`
+    )
+    const schemaFailureCount = schemaFailures.length
+
+    const check5: CheckResult = {
+      name:      'schema_integrity',
+      status:    schemaFailureCount > 0 ? 'alert' : 'pass',
+      value:     schemaFailureCount,
+      threshold: 0,
+    }
+    checks.push(check5)
+
+    if (check5.status === 'alert') {
+      alertsFired++
+      const msg = `${schemaFailureCount} completed build(s) had schema failures in last 24h — customers have broken dashboards`
+      await logAlert('supervisor_schema_integrity', 'critical', msg, {
+        check: 'schema_integrity',
+        value: schemaFailureCount,
+        builds: schemaFailures,
+      })
+      await sendAlert('Visila Supervisor Alert — Schema Integrity', msg)
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // CHECK 6 — Brain hint delivery
+    // If brain-hint returns show_hint: false on >80% of calls in 24h,
+    // the hint system is likely suppressed. Detect via audit_log entries
+    // written when hints fire — if zero hints fired and edits happened,
+    // something is wrong.
+    // ══════════════════════════════════════════════════════════════════════
+    const recentEdits = await supaQuery(
+      `edit_messages?role=eq.assistant&created_at=gte.${encodeURIComponent(twentyFourHoursAgo)}&select=id`
+    )
+    const recentHints = await supaQuery(
+      `audit_log?check_name=eq.brain_hint_fired&created_at=gte.${encodeURIComponent(twentyFourHoursAgo)}&select=id`
+    )
+    const editCountLast24h = recentEdits.length
+    const hintCountLast24h = recentHints.length
+    const hintSuppressed = editCountLast24h >= 5 && hintCountLast24h === 0
+
+    const check6: CheckResult = {
+      name:      'brain_hint_delivery',
+      status:    hintSuppressed ? 'alert' : 'pass',
+      value:     hintCountLast24h,
+      threshold: editCountLast24h,
+    }
+    checks.push(check6)
+
+    if (check6.status === 'alert') {
+      alertsFired++
+      const msg = `Brain hints fired 0 times in last 24h despite ${editCountLast24h} edits — hint system may be suppressed`
+      await logAlert('supervisor_brain_hints', 'warning', msg, {
+        check: 'brain_hint_delivery',
+        edits: editCountLast24h,
+        hints: hintCountLast24h,
+      })
+      await sendAlert('Visila Supervisor Alert — Brain Hints Suppressed', msg)
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // RESULTS
     // ══════════════════════════════════════════════════════════════════════
     console.log('[supervisor] done.', JSON.stringify({ checks, alerts_fired: alertsFired }))

@@ -766,7 +766,7 @@ Return only the image prompt text, nothing else. Max 100 words.`
               },
               supabaseSchema: {
                 type: 'string',
-                description: 'GENERATE THIS LAST — after all files are complete. Complete Supabase SQL schema. Includes CREATE TABLE, ALTER TABLE ENABLE ROW LEVEL SECURITY, CREATE POLICY for all operations, and CREATE INDEX. Use auth.uid() = user_id for user-owned data. Use standard SQL compatible with PostgreSQL 15.',
+                description: 'CRITICAL: Every CREATE TABLE must use IF NOT EXISTS — CREATE TABLE IF NOT EXISTS table_name (...). Never omit IF NOT EXISTS. Multiple builds share the same database instance. GENERATE THIS LAST — after all files are complete. Complete Supabase SQL schema. Includes CREATE TABLE, ALTER TABLE ENABLE ROW LEVEL SECURITY, CREATE POLICY for all operations, and CREATE INDEX. Use auth.uid() = user_id for user-owned data. Use standard SQL compatible with PostgreSQL 15.',
               },
             },
             required: ['appName', 'tagline', 'primaryColor', 'appType', 'files', 'supabaseSchema', 'setupInstructions', 'tier', 'activeStandards', 'nextSteps'],

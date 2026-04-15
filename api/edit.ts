@@ -918,15 +918,37 @@ Return only valid JSON. No markdown fences. No preamble. First character must be
       }).catch((err: unknown) => console.error('[edit] Monitor fire-and-forget failed:', err))
 
       // Brain hint — fire and forget, non-fatal
+      let editCount = 0
+      try {
+        const sbUrl = process.env.SUPABASE_URL
+        const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+        if (sbUrl && sbKey) {
+          const countRes = await fetch(
+            `${sbUrl}/rest/v1/edit_messages?build_id=eq.${encodeURIComponent(String(buildId))}&role=eq.assistant&select=id`,
+            {
+              headers: {
+                apikey: sbKey,
+                Authorization: `Bearer ${sbKey}`,
+                Prefer: 'count=exact',
+              },
+            },
+          )
+          const contentRange = countRes.headers.get('content-range')
+          if (contentRange) {
+            const total = parseInt(contentRange.split('/')[1] ?? '0', 10)
+            if (!isNaN(total)) editCount = total
+          }
+        }
+      } catch { /* non-fatal — brain hint runs with count=0 */ }
+
       fetch(`${editAppUrl}/api/brain-hint`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          build_id: buildId,
-          trigger: 'post_edit',
+          build_id:         buildId,
           edit_instruction: editRequest,
-          changed_files: committedPaths,
-          commit_sha: commitSha,
+          edit_count:       editCount,
+          last_hint_type:   null,
         }),
       }).catch((err: unknown) => console.error('[brain-hint fire-and-forget]', err))
 

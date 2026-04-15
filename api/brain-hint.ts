@@ -57,6 +57,29 @@ export default async function handler(req: any, res: any): Promise<void> {
   const supabaseUrl = process.env.SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
+  // ── Audit log helper — fires whenever a hint is delivered (Bug 3 detector) ─
+  async function logHintFired(hintType: string): Promise<void> {
+    try {
+      if (supabaseUrl && serviceKey) {
+        await fetch(`${supabaseUrl}/rest/v1/audit_log`, {
+          method: 'POST',
+          headers: {
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+            'Content-Type': 'application/json',
+            Prefer: 'return=minimal',
+          },
+          body: JSON.stringify({
+            check_name: 'brain_hint_fired',
+            passed: true,
+            severity: 'info',
+            details: { build_id, hint_type: hintType, edit_count: count },
+          }),
+        })
+      }
+    } catch { /* non-fatal — logging must never block hint delivery */ }
+  }
+
   let buildIdea = app_type ?? 'web app'
   let fetchedFeatures: string[] = Array.isArray(features_built) ? features_built : []
 
@@ -101,6 +124,7 @@ export default async function handler(req: any, res: any): Promise<void> {
           const rows = await buildRes.json() as Array<{ competitors: string[] | null }>
           const storedCompetitors = rows[0]?.competitors
           if (Array.isArray(storedCompetitors) && storedCompetitors.length > 0) {
+            await logHintFired('green')
             return res.status(200).json({
               show_hint: true,
               hint_type: 'green',
@@ -131,6 +155,7 @@ export default async function handler(req: any, res: any): Promise<void> {
         10: `${count} edits. Most founders stop at one. You keep refining. That's the difference.`,
         20: `${count} iterations. The app you have now is not the one you started with. It's better.`,
       }
+      await logHintFired('green')
       return res.status(200).json({
         show_hint: true,
         hint_type: 'green',
@@ -208,6 +233,10 @@ Return only JSON (no other text):
       hint_body: string | null
       hint_action: string | null
       hint_action_label: string | null
+    }
+
+    if (parsed.show_hint && parsed.hint_type) {
+      await logHintFired(parsed.hint_type)
     }
 
     res.status(200).json(parsed)
