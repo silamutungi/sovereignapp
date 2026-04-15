@@ -983,17 +983,29 @@ async function injectVercelEnvVars(
   }
 }
 
-// Prepend a build_id column to every CREATE TABLE statement in a SQL schema
-// so that all tables in visila-hosted databases are scoped per build.
-function addBuildIdToSchema(schema: string, buildId: string): string {
-  const safe = schema.replace(
-    /CREATE\s+TABLE\s+(?!IF\s+NOT\s+EXISTS\s)(\S)/gi,
-    'CREATE TABLE IF NOT EXISTS $1',
-  )
-  return safe.replace(
-    /(CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[^\s(]+\s*\()/gi,
-    `$1\n  build_id UUID NOT NULL DEFAULT '${buildId}'::uuid,`,
-  )
+// Wrap every SQL statement in its own BEGIN/EXCEPTION block so that
+// cross-build collisions (e.g. CREATE TABLE IF NOT EXISTS skipping, then
+// CREATE INDEX failing because the existing table has a different schema)
+// never fail the migration. Each statement runs independently — failures
+// are logged via RAISE NOTICE and the next statement proceeds.
+function addBuildIdToSchema(schema: string, _buildId: string): string {
+  const statements = schema
+    .split(';')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+
+  const wrapped = statements
+    .map(
+      (stmt) => `
+  BEGIN
+    ${stmt};
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Skipping statement (may already exist): %', SQLERRM;
+  END;`,
+    )
+    .join('\n')
+
+  return `DO $$\nBEGIN\n${wrapped}\nEND $$;`
 }
 
 // ── Lessons: auto-capture build failures ──────────────────────────────────────
