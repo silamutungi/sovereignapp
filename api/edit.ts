@@ -19,6 +19,8 @@ import { checkRateLimit } from './_rateLimit.js'
 import { resolveHeroImage } from './lib/images.js'
 import { reindexFiles } from './lib/componentIndex.js'
 import type { AppTopology } from './lib/buildTopology.js'
+import type { AppManifest } from './lib/generateManifest.js'
+import { generateRecommendations } from './lib/structuralRecommendations.js'
 import { visionMap } from './lib/visionMap.js'
 import type { VisionMapResult } from './lib/visionMap.js'
 import { captureScreenshot } from './lib/screenshot.js'
@@ -124,7 +126,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     console.log('[edit] fetching build...', new Date().toISOString())
     const { data: build, error: buildError } = await supabase
       .from('builds')
-      .select('id, github_token, email, vercel_project_id, deploy_url, screenshot_url, supabase_project_ref, repo_url, idea, app_type, app_topology')
+      .select('id, github_token, email, vercel_project_id, deploy_url, screenshot_url, supabase_project_ref, repo_url, idea, app_type, app_name, app_category, app_manifest, app_topology')
       .eq('id', buildId)
       .is('deleted_at', null)
       .single()
@@ -927,6 +929,62 @@ Return only valid JSON. No markdown fences. No preamble. First character must be
           commit_sha: commitSha,
         }),
       }).catch((err: unknown) => console.error('[brain-hint fire-and-forget]', err))
+
+      // Brain 2.5 — Structural recommendations fire-and-forget. Reads the
+      // manifest + topology persisted by run-build.ts, asks Haiku for ranked
+      // gaps, persists the full report, and surfaces p0 items to the
+      // BrainAlertCard via audit_log so the user sees them next poll.
+      ;(async () => {
+        try {
+          const report = await generateRecommendations(
+            build.id,
+            build.app_name ?? 'this app',
+            build.idea ?? '',
+            build.app_category ?? 'other',
+            build.app_manifest as AppManifest | null,
+            build.app_topology as AppTopology | null,
+          )
+
+          if (report.recommendations.length === 0) return
+
+          await supabase
+            .from('builds')
+            .update({ structural_recommendations: report })
+            .eq('id', build.id)
+
+          const p0Gaps = report.recommendations.filter((r) => r.priority === 'p0')
+          if (p0Gaps.length > 0) {
+            const auditEntries = p0Gaps.map((r) => ({
+              build_id: build.id,
+              check_name: `structural:${r.id}`,
+              passed: false,
+              severity: 'critical' as const,
+              auto_fixed: false,
+              details: {
+                source: 'structural_recommendations',
+                title: r.title,
+                description: r.description,
+                editInstruction: r.editInstruction,
+                category: r.category,
+                effort: r.effort,
+              },
+            }))
+            const { error: insertErr } = await supabase.from('audit_log').insert(auditEntries)
+            if (insertErr) {
+              console.warn('[structural-recs] audit_log insert failed:', insertErr.message)
+            }
+          }
+          console.log(
+            '[structural-recs] persisted',
+            report.recommendations.length,
+            'recs,',
+            p0Gaps.length,
+            'p0 surfaced',
+          )
+        } catch (err) {
+          console.error('[structural-recs fire-and-forget]', err)
+        }
+      })().catch((err: unknown) => console.error('[structural-recs outer]', err))
 
       // Deployment verification — fire and forget, non-fatal
       if (build.deploy_url) {
