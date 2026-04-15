@@ -88,6 +88,7 @@ vite.config.ts: MUST include build.rollupOptions.output.manualChunks to split th
 tailwind.config.js: fontFamily.sans=["Geist","system-ui"]. Colors: shadcn/ui hsl(var(--name)) pattern.
 src/index.css: @tailwind directives + shadcn/ui CSS vars in :root and .dark. primaryColor→--primary HSL.
 shadcn/ui: Button(cva,6 variants), Input, Label(@radix-ui), Card(4 parts), Badge(cva). Use for ALL buttons/inputs/labels/cards.
+src/lib/supabase.ts: MUST create the client with the db schema option so per-build schema isolation works. Required content: import { createClient } from '@supabase/supabase-js'; const supabaseUrl = import.meta.env.VITE_SUPABASE_URL; const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY; const supabaseSchema = import.meta.env.VITE_SUPABASE_SCHEMA ?? 'public'; export const supabase = createClient(supabaseUrl, supabaseAnonKey, { db: { schema: supabaseSchema } }). Never omit the db.schema option — try-mode builds share one Supabase instance and each build reads/writes its own PostgreSQL schema.
 
 ## VISUAL DESIGN
 

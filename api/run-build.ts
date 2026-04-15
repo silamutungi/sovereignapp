@@ -195,6 +195,7 @@ interface BuildRecord {
   vercel_token: string
   supabase_token: string | null
   supabase_mode: string | null
+  supabase_schema_name: string | null
   status: string
   step: string | null
   repo_url: string | null
@@ -983,28 +984,25 @@ async function injectVercelEnvVars(
   }
 }
 
-// Prepend a build_id column to every CREATE TABLE statement in a SQL schema
-// so that all tables in visila-hosted databases are scoped per build.
-// Cross-build table-name collisions are prevented upstream by the
-// generation prompt requiring an app-slug prefix on every table.
+// Create an isolated PostgreSQL schema per build in Visila's shared Supabase
+// instance. Each build's tables live in their own schema (e.g. b8f43d33) so
+// cross-build name collisions are structurally impossible.
 function addBuildIdToSchema(schema: string, buildId: string): string {
-  // Ensure IF NOT EXISTS on every CREATE TABLE
-  let safe = schema.replace(
+  const prefix = buildId.replace(/-/g, '').slice(0, 8)
+  const schemaName = `b${prefix}` // e.g. b8f43d33 — b prefix ensures valid identifier
+
+  const schemaSetup = [
+    `CREATE SCHEMA IF NOT EXISTS ${schemaName};`,
+    `SET search_path TO ${schemaName};`,
+    '',
+  ].join('\n')
+
+  const safe = schema.replace(
     /CREATE\s+TABLE\s+(?!IF\s+NOT\s+EXISTS\s)(\S)/gi,
     'CREATE TABLE IF NOT EXISTS $1',
   )
-  // Prepend build_id column for row-level isolation
-  safe = safe.replace(
-    /(CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[^\s(]+\s*\()/gi,
-    `$1\n  build_id UUID NOT NULL DEFAULT '${buildId}'::uuid,`,
-  )
-  // Drop policies before recreating — CREATE POLICY has no IF NOT EXISTS
-  safe = safe.replace(
-    /CREATE\s+POLICY\s+"?(\w+)"?\s+ON\s+"?(\w+)"?/gi,
-    (match, policyName, tableName) =>
-      `DROP POLICY IF EXISTS "${policyName}" ON ${tableName};\n${match}`,
-  )
-  return safe
+
+  return schemaSetup + safe
 }
 
 // ── Lessons: auto-capture build failures ──────────────────────────────────────
@@ -1362,6 +1360,7 @@ export default async function handler(req: any, res: any): Promise<void> {
               const sovereignRef   = process.env.SOVEREIGN_SUPABASE_REF
               const mgmtToken      = process.env.SOVEREIGN_SUPABASE_MANAGEMENT_TOKEN
               if (sovereignRef && mgmtToken) {
+                const scopedSchema = addBuildIdToSchema(build.supabase_schema, buildId as string)
                 const sqlRes = await fetchWithTimeout(
                   `https://api.supabase.com/v1/projects/${sovereignRef}/database/query`,
                   {
@@ -1370,13 +1369,15 @@ export default async function handler(req: any, res: any): Promise<void> {
                       Authorization: `Bearer ${mgmtToken}`,
                       'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ query: build.supabase_schema }),
+                    body: JSON.stringify({ query: scopedSchema }),
                   },
                   NET,
                 )
                 if (!sqlRes.ok) {
                   const err = await sqlRes.json().catch(() => ({})) as { message?: string }
-                  throw new Error(`Schema migration failed: ${err.message ?? sqlRes.status}`)
+                  const msg = err.message ?? String(sqlRes.status)
+                  console.error('[run-build] schema migration failed:', msg)
+                  throw new Error(`Schema migration failed: ${msg}`)
                 }
                 // RLS safety net
                 await fetchWithTimeout(
@@ -1388,6 +1389,9 @@ export default async function handler(req: any, res: any): Promise<void> {
                   },
                   NET,
                 ).catch(err => console.warn('[run-build] RLS safety net non-fatal:', err))
+                await updateBuild(supabaseUrl, serviceKey, buildId, {
+                  supabase_schema_name: `b${buildId.replace(/-/g, '').slice(0, 8)}`,
+                })
               }
             }
           } else {
@@ -1416,7 +1420,9 @@ export default async function handler(req: any, res: any): Promise<void> {
                 )
                 if (!sqlRes.ok) {
                   const err = await sqlRes.json().catch(() => ({})) as { message?: string }
-                  throw new Error(`Schema migration failed: ${err.message ?? sqlRes.status}`)
+                  const msg = err.message ?? String(sqlRes.status)
+                  console.error('[run-build] schema migration failed:', msg)
+                  throw new Error(`Schema migration failed: ${msg}`)
                 }
                 // RLS safety net
                 await fetchWithTimeout(
@@ -1428,6 +1434,9 @@ export default async function handler(req: any, res: any): Promise<void> {
                   },
                   NET,
                 ).catch(err => console.warn('[run-build] RLS safety net non-fatal:', err))
+                await updateBuild(supabaseUrl, serviceKey, buildId, {
+                  supabase_schema_name: `b${buildId.replace(/-/g, '').slice(0, 8)}`,
+                })
               } else {
                 console.log('[run-build] SOVEREIGN_SUPABASE_REF or MANAGEMENT_TOKEN not set — schema stored for manual run')
               }
@@ -1443,6 +1452,7 @@ export default async function handler(req: any, res: any): Promise<void> {
           await injectVercelEnvVars(vcProjectId, vcTeamId, [
             { key: 'VITE_SUPABASE_URL',  value: deploySupabaseUrl },
             { key: 'VITE_SUPABASE_ANON_KEY', value: deployAnonKey },
+            { key: 'VITE_SUPABASE_SCHEMA', value: `b${buildId.replace(/-/g, '').slice(0, 8)}` },
             { key: 'SUPABASE_URL',        value: deploySupabaseUrl },
           ])
           await step('Database ready ✓')
