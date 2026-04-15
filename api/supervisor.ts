@@ -298,6 +298,35 @@ export default async function handler(req: any, res: any): Promise<void> {
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    // CHECK 7 — Schema isolation integrity
+    // Completed try-mode builds should have supabase_schema_name populated.
+    // If it's null, the build used the public schema and may have collisions.
+    // ══════════════════════════════════════════════════════════════════════
+    const unisolatedBuilds = await supaQuery(
+      `builds?status=eq.complete&supabase_mode=eq.sovereign_temporary&created_at=gte.${encodeURIComponent(twentyFourHoursAgo)}&supabase_schema_name=is.null&select=id,app_name,created_at`
+    )
+    const unisolatedCount = unisolatedBuilds.length
+
+    const check7: CheckResult = {
+      name:      'schema_isolation',
+      status:    unisolatedCount > 0 ? 'alert' : 'pass',
+      value:     unisolatedCount,
+      threshold: 0,
+    }
+    checks.push(check7)
+
+    if (check7.status === 'alert') {
+      alertsFired++
+      const msg = `${unisolatedCount} completed try-mode build(s) missing schema isolation in last 24h — public schema collisions may have occurred`
+      await logAlert('supervisor_schema_isolation', 'critical', msg, {
+        check: 'schema_isolation',
+        value: unisolatedCount,
+        builds: unisolatedBuilds,
+      })
+      await sendAlert('Visila Supervisor Alert — Schema Isolation Missing', msg)
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // RESULTS
     // ══════════════════════════════════════════════════════════════════════
     console.log('[supervisor] done.', JSON.stringify({ checks, alerts_fired: alertsFired }))
