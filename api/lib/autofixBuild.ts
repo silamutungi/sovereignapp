@@ -175,6 +175,13 @@ Supported actions:
 - remove_unused_var: remove an unused variable declaration
 
 Only return fixes you are certain about. Only fix TS6133 (unused) and TS6196 (unused) errors.
+
+For TS2345 and TS2339 errors involving Supabase queries (errors mentioning 'never' type), the fix is always to add 'as any' casting to the Supabase query. For example:
+- supabase.from('x').select() → (supabase.from('x') as any).select()
+- .insert({...}) → .insert({...} as any)
+- .update({...}) → .update({...} as any)
+These are always safe fixes for generated apps without type definitions.
+
 Return only valid JSON array. No markdown fences. No explanation.`,
       }],
     })
