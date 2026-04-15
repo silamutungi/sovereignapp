@@ -15,6 +15,7 @@ import { resolveHeroImage } from './lib/images.js'
 import { buildCategoryBrief, formatCategoryBriefForPrompt, detectIntent } from './lib/categoryIntelligence.js'
 import { MANDATORY_PAGES, MANDATORY_PAGES_ENFORCEMENT } from './lib/mandatoryPages.js'
 import { validateGenerated } from './lib/validateGenerated.js'
+import { generateManifest } from './lib/generateManifest.js'
 import { checkBuildQuota } from './lib/quotaCheck.js'
 
 // Model constants — change here to swap models across the file
@@ -855,6 +856,29 @@ Return only the image prompt text, nothing else. Max 100 words.`
     if (fixes.length > 0) {
       for (const fix of fixes) console.log('[generate] validateGenerated:', fix)
       spec.files = spec.files.map((f) => ({ ...f, content: correctedMap[f.path] ?? f.content }))
+    }
+
+    // App manifest — visila.json committed alongside src/. Pure static analysis,
+    // no AI, no network. Non-fatal — generation continues if extraction fails.
+    try {
+      const manifestFileMap: Record<string, string> = {}
+      for (const f of spec.files) manifestFileMap[f.path] = f.content
+      const manifest = generateManifest(spec.appName, appCategory, manifestFileMap)
+      const manifestJson = JSON.stringify(manifest, null, 2)
+      const existingIdx = spec.files.findIndex((f) => f.path === 'visila.json')
+      if (existingIdx >= 0) {
+        spec.files[existingIdx] = { path: 'visila.json', content: manifestJson }
+      } else {
+        spec.files.push({ path: 'visila.json', content: manifestJson })
+      }
+      console.log('[generate] manifest:',
+        manifest.completenessScore, '%',
+        'pages:', manifest.pages.length,
+        'features:', manifest.features.length,
+        'gaps:', manifest.completenessGaps.length,
+      )
+    } catch (manifestErr) {
+      console.error('[generate] manifest generation failed (non-fatal):', manifestErr)
     }
 
     const donePayload = {

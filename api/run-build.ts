@@ -32,6 +32,7 @@ import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit } from './_rateLimit.js'
 import { scoreApp } from './_scoreApp.js'
 import { runDesignAudit } from './audit-generated-app.js'
+import { generateManifest, type AppManifest } from './lib/generateManifest.js'
 import { indexComponents } from './lib/componentIndex.js'
 import { captureScreenshot } from './lib/screenshot.js'
 import { autofixBuild } from './lib/autofixBuild.js'
@@ -213,6 +214,9 @@ interface BuildRecord {
   app_type: string | null
   app_category: string | null
   primary_color: string | null
+  app_manifest: AppManifest | null
+  completeness_score: number | null
+  completeness_gaps: string[] | null
 }
 
 async function getBuild(
@@ -1437,6 +1441,31 @@ export default async function handler(req: any, res: any): Promise<void> {
           }
 
           await markDone('files')
+
+          // ── Persist app manifest to builds table (non-fatal) ──────────
+          // Recomputed from generatedFiles so the DB matches the visila.json
+          // committed by api/generate.ts. Pure static analysis, <50ms.
+          try {
+            const manifestFileMap: Record<string, string> = {}
+            for (const f of generatedFiles) manifestFileMap[f.path] = f.content
+            const manifest = generateManifest(
+              build.app_name,
+              build.app_category ?? 'other',
+              manifestFileMap,
+            )
+            await updateBuild(supabaseUrl, serviceKey, buildId, {
+              app_manifest: manifest,
+              completeness_score: manifest.completenessScore,
+              completeness_gaps: manifest.completenessGaps,
+            }).catch((err: unknown) => {
+              console.warn('[run-build] manifest persist failed (non-fatal):', err)
+            })
+            console.log('[run-build] manifest persisted:',
+              manifest.completenessScore, '%',
+              'gaps:', manifest.completenessGaps.length)
+          } catch (manifestErr) {
+            console.warn('[run-build] manifest generation failed (non-fatal):', manifestErr)
+          }
 
           // ── Save supabaseSchema to builds table (non-fatal) ───────────
           if (build.supabase_schema) {
