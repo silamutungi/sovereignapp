@@ -8,6 +8,8 @@ node_modules
 .env.development
 .env.test
 .env.*.local
+.env.vercel
+.env.vercel.*
 
 # build output
 dist
@@ -19,3 +21,6 @@ dist
 .DS_Store
 .vercel
 .env*.local
+
+# supabase cli local cache
+supabase/.temp/
