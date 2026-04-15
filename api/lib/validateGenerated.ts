@@ -122,10 +122,19 @@ export function validateGenerated(files: Record<string, string>): ValidateResult
         )
       } else {
         // Add import after the last existing import line
-        updated = updated.replace(
-          /^(import .+\n)(?!import)/m,
-          `$1${newImportLine}`
-        )
+        // Find the last import line by splitting and rebuilding
+        const lines = updated.split('\n')
+        let lastImportIdx = -1
+        for (let i = 0; i < lines.length; i++) {
+          if (/^import\s/.test(lines[i])) lastImportIdx = i
+        }
+        if (lastImportIdx >= 0) {
+          lines.splice(lastImportIdx + 1, 0, newImportLine.trim())
+          updated = lines.join('\n')
+        } else {
+          // No imports at all — prepend
+          updated = newImportLine + updated
+        }
       }
       for (const icon of missingIcons) {
         fixes.push(`Added missing lucide-react import ${icon} in ${path}`)
