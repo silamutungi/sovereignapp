@@ -107,8 +107,26 @@ export function validateGenerated(files: Record<string, string>): ValidateResult
       'ToggleRight', 'Tool', 'Truck', 'Tv', 'Umbrella', 'Watch', 'Wifi', 'Wind',
     ])
 
+    // Collect all identifiers already imported from ANY module
+    const allImportedIdentifiers = new Set<string>()
+    const allImportRe = /^import\s+(?:(?:\{([^}]+)\})|(\w+)|\*\s+as\s+(\w+))\s+from/gm
+    let importMatch
+    while ((importMatch = allImportRe.exec(updated)) !== null) {
+      // Named imports: { A, B, C }
+      if (importMatch[1]) {
+        importMatch[1].split(',').map(s => s.trim()).filter(Boolean)
+          .forEach(s => allImportedIdentifiers.add(s.split(' as ')[0].trim()))
+      }
+      // Default import: import Foo from
+      if (importMatch[2]) allImportedIdentifiers.add(importMatch[2])
+      // Namespace import: import * as Foo from
+      if (importMatch[3]) allImportedIdentifiers.add(importMatch[3])
+    }
+
     const missingIcons = [...usedIcons].filter(
-      (icon) => KNOWN_LUCIDE_ICONS.has(icon) && !importedIcons.has(icon)
+      (icon) => KNOWN_LUCIDE_ICONS.has(icon)
+        && !importedIcons.has(icon)
+        && !allImportedIdentifiers.has(icon)
     )
 
     if (missingIcons.length > 0) {
