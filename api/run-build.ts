@@ -33,6 +33,7 @@ import { checkRateLimit } from './_rateLimit.js'
 import { scoreApp } from './_scoreApp.js'
 import { runDesignAudit } from './audit-generated-app.js'
 import { generateManifest, type AppManifest } from './lib/generateManifest.js'
+import { buildTopology, type AppTopology } from './lib/buildTopology.js'
 import { indexComponents } from './lib/componentIndex.js'
 import { captureScreenshot } from './lib/screenshot.js'
 import { autofixBuild } from './lib/autofixBuild.js'
@@ -217,6 +218,7 @@ interface BuildRecord {
   app_manifest: AppManifest | null
   completeness_score: number | null
   completeness_gaps: string[] | null
+  app_topology: AppTopology | null
 }
 
 async function getBuild(
@@ -1442,29 +1444,35 @@ export default async function handler(req: any, res: any): Promise<void> {
 
           await markDone('files')
 
-          // ── Persist app manifest to builds table (non-fatal) ──────────
-          // Recomputed from generatedFiles so the DB matches the visila.json
-          // committed by api/generate.ts. Pure static analysis, <50ms.
+          // ── Persist app manifest + topology to builds table (non-fatal) ──
+          // Both are recomputed from generatedFiles so the DB matches what
+          // api/generate.ts committed. Pure static analysis, <100ms combined.
           try {
-            const manifestFileMap: Record<string, string> = {}
-            for (const f of generatedFiles) manifestFileMap[f.path] = f.content
+            const fileMapForAnalysis: Record<string, string> = {}
+            for (const f of generatedFiles) fileMapForAnalysis[f.path] = f.content
             const manifest = generateManifest(
               build.app_name,
               build.app_category ?? 'other',
-              manifestFileMap,
+              fileMapForAnalysis,
             )
+            const topology = buildTopology(fileMapForAnalysis)
             await updateBuild(supabaseUrl, serviceKey, buildId, {
               app_manifest: manifest,
               completeness_score: manifest.completenessScore,
               completeness_gaps: manifest.completenessGaps,
+              app_topology: topology,
             }).catch((err: unknown) => {
-              console.warn('[run-build] manifest persist failed (non-fatal):', err)
+              console.warn('[run-build] manifest/topology persist failed (non-fatal):', err)
             })
             console.log('[run-build] manifest persisted:',
               manifest.completenessScore, '%',
-              'gaps:', manifest.completenessGaps.length)
-          } catch (manifestErr) {
-            console.warn('[run-build] manifest generation failed (non-fatal):', manifestErr)
+              'gaps:', manifest.completenessGaps.length,
+              '| topology:',
+              topology.nodes.length, 'pages,',
+              topology.edges.length, 'edges,',
+              topology.orphanPages.length, 'orphans')
+          } catch (analysisErr) {
+            console.warn('[run-build] manifest/topology generation failed (non-fatal):', analysisErr)
           }
 
           // ── Save supabaseSchema to builds table (non-fatal) ───────────

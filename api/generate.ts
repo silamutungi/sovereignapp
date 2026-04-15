@@ -16,6 +16,7 @@ import { buildCategoryBrief, formatCategoryBriefForPrompt, detectIntent } from '
 import { MANDATORY_PAGES, MANDATORY_PAGES_ENFORCEMENT } from './lib/mandatoryPages.js'
 import { validateGenerated } from './lib/validateGenerated.js'
 import { generateManifest } from './lib/generateManifest.js'
+import { buildTopology } from './lib/buildTopology.js'
 import { checkBuildQuota } from './lib/quotaCheck.js'
 
 // Model constants — change here to swap models across the file
@@ -879,6 +880,24 @@ Return only the image prompt text, nothing else. Max 100 words.`
       )
     } catch (manifestErr) {
       console.error('[generate] manifest generation failed (non-fatal):', manifestErr)
+    }
+
+    // App topology — page nodes + navigation edges + orphan detection.
+    // Logged here for visibility; persisted to builds in run-build.ts.
+    try {
+      const topologyFileMap: Record<string, string> = {}
+      for (const f of spec.files) topologyFileMap[f.path] = f.content
+      const topology = buildTopology(topologyFileMap)
+      console.log('[generate] topology:',
+        topology.nodes.length, 'pages,',
+        topology.edges.length, 'edges,',
+        topology.orphanPages.length, 'orphans',
+      )
+      if (topology.warnings.length > 0) {
+        console.warn('[generate] topology warnings:', topology.warnings.join(' | '))
+      }
+    } catch (topologyErr) {
+      console.error('[generate] topology generation failed (non-fatal):', topologyErr)
     }
 
     const donePayload = {

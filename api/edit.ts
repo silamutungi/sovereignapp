@@ -18,6 +18,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { checkRateLimit } from './_rateLimit.js'
 import { resolveHeroImage } from './lib/images.js'
 import { reindexFiles } from './lib/componentIndex.js'
+import type { AppTopology } from './lib/buildTopology.js'
 import { visionMap } from './lib/visionMap.js'
 import type { VisionMapResult } from './lib/visionMap.js'
 import { captureScreenshot } from './lib/screenshot.js'
@@ -123,7 +124,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     console.log('[edit] fetching build...', new Date().toISOString())
     const { data: build, error: buildError } = await supabase
       .from('builds')
-      .select('id, github_token, email, vercel_project_id, deploy_url, screenshot_url, supabase_project_ref, repo_url, idea, app_type')
+      .select('id, github_token, email, vercel_project_id, deploy_url, screenshot_url, supabase_project_ref, repo_url, idea, app_type, app_topology')
       .eq('id', buildId)
       .is('deleted_at', null)
       .single()
@@ -266,6 +267,30 @@ export default async function handler(req: any, res: any): Promise<void> {
       console.warn('[edit] propensity fetch failed (non-fatal):', e)
     }
 
+    // ── Build topology context — page graph for structurally-informed edits ─
+    let topologyContext = ''
+    try {
+      const topology = build.app_topology as AppTopology | null
+      if (topology && topology.nodes.length > 0) {
+        const pageList = topology.nodes
+          .map((n) => `  ${n.name} \u2192 ${n.filePath} (route: ${n.route})`)
+          .join('\n')
+        const edgeList = topology.edges.length > 0
+          ? topology.edges.map((e) => `  ${e.from} \u2192 ${e.to} [${e.type}]`).join('\n')
+          : '  (none detected)'
+        const warningsBlock = topology.warnings.length > 0
+          ? `\nSTRUCTURAL WARNINGS:\n${topology.warnings.map((w) => `  \u26A0 ${w}`).join('\n')}`
+          : ''
+        topologyContext =
+          `APP STRUCTURE (${topology.nodes.length} pages, ${topology.edges.length} navigation edges):\n` +
+          `PAGES:\n${pageList}\n\n` +
+          `NAVIGATION:\n${edgeList}\n${warningsBlock}\n\n`
+        console.log(`[edit] topology injected: ${topology.nodes.length} pages, ${topology.edges.length} edges, ${topology.orphanPages.length} orphans`)
+      }
+    } catch (topoErr) {
+      console.warn('[edit] topology context build failed (non-fatal):', topoErr)
+    }
+
     // ── STEP 1: Instruction Classifier (Haiku — Prompt A) ───────────────────
     let classifierResult: ClassifierResult = {
       instruction_type: 'style_change',
@@ -281,7 +306,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     try {
       const classifierPrompt = `You are Visila's pre-edit intelligence layer. You analyze a user's instruction before any code is written. You do four things at once.
 
-${lessonsContext}${propensityContext}${visionContext}${indexContext}APP CONTEXT:
+${lessonsContext}${propensityContext}${visionContext}${indexContext}${topologyContext}APP CONTEXT:
 - App type: ${build.app_type ?? 'web app'}
 - App idea: ${build.idea ?? 'unknown'}
 - File tree (src/ only):
