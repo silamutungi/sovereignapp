@@ -424,18 +424,16 @@ const PROGRESS_MESSAGES = [
 async function callGenerateAPI(
   body: Record<string, unknown>,
   onProgress: (msg: string) => void,
+  onSseStatus?: (connected: boolean) => void,
 ): Promise<GenerateResult> {
   const pendingId = crypto.randomUUID()
   const POLL_INTERVAL = 6000
   const MAX_WAIT = 900_000 // 15 min
 
-  // Resolved externally when SSE delivers the result before polling
   let sseResult: GenerateResult | null = null
   let sseResolved = false
+  let sseConnected = false
 
-  // Fire SSE request — processes progress events in real-time,
-  // and if the connection survives, gets the result immediately.
-  // If it drops, polling picks up seamlessly.
   const controller = new AbortController()
   fetch('/api/generate', {
     method: 'POST',
@@ -445,13 +443,14 @@ async function callGenerateAPI(
   }).then(async (res) => {
     const contentType = res.headers.get('content-type') ?? ''
     if (!contentType.includes('text/event-stream')) {
-      // Pre-flight error (rate limit, validation) — JSON response
       const data = await res.json() as { error?: string; message?: string }
       sseResult = { error: data.error ?? data.message ?? 'Generation failed. Try again.' }
       sseResolved = true
       return
     }
     if (!res.body) return
+    sseConnected = true
+    onSseStatus?.(true)
     const reader = res.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
@@ -475,27 +474,40 @@ async function callGenerateAPI(
           } else if (event.type === 'error') {
             sseResult = { error: event.error ?? 'Generation failed.' }
             sseResolved = true
+          } else if (event.type === 'ping') {
+            // Keep-alive — connection is healthy
           }
         } catch { /* ignore parse errors */ }
       }
     }
   }).catch(() => {
-    console.log('[generate] SSE connection closed — polling continues')
+    // SSE dropped (screen lock, network switch) — polling continues
+  }).finally(() => {
+    if (sseConnected && !sseResolved) {
+      sseConnected = false
+      onSseStatus?.(false)
+      onProgress('Still generating — this can take 2\u20133 minutes. Safe to lock your screen.')
+    }
   })
 
-  // Poll for completion — SSE may deliver first, but polling is the safety net
   const startTime = Date.now()
   let progressIdx = 0
   const progressInterval = setInterval(() => {
     if (!sseResolved) {
-      progressIdx = (progressIdx + 1) % PROGRESS_MESSAGES.length
-      onProgress(PROGRESS_MESSAGES[progressIdx])
+      const elapsed = Date.now() - startTime
+      if (!sseConnected && elapsed > 120_000) {
+        onProgress('Almost there — your app is nearly ready.')
+      } else if (!sseConnected) {
+        onProgress('Still generating — this can take 2\u20133 minutes. Safe to lock your screen.')
+      } else {
+        progressIdx = (progressIdx + 1) % PROGRESS_MESSAGES.length
+        onProgress(PROGRESS_MESSAGES[progressIdx])
+      }
     }
   }, 12_000)
 
   try {
     while (Date.now() - startTime < MAX_WAIT) {
-      // Check if SSE already delivered
       if (sseResolved && sseResult) {
         clearInterval(progressInterval)
         controller.abort()
@@ -504,14 +516,12 @@ async function callGenerateAPI(
 
       await new Promise((r) => setTimeout(r, POLL_INTERVAL))
 
-      // Check SSE again after sleep
       if (sseResolved && sseResult) {
         clearInterval(progressInterval)
         controller.abort()
         return sseResult
       }
 
-      // Poll the server
       try {
         const pollRes = await fetch('/api/poll-spec?id=' + encodeURIComponent(pendingId))
         if (pollRes.ok) {
@@ -534,7 +544,7 @@ async function callGenerateAPI(
 
     clearInterval(progressInterval)
     controller.abort()
-    return { error: 'Generation is taking longer than expected — we\'ll keep trying. If this persists, please contact us at hello@visila.com' }
+    return { error: 'Still generating — this can take 2\u20133 minutes. Safe to lock your screen.' }
   } catch {
     clearInterval(progressInterval)
     controller.abort()
@@ -552,6 +562,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
   const [spec, setSpec] = useState<AppSpec | null>(null)
   const [generateError, setGenerateError] = useState<string | null>(null)
   const [generatingMessage, setGeneratingMessage] = useState('Generating your app…')
+  const [sseConnected, setSseConnected] = useState(true)
   const [email, setEmail] = useState('')
   const [emailError, setEmailError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
@@ -726,11 +737,13 @@ function NdevPanel({ locale }: { locale: Locale }) {
     setIsExtracting(false)
     setGenerateError(null)
     setGeneratingMessage('Generating your app…')
+    setSseConnected(true)
     setStage('generating')
     try {
       const result = await callGenerateAPI(
         { idea: ideaToUse, ...(email ? { email } : {}), ...(brandTokens ? { brand_tokens: brandTokens } : {}) },
         (msg) => setGeneratingMessage(msg),
+        (connected) => setSseConnected(connected),
       )
       if ('error' in result) {
         setGenerateError(result.error)
@@ -878,6 +891,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
       const result = await callGenerateAPI(
         { idea: resolvedIdea || value.trim(), variationHint, attempt: nextAttempt, ...(email ? { email } : {}), ...(brandTokens ? { brand_tokens: brandTokens } : {}) },
         () => { /* progress during regen — no visible indicator needed */ },
+        () => { /* SSE status during regen — no UI needed */ },
       )
       if ('error' in result) {
         setPreviewAttempt(currentAttempt)
@@ -1285,6 +1299,16 @@ function NdevPanel({ locale }: { locale: Locale }) {
               minHeight: '20px',
               transition: 'opacity 0.3s ease'
             }}>{generatingMessage}</p>
+
+            {/* Connection status — only shown when SSE drops */}
+            {!sseConnected && (
+              <p style={{
+                fontFamily: 'DM Mono, monospace',
+                fontSize: '11px',
+                color: '#aaa89f',
+                margin: '0 0 8px',
+              }}>Connection paused — still building in background</p>
+            )}
 
             {/* Visila tagline */}
             <p style={{

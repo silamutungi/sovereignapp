@@ -299,9 +299,12 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   // Keepalive — fires every 8s through the ENTIRE request lifecycle including finalMessage().
   // 8s prevents browsers and proxies from treating the connection as idle.
+  // Sends both an SSE comment (for proxy keep-alive) and a typed ping event
+  // (for the client to detect the connection is still alive on mobile).
   const keepalive = setInterval(() => {
     try {
       res.write(': keepalive\n\n')
+      res.write('data: {"type":"ping"}\n\n')
       flush()
     } catch {
       // connection already closed — interval will be cleared below
