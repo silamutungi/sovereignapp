@@ -61,102 +61,43 @@ export function validateGenerated(files: Record<string, string>): ValidateResult
       fixes.push(`Removed empty className in ${path}`)
     }
 
-    // CHECK 4 — Lucide icons used in JSX but not imported
-    // Find all <IconName> or <IconName /> patterns in JSX
-    // Check each against the lucide-react import line
-    // Add any missing icons to the import statement
-    const jsxIconRe = /<([A-Z][a-zA-Z0-9]+)[\s/>]/g
-    const usedIcons = new Set<string>()
-    let iconMatch
-    while ((iconMatch = jsxIconRe.exec(updated)) !== null) {
-      usedIcons.add(iconMatch[1])
+    // CHECK 4 — Flag files with potential missing lucide imports
+    // (actual fixing done by fixLucideImports in generate.ts)
+    const jsxIconRe2 = /<([A-Z][a-zA-Z0-9]+)[\s/>]/g
+    const allImportRe2 = /^import\s+(?:\{([^}]+)\}|(\w+))\s+from\s+['"]([^'"]+)['"]/gm
+
+    const importedFromElsewhere = new Set<string>()
+    let imp
+    while ((imp = allImportRe2.exec(updated)) !== null) {
+      const source = imp[3]
+      if (!source.includes('lucide')) {
+        if (imp[1]) imp[1].split(',').map(s => s.trim().split(/\s+as\s+/)[0].trim())
+          .filter(Boolean).forEach(s => importedFromElsewhere.add(s))
+        if (imp[2]) importedFromElsewhere.add(imp[2])
+      }
     }
 
-    // Get currently imported lucide icons
-    const lucideImportMatch = updated.match(
-      /^import\s*\{([^}]+)\}\s*from\s*['"]lucide-react['"];?\s*$/m
-    )
-    const importedIcons = new Set<string>(
-      lucideImportMatch
-        ? lucideImportMatch[1].split(',').map((s) => s.trim()).filter(Boolean)
+    const usedJsx = new Set<string>()
+    let jx
+    while ((jx = jsxIconRe2.exec(updated)) !== null) {
+      if (!importedFromElsewhere.has(jx[1])) usedJsx.add(jx[1])
+    }
+
+    // Check if any used PascalCase names have no import at all
+    const lucideLineMatch = updated.match(/^import\s*\{[^}]+\}\s*from\s*['"]lucide-react['"]/m)
+    const lucideImported = new Set<string>(
+      lucideLineMatch
+        ? lucideLineMatch[0].match(/\{([^}]+)\}/)?.[1]
+            .split(',').map(s => s.trim()).filter(Boolean) ?? []
         : []
     )
 
-    // Find icons that look like lucide icons (PascalCase, not React components
-    // we know about) and are used but not imported
-    // We identify lucide icons by checking against a known subset of common ones
-    const KNOWN_LUCIDE_ICONS = new Set([
-      'AlertTriangle', 'AlertCircle', 'ArrowLeft', 'ArrowRight', 'ArrowUp',
-      'ArrowDown', 'BarChart', 'BarChart2', 'BarChart3', 'Bell', 'BookOpen',
-      'Calendar', 'Camera', 'Check', 'CheckCircle', 'ChevronDown', 'ChevronLeft',
-      'ChevronRight', 'ChevronUp', 'Circle', 'Clock', 'Code', 'Copy', 'CreditCard',
-      'Database', 'DollarSign', 'Download', 'Edit', 'Edit2', 'Edit3', 'ExternalLink',
-      'Eye', 'EyeOff', 'File', 'FileText', 'Filter', 'Flag', 'Folder', 'Globe',
-      'Grid', 'Heart', 'Home', 'Image', 'Info', 'Key', 'Layout', 'Link', 'List',
-      'Loader', 'Lock', 'LogIn', 'LogOut', 'Mail', 'Map', 'MapPin', 'Menu',
-      'MessageCircle', 'MessageSquare', 'Minus', 'Moon', 'MoreHorizontal',
-      'MoreVertical', 'Music', 'Package', 'Phone', 'Play', 'Plus', 'PlusCircle',
-      'RefreshCw', 'Search', 'Send', 'Settings', 'Share', 'Share2', 'Shield',
-      'ShieldCheck', 'ShoppingCart', 'Sliders', 'Star', 'Sun', 'Tag', 'Target',
-      'Trash', 'Trash2', 'TrendingDown', 'TrendingUp', 'Upload', 'User', 'UserCheck',
-      'UserMinus', 'UserPlus', 'Users', 'Video', 'Wallet', 'X', 'XCircle', 'Zap',
-      'ZapOff', 'Activity', 'Award', 'Briefcase', 'Building', 'Car', 'Coffee',
-      'Cpu', 'Feather', 'Fingerprint', 'Hash', 'Headphones', 'Layers', 'Lightbulb',
-      'Monitor', 'PieChart', 'Power', 'Printer', 'Radio', 'Save', 'Scissors',
-      'Smartphone', 'Speaker', 'Square', 'Terminal', 'Toggle', 'ToggleLeft',
-      'ToggleRight', 'Tool', 'Truck', 'Tv', 'Umbrella', 'Watch', 'Wifi', 'Wind',
-    ])
-
-    // Collect all identifiers already imported from ANY module
-    const allImportedIdentifiers = new Set<string>()
-    const allImportRe = /^import\s+(?:(?:\{([^}]+)\})|(\w+)|\*\s+as\s+(\w+))\s+from/gm
-    let importMatch
-    while ((importMatch = allImportRe.exec(updated)) !== null) {
-      // Named imports: { A, B, C }
-      if (importMatch[1]) {
-        importMatch[1].split(',').map(s => s.trim()).filter(Boolean)
-          .forEach(s => allImportedIdentifiers.add(s.split(' as ')[0].trim()))
-      }
-      // Default import: import Foo from
-      if (importMatch[2]) allImportedIdentifiers.add(importMatch[2])
-      // Namespace import: import * as Foo from
-      if (importMatch[3]) allImportedIdentifiers.add(importMatch[3])
-    }
-
-    const missingIcons = [...usedIcons].filter(
-      (icon) => KNOWN_LUCIDE_ICONS.has(icon)
-        && !importedIcons.has(icon)
-        && !allImportedIdentifiers.has(icon)
+    const potentiallyMissing = [...usedJsx].filter(n =>
+      /^[A-Z]/.test(n) && !lucideImported.has(n) && !importedFromElsewhere.has(n)
     )
 
-    if (missingIcons.length > 0) {
-      const allIcons = [...new Set([...importedIcons, ...missingIcons])].sort()
-      const newImportLine = `import { ${allIcons.join(', ')} } from 'lucide-react'\n`
-      if (lucideImportMatch) {
-        // Replace existing import line
-        updated = updated.replace(
-          /^import\s*\{[^}]+\}\s*from\s*['"]lucide-react['"];?\s*$/m,
-          newImportLine
-        )
-      } else {
-        // Add import after the last existing import line
-        // Find the last import line by splitting and rebuilding
-        const lines = updated.split('\n')
-        let lastImportIdx = -1
-        for (let i = 0; i < lines.length; i++) {
-          if (/^import\s/.test(lines[i])) lastImportIdx = i
-        }
-        if (lastImportIdx >= 0) {
-          lines.splice(lastImportIdx + 1, 0, newImportLine.trim())
-          updated = lines.join('\n')
-        } else {
-          // No imports at all — prepend
-          updated = newImportLine + updated
-        }
-      }
-      for (const icon of missingIcons) {
-        fixes.push(`Added missing lucide-react import ${icon} in ${path}`)
-      }
+    if (potentiallyMissing.length > 0) {
+      fixes.push(`CHECK4_FLAG:${path}:${potentiallyMissing.join(',')}`)
     }
 
     corrected[path] = updated

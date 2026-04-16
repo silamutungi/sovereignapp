@@ -15,6 +15,8 @@ import { resolveHeroImage } from './lib/images.js'
 import { buildCategoryBrief, formatCategoryBriefForPrompt, detectIntent } from './lib/categoryIntelligence.js'
 import { MANDATORY_PAGES, MANDATORY_PAGES_ENFORCEMENT } from './lib/mandatoryPages.js'
 import { validateGenerated } from './lib/validateGenerated.js'
+import { fixLucideImports } from './lib/fixLucideImports.js'
+import { prePushIntegrity } from './lib/prePushIntegrity.js'
 import { generateManifest } from './lib/generateManifest.js'
 import { buildTopology } from './lib/buildTopology.js'
 import { buildCompletenessContract } from './lib/completenessContract.js'
@@ -870,8 +872,34 @@ Return only the image prompt text, nothing else. Max 100 words.`
     const { files: correctedMap, fixes } = validateGenerated(fileMap)
     if (fixes.length > 0) {
       for (const fix of fixes) console.log('[generate] validateGenerated:', fix)
-      spec.files = spec.files.map((f) => ({ ...f, content: correctedMap[f.path] ?? f.content }))
     }
+
+    // Haiku-powered lucide import fixer — resolves CHECK4_FLAG entries
+    let finalFileMap = correctedMap
+    try {
+      const { files: lucideFixed, fixCount: lucideFixCount } =
+        await fixLucideImports(correctedMap, fixes)
+      if (lucideFixCount > 0) {
+        console.log('[generate] fixLucideImports: fixed', lucideFixCount, 'files')
+      }
+      finalFileMap = lucideFixed
+    } catch (lucideErr) {
+      console.warn('[generate] fixLucideImports failed (non-fatal):', lucideErr instanceof Error ? lucideErr.message : String(lucideErr))
+    }
+
+    // Pre-push integrity — flag broken imports, missing pages, missing 'as any' casts
+    const { passed: integrityPassed, issues: integrityIssues } = prePushIntegrity(finalFileMap)
+    if (!integrityPassed) {
+      for (const issue of integrityIssues) {
+        console.error('[generate] prePushIntegrity:', issue.severity, issue.file, issue.issue)
+      }
+      console.warn('[generate] pre-push integrity found',
+        integrityIssues.filter(i => i.severity === 'error').length, 'errors')
+    } else {
+      console.log('[generate] prePushIntegrity: all checks passed')
+    }
+
+    spec.files = spec.files.map((f) => ({ ...f, content: finalFileMap[f.path] ?? f.content }))
 
     // App manifest — visila.json committed alongside src/. Pure static analysis,
     // no AI, no network. Non-fatal — generation continues if extraction fails.
