@@ -1533,6 +1533,19 @@ UI: collapsible multi-input panel in NdevPanel (src/App.tsx). URL + Figma URL ar
 FIGMA_ACCESS_TOKEN must be added to Vercel env vars.
 Learned: 2026-04-08.
 
+**provisionSupabase was fetching the disabled legacy JWT anon key — every app shipped after 2026-04-09 was broken on signup**
+Wrong assumption: `/v1/projects/{ref}/api-keys` returns the usable anon key under `name === 'anon'`.
+Correct behaviour: that entry is the legacy JWT which Supabase disabled on 2026-04-09. The usable key has `type === 'publishable'` (value format `sb_publishable_...`) and is only returned when the request includes `?reveal=true`. Schema confirmed from Supabase OpenAPI (ApiKeyResponse): `{ api_key, name, type: 'legacy' | 'publishable' | 'secret', ... }`. Signup failed with `"Legacy API keys are disabled"` on every new app because the disabled JWT was being written to VITE_SUPABASE_ANON_KEY on Vercel.
+Fix: `provisionSupabase` in api/run-build.ts:129 now requests `?reveal=true`, picks `type === 'publishable'` first, falls back to legacy only with a console.warn. Throws if neither is present. Backfill script `scripts/fix-supabase-publishable-key.ts` fixes existing builds (weir-51fe48 confirmed affected) — accepts `<buildId>`, `--repo=<substring>`, or `--all-legacy`. Updates builds.supabase_anon_key, PATCHes the Vercel env var, triggers a redeploy.
+Rule: any time a third-party API endpoint ships a key-rotation migration, audit every call site that reads keys. Schema drift is easy to miss — an endpoint can keep returning 200 with the old shape while the returned values stop working.
+Learned: 2026-04-16.
+
+**iOS Safari autofill yellow background overrides Tailwind bg-* — inject override in every generated app's index.css**
+Wrong assumption: setting `bg-background` (or any Tailwind bg-*) on input elements is sufficient.
+Correct behaviour: iOS Safari's `-webkit-autofill` pseudo-state paints a yellow background via `-webkit-box-shadow` that beats normal background-color in the cascade. The fix is a 1000px inset box-shadow of the desired color. Confirmed visible in weir-51fe48 as a yellow flash on autofilled inputs.
+Fix: `buildAllFiles` in api/run-build.ts appends an autofill override block (light + `.dark` variants) to `src/index.css` after Claude's CSS — always wins the cascade regardless of what the generator produced.
+Learned: 2026-04-16.
+
 **Generated file contents must pass through sanitizeFileContent() before GitHub push**
 Wrong assumption: Sonnet's multi-file JSON output returns clean file bodies ready to commit.
 Correct behaviour: Sonnet occasionally wraps individual file contents in markdown code fences (```typescript ... ``` / ```tsx ... ```) — as happened in the weir-51fe48 build where 10 generated files all had opening/closing fences. The first line becomes ```typescript which TypeScript parses as a malformed module declaration (TS1443 on line 1), then cascading template-literal parse errors at the first ${ in the file. Vercel build fails hard with no obvious cause.
