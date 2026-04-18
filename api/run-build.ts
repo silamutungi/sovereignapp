@@ -122,11 +122,24 @@ async function provisionSupabase(
   if (!ready) throw new Error('Supabase project did not become ready in time')
 
   // 3. Get API keys
-  const keysRes = await fetch(`https://api.supabase.com/v1/projects/${projectId}/api-keys`, {
+  // Supabase disabled legacy JWT-based anon/service_role keys on 2026-04-09.
+  // New projects must use the publishable key (sb_publishable_...) — fetched
+  // via ?reveal=true and identified by type === 'publishable'. The legacy
+  // 'anon' entry is still returned but is non-functional on new projects.
+  // Schema: https://api.supabase.com/api/v1-json → components.schemas.ApiKeyResponse
+  const keysRes = await fetch(`https://api.supabase.com/v1/projects/${projectId}/api-keys?reveal=true`, {
     headers: { 'Authorization': `Bearer ${supabaseToken}` },
   })
-  const keys = await keysRes.json() as Array<{ name: string; api_key: string }>
-  const anonKey = keys.find(k => k.name === 'anon')?.api_key ?? ''
+  const keys = await keysRes.json() as Array<{ name: string; api_key: string | null; type: 'legacy' | 'publishable' | 'secret' | null }>
+  const publishableKey = keys.find(k => k.type === 'publishable')?.api_key ?? ''
+  const legacyAnonKey  = keys.find(k => k.type === 'legacy' && k.name === 'anon')?.api_key ?? ''
+  const anonKey = publishableKey || legacyAnonKey
+  if (!anonKey) {
+    throw new Error('Supabase api-keys endpoint returned no publishable or legacy anon key')
+  }
+  if (!publishableKey) {
+    console.warn('[run-build] Supabase: no publishable key found — falling back to legacy anon (disabled since 2026-04-09, expect signup failures)')
+  }
   const projectUrl = `https://${projectId}.supabase.co`
 
   // 4. Run SQL schema
@@ -457,6 +470,34 @@ function buildAllFiles(
   // Always inject vite-env.d.ts — without it tsc fails with
   // "Property 'env' does not exist on type 'ImportMeta'" on every import.meta.env reference
   files['src/vite-env.d.ts'] = '/// <reference types="vite/client" />\n'
+
+  // Append iOS Safari autofill override to src/index.css. Tailwind bg-* loses
+  // to -webkit-autofill's yellow background unless overridden with a massive
+  // box-shadow inset. Without this, every input on iOS Safari shows yellow
+  // after autofill. Appended after Claude's CSS so it always wins the cascade.
+  const AUTOFILL_OVERRIDE = `
+
+/* iOS Safari autofill override — injected by Sovereign pipeline */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px white inset !important;
+  -webkit-text-fill-color: #0e0d0b !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #0e0d0b inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+`
+  if (files['src/index.css']) {
+    files['src/index.css'] = files['src/index.css'].trimEnd() + '\n' + AUTOFILL_OVERRIDE
+  }
 
   return files
 }
