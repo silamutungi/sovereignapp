@@ -740,7 +740,7 @@ async function waitForVercelDeployment(
   teamId: string | undefined,
   fallbackUrl: string,
   maxMs: number,
-): Promise<{ ok: true; deployUrl: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; deployUrl: string; confirmed: boolean } | { ok: false; error: string }> {
   const token     = process.env.SOVEREIGN_VERCEL_TOKEN!
   const teamParam = teamId ? `&teamId=${encodeURIComponent(teamId)}` : ''
   const pollPath  = `/v6/deployments?projectId=${encodeURIComponent(projectId)}&limit=1${teamParam}`
@@ -790,7 +790,7 @@ async function waitForVercelDeployment(
           console.log('[run-build] Vercel: using stable project alias:', lastUrl)
         }
       } catch { /* non-fatal — fall back to deployment URL */ }
-      return { ok: true, deployUrl: lastUrl }
+      return { ok: true, deployUrl: lastUrl, confirmed: true }
     }
     if (d.state === 'ERROR' || d.state === 'CANCELED') {
       let errorMsg = `Vercel deployment ended with state: ${d.state}`
@@ -805,8 +805,10 @@ async function waitForVercelDeployment(
 
   // Timed out but we have a URL — the deployment will finish on Vercel's side.
   // Return best-effort so the build record is not left without a URL.
+  // confirmed:false — caller must NOT send a "your app is live" email until
+  // a later polling pass actually sees READY.
   console.warn('[run-build] Vercel: poll timed out — returning best-effort URL:', lastUrl)
-  return { ok: true, deployUrl: lastUrl }
+  return { ok: true, deployUrl: lastUrl, confirmed: false }
 }
 
 // ── Email ─────────────────────────────────────────────────────────────────────
@@ -838,6 +840,34 @@ async function sendLaunchEmail(
     )
   } catch (err) {
     console.warn('[run-build] email send failed (non-fatal):', err)
+  }
+}
+
+async function sendFailureEmail(
+  resendKey: string,
+  email: string,
+  appName: string,
+): Promise<void> {
+  try {
+    await fetchWithTimeout(
+      'https://api.resend.com/emails',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${resendKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'Visila <noreply@visila.com>',
+          to: [email],
+          subject: 'There was an issue building your app',
+          html: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/></head><body style="margin:0;padding:0;background-color:#0e0d0b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#f2efe8;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#0e0d0b;padding:40px 16px;"><tr><td align="center"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;"><tr><td style="padding:0 0 24px 0;text-align:center;"><span style="font-size:13px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#c8f060;">VISILA</span></td></tr><tr><td style="padding:0 0 16px 0;text-align:center;"><h1 style="margin:0;font-size:32px;font-weight:800;line-height:1.1;color:#f2efe8;letter-spacing:-0.02em;">There was an issue building your app.</h1></td></tr><tr><td style="padding:16px 0 32px 0;text-align:center;"><p style="margin:0;font-size:16px;line-height:1.6;color:#f2efe8;">We hit a build error on <strong style="color:#c8f060;">${appName}</strong>. Our team has been notified and will fix it. You won't be charged for this build.</p></td></tr><tr><td style="padding:24px 0 0 0;border-top:1px solid rgba(200,240,96,0.2);text-align:center;"><p style="margin:0;font-size:11px;line-height:1.8;color:#6b6862;">© 2026 Visila · <a href="https://visila.com" style="color:#6b6862;text-decoration:none;">visila.com</a></p></td></tr></table></td></tr></table></body></html>`,
+        }),
+      },
+      NET,
+    )
+  } catch (err) {
+    console.warn('[run-build] failure email send failed (non-fatal):', err)
   }
 }
 
@@ -1623,6 +1653,9 @@ export default async function handler(req: any, res: any): Promise<void> {
                 await updateBuild(supabaseUrl, serviceKey, buildId, {
                   status: 'error', step: 'Vercel deploy failed after autofix', error: retryError,
                 })
+                if (resendKey) {
+                  await sendFailureEmail(resendKey, build.email, build.app_name)
+                }
                 return
               }
             } else {
@@ -1630,6 +1663,9 @@ export default async function handler(req: any, res: any): Promise<void> {
               await updateBuild(supabaseUrl, serviceKey, buildId, {
                 status: 'error', step: 'Vercel deploy failed', error: deployError,
               })
+              if (resendKey) {
+                await sendFailureEmail(resendKey, build.email, build.app_name)
+              }
               return
             }
           }
@@ -1641,12 +1677,17 @@ export default async function handler(req: any, res: any): Promise<void> {
           })
 
           // ── Step 5: Send launch email (non-fatal) ─────────────────────
+          // Only send the "your app is live" email when Vercel confirmed READY.
+          // If polling timed out (confirmed:false), the deploy may still be
+          // building — skip the email to avoid announcing a live URL prematurely.
           await step('Sending your live URL…')
-          if (resendKey) {
+          if (resendKey && deployResult.confirmed) {
             await sendLaunchEmail(
               resendKey, build.email, build.app_name,
               deployResult.deployUrl, ghRepoUrl,
             )
+          } else if (!deployResult.confirmed) {
+            console.log('[run-build] skipping launch email — deploy not confirmed READY yet')
           }
 
           // ── Score the app against 10 Visila Standards dimensions ──────
