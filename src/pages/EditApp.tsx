@@ -252,13 +252,19 @@ export default function EditApp() {
   }
 
   async function loadMessagesFromDb(bid: string): Promise<Message[]> {
+    console.log('[edit-messages] loading history for build', bid)
     const { data, error } = await supabase
       .from('edit_messages')
       .select('role, content, metadata')
       .eq('build_id', bid)
       .order('created_at', { ascending: true })
       .limit(100)
-    if (error || !data) return []
+    if (error) {
+      console.error('[edit-messages] load error:', error.code, error.message)
+      return []
+    }
+    if (!data) return []
+    console.log(`[edit-messages] loaded ${data.length} messages`)
     return (data as Array<{ role: string; content: string; metadata: { pills?: string[]; commitSha?: string; deployUrl?: string } }>).map((m) => ({
       id: ++counter.current,
       role: m.role as 'user' | 'sovereign',
@@ -374,13 +380,16 @@ export default function EditApp() {
           setDeploying(false)
           const finalUrl = data.deployUrl ?? pendingDeployUrl ?? build?.deploy_url ?? ''
           if (data.deployUrl) setBuild((b) => b ? { ...b, deploy_url: data.deployUrl! } : b)
-          // Cache-busting iframe reload — stay on timestamped URL permanently
+          // Cache-busting iframe reload — stay on timestamped URL permanently.
+          // Also bump previewKey so React fully remounts the iframe element; a
+          // plain src change is not always enough to force a fresh navigation.
           if (finalUrl) {
             console.log('iframe reloading')
             const bustUrl = new URL(finalUrl)
             bustUrl.searchParams.set('_t', Date.now().toString())
             setIframeSrc(bustUrl.toString())
             setIframeLoaded(false)
+            setPreviewKey((k) => k + 1)
           }
           // Flash green border for 2000ms
           setPreviewFlash(true)

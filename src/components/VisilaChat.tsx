@@ -5,7 +5,7 @@
 // expiry awareness, broken build detection, and smart opener.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   useChatStore,
   type ActiveApp,
@@ -415,6 +415,10 @@ function ChatPanel() {
 
 export function VisilaChat() {
   const { isOpen, openChat, closeChat } = useChatStore()
+  const location = useLocation()
+  // On the edit page, the Update button sits at the bottom of the chat panel on
+  // mobile — raise the FAB above it so they never overlap.
+  const onEditPage = /^\/app\/[^/]+\/edit/.test(location.pathname)
 
   return (
     <>
@@ -578,6 +582,7 @@ export function VisilaChat() {
             width: 100%; height: 100%; border-radius: 0; border: none;
           }
           .sc-fab { bottom: 20px; right: 20px; }
+          .sc-fab.sc-fab-edit { bottom: 100px; right: 16px; z-index: 850; }
         }
         @keyframes scMobileSlideUp {
           from { transform: translateY(100%); }
@@ -587,7 +592,7 @@ export function VisilaChat() {
 
       {/* Floating action button — always rendered */}
       <button
-        className="sc-fab"
+        className={onEditPage ? 'sc-fab sc-fab-edit' : 'sc-fab'}
         onClick={() => (isOpen ? closeChat() : openChat())}
         aria-label={isOpen ? 'Close Visila Chat' : 'Open Visila Chat'}
       >
