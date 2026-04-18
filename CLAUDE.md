@@ -1532,3 +1532,10 @@ brandVoice field added to BrandTokens — injected as tone instruction in genera
 UI: collapsible multi-input panel in NdevPanel (src/App.tsx). URL + Figma URL are blur-triggered. File drop zone accepts images + PDFs up to 10MB, max 3 files. Detected brand preview row with color swatch, font name, tone badge, and clear button.
 FIGMA_ACCESS_TOKEN must be added to Vercel env vars.
 Learned: 2026-04-08.
+
+**Generated file contents must pass through sanitizeFileContent() before GitHub push**
+Wrong assumption: Sonnet's multi-file JSON output returns clean file bodies ready to commit.
+Correct behaviour: Sonnet occasionally wraps individual file contents in markdown code fences (```typescript ... ``` / ```tsx ... ```) — as happened in the weir-51fe48 build where 10 generated files all had opening/closing fences. The first line becomes ```typescript which TypeScript parses as a malformed module declaration (TS1443 on line 1), then cascading template-literal parse errors at the first ${ in the file. Vercel build fails hard with no obvious cause.
+Fix: `sanitizeFileContent(content)` helper in api/run-build.ts strips `/^```[a-zA-Z]*\r?\n/` and `/\r?\n```\s*$/`. Applied inside `pushFilesToGitHub` loop so every file — JSON, TS, TSX, CSS, MD — is sanitized at the write boundary regardless of caller. No legitimate generated file starts or ends with a fence.
+Follow-up: api/edit.ts `atomicCommit` has the same risk (Sonnet writes both the initial generation and the edits). If a build works but a subsequent edit reintroduces fenced content, wire the same helper into the edit path.
+Learned: 2026-04-16.
