@@ -1552,3 +1552,10 @@ Correct behaviour: Sonnet occasionally wraps individual file contents in markdow
 Fix: `sanitizeFileContent(content)` helper in api/run-build.ts strips `/^```[a-zA-Z]*\r?\n/` and `/\r?\n```\s*$/`. Applied inside `pushFilesToGitHub` loop so every file — JSON, TS, TSX, CSS, MD — is sanitized at the write boundary regardless of caller. No legitimate generated file starts or ends with a fence.
 Follow-up: api/edit.ts `atomicCommit` has the same risk (Sonnet writes both the initial generation and the edits). If a build works but a subsequent edit reintroduces fenced content, wire the same helper into the edit path.
 Learned: 2026-04-16.
+
+**shadcn components reject `style` prop — every custom color must use Tailwind arbitrary-value className**
+Wrong assumption: Sonnet could freely set inline colors on shadcn components via `style={{ color: '#FF1F6E' }}` the way plain `<div>` elements accept it.
+Correct behaviour: shadcn/ui components (Badge, Button, Card, CardHeader, CardContent, CardTitle, CardDescription, Input, Label) forward only `className` + `children` in their `VariantProps` types. Passing `style` fails tsc with TS2322 — "Property 'style' does not exist on type 'IntrinsicAttributes & BadgeProps'" — and aborts the Vercel build. This recurred across multiple builds.
+Fix: explicit CRITICAL rule added to `api/_systemPrompt.ts` line 91 directly after the shadcn description. Sonnet must use Tailwind arbitrary-value className for custom colors: `className='text-[#FF1F6E]'` not `style={{ color: '#FF1F6E' }}`. The rule enumerates the 9 shadcn components that reject `style` so the model does not have to infer which components are affected.
+Triage: → CLAUDE.md ✓ → Generation prompt (_systemPrompt.ts) ✓
+Learned: 2026-04-18.
