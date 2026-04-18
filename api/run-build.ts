@@ -270,6 +270,15 @@ function toBase64(str: string): string {
   return Buffer.from(str, 'utf-8').toString('base64')
 }
 
+// Sonnet's multi-file output occasionally wraps file contents in markdown fences
+// (```typescript ... ```), which causes TS1443 on line 1 of every wrapped file
+// and blocks the Vercel build. Strip leading/trailing fences before writing.
+// Applies to every file type — JSON, TS, TSX, CSS, MD all have zero legitimate
+// reason to start with ``` in a generated app.
+function sanitizeFileContent(content: string): string {
+  return content.replace(/^```[a-zA-Z]*\r?\n/, '').replace(/\r?\n```\s*$/, '')
+}
+
 async function ghFetch(
   path: string,
   token: string,
@@ -501,8 +510,9 @@ async function pushFilesToGitHub(
   // The Contents API creates a file + commit in one call and works correctly
   // on empty repos. Must be sequential: each commit moves HEAD, so concurrent
   // calls would race and conflict.
-  for (const [filePath, content] of Object.entries(files)) {
+  for (const [filePath, rawContent] of Object.entries(files)) {
     console.log('[run-build] GitHub: pushing', filePath)
+    const content = sanitizeFileContent(rawContent)
 
     // Check if file already exists — GitHub requires sha to update existing files.
     // This handles retries/partial pushes where some files landed before a failure.
