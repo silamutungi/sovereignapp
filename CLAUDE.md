@@ -1559,3 +1559,10 @@ Correct behaviour: shadcn/ui components (Badge, Button, Card, CardHeader, CardCo
 Fix: explicit CRITICAL rule added to `api/_systemPrompt.ts` line 91 directly after the shadcn description. Sonnet must use Tailwind arbitrary-value className for custom colors: `className='text-[#FF1F6E]'` not `style={{ color: '#FF1F6E' }}`. The rule enumerates the 9 shadcn components that reject `style` so the model does not have to infer which components are affected.
 Triage: → CLAUDE.md ✓ → Generation prompt (_systemPrompt.ts) ✓
 Learned: 2026-04-18.
+
+**lucide-react icons used in JSX without imports — TS2304 aborts every affected build**
+Wrong assumption: the existing lucide-react rule ("ONLY import icons that appear as <IconName />") was enough — Sonnet would always emit the matching import statement.
+Correct behaviour: the existing rule only prevents unused imports (the inverse problem). It does not prevent used-but-unimported icons. Sonnet routinely writes <Eye />, <Zap />, <DollarSign />, <FileCheck />, <BarChart3 /> directly in JSX with no corresponding import, producing TS2304 "Cannot find name 'Eye'" and failing the Vercel tsc step.
+Fix: new CRITICAL rule added to `api/_systemPrompt.ts` line 77 directly after the existing lucide-react unused-import rule. Sonnet must scan every capital-letter JSX tag that is not a project component and verify it appears in an import statement before finalizing each file. Two symmetric rules now cover both directions: lines 76 (used → unimported = remove from import) and 77 (imported → unused = add to import).
+Triage: → CLAUDE.md ✓ → Generation prompt (_systemPrompt.ts) ✓
+Learned: 2026-04-18.
