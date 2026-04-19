@@ -89,3 +89,16 @@ Use `checkRateLimit` from `./_rateLimit.js` as the first check in every handler.
 
 **Never log env var values.**
 Use `echo "Set: ${#VAR} chars"` to verify length. Never print the value.
+
+---
+
+## Sweep Scripts (`scripts/`)
+
+**`.env.local` takes precedence over `.env`.**
+Every sweep script must load `.env.local` before `.env`. The standard loader pattern uses `if (!(key in process.env)) process.env[key] = val` so the first file read wins — that file must be `.env.local`. Reverse order silently picks up stale `.env` values and masks 401s as mysterious failures.
+
+**Vercel list env endpoint does not decrypt.**
+`GET /v10/projects/{id}/env?decrypt=true` returns the Vercel-encrypted envelope (base64 of `{"v":"v2",...}` — starts with `eyJ2IjoidjI…`), not the real value. `decrypt=true` only works on the single-env endpoint: `GET /v1/projects/{id}/env/{envId}?decrypt=true`. Use the list to discover IDs, then fetch each individually for plaintext. The response includes a `decrypted: boolean` field — treat `false` as `sensitive` and require manual rotation.
+
+**DB-based sweeps are blind when the column isn't populated.**
+`builds.supabase_anon_key` was never written for the majority of complete builds, so `fix-supabase-publishable-key.ts --all-legacy` finds nothing. For key-rotation sweeps, iterate `vercel_project_id` from the DB and treat Vercel env as the source of truth. `vercel-anon-key-sweep.ts` is the canonical pattern.

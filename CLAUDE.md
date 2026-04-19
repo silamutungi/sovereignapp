@@ -1566,3 +1566,17 @@ Correct behaviour: the existing rule only prevents unused imports (the inverse p
 Fix: new CRITICAL rule added to `api/_systemPrompt.ts` line 77 directly after the existing lucide-react unused-import rule. Sonnet must scan every capital-letter JSX tag that is not a project component and verify it appears in an import statement before finalizing each file. Two symmetric rules now cover both directions: lines 76 (used → unimported = remove from import) and 77 (imported → unused = add to import).
 Triage: → CLAUDE.md ✓ → Generation prompt (_systemPrompt.ts) ✓
 Learned: 2026-04-18.
+
+**Vercel anon key sweep — DB `builds.supabase_anon_key` column was never populated**
+Wrong assumption: `scripts/fix-supabase-publishable-key.ts --all-legacy` would catch all user apps still on the disabled legacy JWT (pre-2026-04-09).
+Correct behaviour: `builds.supabase_anon_key` is NULL for every one of the 35 current complete builds — the column is almost never written during provisioning. A DB-based sweep (`supabase_anon_key LIKE 'eyJ%'`) returns zero matches and leaves broken apps undetected. The source of truth is each app's Vercel `VITE_SUPABASE_ANON_KEY` env var, not the `builds` row.
+Fix: `scripts/vercel-anon-key-sweep.ts` iterates every complete build's `vercel_project_id`, resolves the live Vercel env plaintext, and classifies `eyJ*` as legacy, `sb_publishable_*` as current, or `sensitive` when Vercel refuses to decrypt. Dry-run by default; `--fix` patches via Vercel API and triggers a production redeploy. Apr 2026 dry-run found 18 current, 2 legacy (both WEIR staging builds) out of 20 — DB sweep had reported zero. `.env.local` must take precedence over `.env` in the loader, otherwise a stale legacy key in `.env` masks the rotated key in `.env.local` and the script 401s against Supabase.
+Triage: → CLAUDE.md ✓ → RULES.md ✓
+Learned: 2026-04-19.
+
+**Vercel list env endpoint does not decrypt — `decrypt=true` is a no-op there**
+Wrong assumption: `GET /v10/projects/{id}/env?decrypt=true` returns plaintext env values.
+Correct behaviour: the list endpoint always returns Vercel's encrypted envelope (base64 of `{"v":"v2","c":…}` which starts with `eyJ2IjoidjI`). `decrypt=true` on the list is silently ignored. Worse: the envelope's base64 prefix (`eyJ`) collides with real JWT prefixes (`eyJhbGciOi` for HS256 tokens), so naive classifiers flag every project as "legacy" and report 100% false positives.
+Fix: always two-step. (1) List env vars with no decrypt flag to get IDs, types, and targets. (2) For each entry you care about, `GET /v1/projects/{id}/env/{envId}?decrypt=true` — the single-env endpoint does decrypt and returns a `decrypted: boolean` field. Treat `decrypted: false` as `sensitive` (user enabled the sensitive flag; plaintext is not readable by the API). Classify by the *real* plaintext value, not by the list response.
+Triage: → CLAUDE.md ✓ → RULES.md ✓
+Learned: 2026-04-19.
