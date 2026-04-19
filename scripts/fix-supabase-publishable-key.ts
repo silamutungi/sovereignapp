@@ -19,7 +19,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 // ── Load .env ────────────────────────────────────────────────────────────────
-for (const file of ['.env', '.env.local']) {
+for (const file of ['.env.local', '.env']) {
   try {
     const content = fs.readFileSync(path.resolve(process.cwd(), file), 'utf-8')
     for (const line of content.split('\n')) {
