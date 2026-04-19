@@ -1533,7 +1533,7 @@ export default async function handler(req: any, res: any): Promise<void> {
           await injectVercelEnvVars(vcProjectId, vcTeamId, [
             { key: 'VITE_SUPABASE_URL',  value: deploySupabaseUrl },
             { key: 'VITE_SUPABASE_ANON_KEY', value: deployAnonKey },
-            { key: 'VITE_SUPABASE_SCHEMA', value: `b${buildId.replace(/-/g, '').slice(0, 8)}` },
+            { key: 'VITE_SUPABASE_SCHEMA', value: build.supabase_schema ? `b${buildId.replace(/-/g, '').slice(0, 8)}` : 'public' },
             { key: 'SUPABASE_URL',        value: deploySupabaseUrl },
           ])
           await step('Database ready ✓')
