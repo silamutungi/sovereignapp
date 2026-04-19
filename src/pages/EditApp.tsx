@@ -195,6 +195,11 @@ export default function EditApp() {
   const [scanning, setScanning] = useState(false)
   const [scanOpen, setScanOpen] = useState(false)
 
+  // Claim submission — tracks missing OAuth tokens surfaced by /api/claim-build
+  const [claiming, setClaiming] = useState(false)
+  const [claimError, setClaimError] = useState<string | null>(null)
+  const [claimMissing, setClaimMissing] = useState<Array<'github' | 'vercel'>>([])
+
   // Version history
   const [showHistory, setShowHistory] = useState(false)
   const [selectedVersion, setSelectedVersion] = useState<Message | null>(null)
@@ -237,6 +242,24 @@ export default function EditApp() {
       if (saved) setQueue(JSON.parse(saved) as string[])
     }
   }, [buildId, navigate])
+
+  // ── Resume claim after OAuth redirect ────────────────────────────────────────
+  // Callbacks redirect back with ?claim=github_connected or ?claim=vercel_connected
+  // once a token has been stored. Reopen the claim modal and auto-retry — if
+  // only one token is stored, the modal will surface the remaining button.
+  useEffect(() => {
+    if (!buildId) return
+    const params = new URLSearchParams(window.location.search)
+    const claim = params.get('claim')
+    if (claim !== 'github_connected' && claim !== 'vercel_connected' && claim !== 'ready') return
+    params.delete('claim')
+    const qs = params.toString()
+    window.history.replaceState({}, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`)
+    setScanOpen(true)
+    void runSecurityScan()
+    void submitClaim()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buildId])
 
   // ── Supabase message helpers ─────────────────────────────────────────────────
 
@@ -648,7 +671,52 @@ export default function EditApp() {
 
   function handleClaimClick() {
     setScanOpen(true)
+    setClaimError(null)
+    setClaimMissing([])
     void runSecurityScan()
+  }
+
+  // POST /api/claim-build — surface missing_tokens as actionable OAuth buttons
+  async function submitClaim() {
+    if (!buildId || claiming) return
+    setClaiming(true)
+    setClaimError(null)
+    try {
+      const res = await fetch('/api/claim-build', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ build_id: buildId }),
+      })
+      const data = await res.json().catch(() => ({})) as {
+        error?: string
+        missing?: Array<'github' | 'vercel'>
+        message?: string
+        claimed_url?: string
+      }
+      if (res.ok) {
+        const nextUrl = data.claimed_url ?? build?.deploy_url ?? null
+        setClaimMissing([])
+        setScanOpen(false)
+        if (nextUrl) window.location.href = nextUrl
+        else navigate('/dashboard')
+        return
+      }
+      if (data.error === 'missing_tokens' && Array.isArray(data.missing)) {
+        setClaimMissing(data.missing)
+        setClaimError(data.message ?? 'Connect the missing accounts to finish the claim.')
+      } else {
+        setClaimError(data.error ?? 'Claim failed. Please try again.')
+      }
+    } catch {
+      setClaimError('Network error. Please try again.')
+    } finally {
+      setClaiming(false)
+    }
+  }
+
+  function connectOAuth(provider: 'github' | 'vercel') {
+    if (!buildId) return
+    window.location.href = `/api/auth/${provider}/start?build_id=${encodeURIComponent(buildId)}&mode=claim`
   }
 
   // ── Prompt queue ──────────────────────────────────────────────────────────────
@@ -1869,14 +1937,60 @@ export default function EditApp() {
                     </div>
                   )}
 
+                  {claimMissing.length > 0 && (
+                    <div style={{ background: '#1a1917', border: '1px solid #2a2826', borderRadius: 'var(--radius-md)', padding: '12px 14px', marginBottom: 12 }}>
+                      <p style={{ font: '11px/1.5 DM Mono, Courier New, monospace', color: '#f2efe8', margin: '0 0 8px' }}>
+                        {claimError ?? 'Connect the missing accounts to finish the claim.'}
+                      </p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {claimMissing.includes('github') && (
+                          <button
+                            onClick={() => connectOAuth('github')}
+                            className="ea-btn-green"
+                            style={{ padding: '8px 14px', fontSize: 11 }}
+                          >
+                            Connect GitHub →
+                          </button>
+                        )}
+                        {claimMissing.includes('vercel') && (
+                          <button
+                            onClick={() => connectOAuth('vercel')}
+                            className="ea-btn-green"
+                            style={{ padding: '8px 14px', fontSize: 11 }}
+                          >
+                            Connect Vercel →
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {claimError && claimMissing.length === 0 && (
+                    <p style={{ font: '11px/1.5 DM Mono, Courier New, monospace', color: '#e8a020', margin: '0 0 12px' }}>
+                      {claimError}
+                    </p>
+                  )}
+
                   <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                    {scanResult.passed && (
-                      <a
-                        href={`/api/claim-build?build_id=${buildId}`}
-                        style={{ flex: 1, textAlign: 'center', background: '#FF1F6E', color: '#0e0d0b', font: '11px/1 DM Mono, Courier New, monospace', padding: '10px 0', borderRadius: 'var(--radius-sm)', textDecoration: 'none', display: 'block' }}
+                    {scanResult.passed && claimMissing.length === 0 && (
+                      <button
+                        onClick={() => void submitClaim()}
+                        disabled={claiming}
+                        style={{
+                          flex: 1,
+                          textAlign: 'center',
+                          background: '#FF1F6E',
+                          color: '#0e0d0b',
+                          font: '11px/1 DM Mono, Courier New, monospace',
+                          padding: '10px 0',
+                          borderRadius: 'var(--radius-sm)',
+                          border: 'none',
+                          cursor: claiming ? 'default' : 'pointer',
+                          opacity: claiming ? 0.7 : 1,
+                        }}
                       >
-                        Claim and transfer →
-                      </a>
+                        {claiming ? 'Claiming…' : 'Claim and transfer →'}
+                      </button>
                     )}
                     <button
                       onClick={() => setScanOpen(false)}

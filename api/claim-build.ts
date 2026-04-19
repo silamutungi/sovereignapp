@@ -373,7 +373,14 @@ export default async function handler(req: any, res: any): Promise<void> {
   const repoUrl      = build.repo_url
 
   if (!githubToken || !vercelToken) {
-    res.status(400).json({ error: 'Build is missing OAuth tokens — please reconnect GitHub and Vercel' })
+    const missing: Array<'github' | 'vercel'> = []
+    if (!githubToken) missing.push('github')
+    if (!vercelToken) missing.push('vercel')
+    res.status(400).json({
+      error: 'missing_tokens',
+      missing,
+      message: 'Connect the missing accounts to finish the claim.',
+    })
     return
   }
   if (!repoUrl) {

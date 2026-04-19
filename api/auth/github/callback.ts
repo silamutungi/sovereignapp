@@ -32,7 +32,7 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
-    const { code, state: buildId, error: oauthError } = (req.query ?? {}) as Record<string, string>
+    const { code, state: rawState, error: oauthError } = (req.query ?? {}) as Record<string, string>
 
     // GitHub redirects here with ?error= if the user denied access
     if (oauthError) {
@@ -42,8 +42,18 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
-    if (!code || !buildId) {
+    if (!code || !rawState) {
       res.status(400).send('Missing required parameters: code, state')
+      return
+    }
+
+    // Claim flow encodes state as `claim:<buildId>` so this callback knows to
+    // store the token without mutating build status and to return the user to
+    // the edit page instead of chaining into Vercel OAuth.
+    const isClaimMode = rawState.startsWith('claim:')
+    const buildId = isClaimMode ? rawState.slice('claim:'.length) : rawState
+    if (!buildId) {
+      res.status(400).send('Missing buildId in state')
       return
     }
 
@@ -54,10 +64,15 @@ export default async function handler(req: any, res: any): Promise<void> {
     // VERCEL_INTEGRATION_SLUG is the slug from the Vercel marketplace listing,
     // e.g. "sovereign-app". Used in the /integrations/<slug>/new authorization
     // URL. The oac_* client ID is only needed server-side for token exchange.
+    // Not required in claim mode (the claim flow uses independent buttons).
     const vercelIntegrationSlug = process.env.VERCEL_INTEGRATION_SLUG
 
-    if (!clientId || !clientSecret || !supabaseUrl || !serviceKey || !vercelIntegrationSlug) {
+    if (!clientId || !clientSecret || !supabaseUrl || !serviceKey) {
       res.status(500).send('Server misconfiguration — missing environment variable')
+      return
+    }
+    if (!isClaimMode && !vercelIntegrationSlug) {
+      res.status(500).send('Server misconfiguration — missing VERCEL_INTEGRATION_SLUG')
       return
     }
 
@@ -90,6 +105,17 @@ export default async function handler(req: any, res: any): Promise<void> {
     }
 
     // ── 2. Store GitHub token in Supabase build record ─────────────────────
+    // In claim mode we only persist the token — the build is already complete,
+    // so we must not mutate status/step.
+    const patchBody: Record<string, unknown> = {
+      github_token: tokenData.access_token,
+      updated_at: new Date().toISOString(),
+    }
+    if (!isClaimMode) {
+      patchBody.status = 'pending_vercel'
+      patchBody.step   = 'Waiting for Vercel connection…'
+    }
+
     const patchRes = await fetch(
       `${supabaseUrl}/rest/v1/builds?id=eq.${encodeURIComponent(buildId)}`,
       {
@@ -99,12 +125,7 @@ export default async function handler(req: any, res: any): Promise<void> {
           Authorization: `Bearer ${serviceKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          github_token: tokenData.access_token,
-          status: 'pending_vercel',
-          step: 'Waiting for Vercel connection…',
-          updated_at: new Date().toISOString(),
-        }),
+        body: JSON.stringify(patchBody),
       },
     )
 
@@ -114,13 +135,24 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
-    // ── 3. Redirect to Vercel integration authorization ───────────────────
+    // ── 3. Redirect ────────────────────────────────────────────────────────
+    // Claim mode → return to the edit page so the claim can be retried.
+    // Normal mode → chain into Vercel integration authorization.
+    if (isClaimMode) {
+      const base = siteBase()
+      res.writeHead(302, {
+        Location: `${base}/app/${encodeURIComponent(buildId)}/edit?claim=github_connected`,
+      })
+      res.end()
+      return
+    }
+
     // Vercel marketplace integrations use /integrations/<slug>/new, NOT
     // /oauth/authorize?client_id=. The oac_* client ID only appears
     // server-side during the token exchange in /api/auth/vercel/callback.
     const vercelRedirectUri = `${siteBase()}/api/auth/vercel/callback`
     const vercelOAuthUrl =
-      `https://vercel.com/integrations/${encodeURIComponent(vercelIntegrationSlug)}/new` +
+      `https://vercel.com/integrations/${encodeURIComponent(vercelIntegrationSlug as string)}/new` +
       `?redirect_uri=${encodeURIComponent(vercelRedirectUri)}` +
       `&state=${encodeURIComponent(buildId)}`
 
