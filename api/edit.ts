@@ -645,6 +645,8 @@ Risk level: ${classifierResult.risk}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 USER INSTRUCTION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CRITICAL: Make ONLY the change described. Do not modify any other element, style, image, color, layout, or component. If the instruction says 'change the headline', change only the headline text. Leave every other line of the file exactly as it was. Surgical edits only.
+
 ${editRequest}
 ${imageGuidance}
 
