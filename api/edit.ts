@@ -148,7 +148,18 @@ export default async function handler(req: any, res: any): Promise<void> {
       return
     }
 
-    const repoPath = String(repoUrl).replace('https://github.com/', '')
+    const repoPath = String(repoUrl)
+      .replace(/^https?:\/\/github\.com\//, '')
+      .replace(/\/$/, '')
+      .trim()
+
+    if (!repoPath.includes('/')) {
+      console.error('[edit] invalid repoPath:', repoPath)
+      res.status(400).json({ error: 'Invalid repository URL' })
+      return
+    }
+    console.log('[edit] repoPath:', repoPath)
+
     const [repoOwner, repoName] = repoPath.split('/')
     console.log('[edit] repo target:', repoPath, 'buildId:', buildId)
 
@@ -371,7 +382,9 @@ RULES:
       classifierResult = {
         instruction_type: validTypes.includes(parsed.instruction_type) ? parsed.instruction_type : 'style_change',
         relevant_files: Array.isArray(parsed.relevant_files)
-          ? (parsed.relevant_files as unknown[]).filter((f): f is string => typeof f === 'string' && fileTree.includes(f)).slice(0, 6)
+          ? (parsed.relevant_files as unknown[]).filter((f): f is string =>
+              typeof f === 'string' && (fileTree.length === 0 || fileTree.includes(f))
+            ).slice(0, 6)
           : [],
         create_files: Array.isArray(parsed.create_files)
           ? (parsed.create_files as unknown[]).filter((f): f is string => typeof f === 'string' && !fileTree.includes(f)).slice(0, 4)
@@ -585,10 +598,13 @@ RULES:
       ]
 
       // Fallback: if classifier returned no files at all, use common candidates
-      if (allTargetPaths.length === 0 && fileTree.length > 0) {
+      if (allTargetPaths.length === 0) {
         const fallbackCandidates = ['src/pages/Home.tsx', 'src/App.tsx', 'src/index.css']
-        allTargetPaths = fallbackCandidates.filter((c) => fileTree.includes(c)).slice(0, 3)
-        console.log('[edit] classifier returned no files, using fallbacks:', allTargetPaths.join(', '))
+        // When fileTree is empty (tree fetch failed), use fallbacks unconditionally
+        allTargetPaths = fileTree.length > 0
+          ? fallbackCandidates.filter((c) => fileTree.includes(c)).slice(0, 3)
+          : fallbackCandidates.slice(0, 3)
+        console.log('[edit] using fallback files:', allTargetPaths.join(', '))
       }
 
       if (allTargetPaths.length === 0) {
