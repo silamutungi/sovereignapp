@@ -1846,6 +1846,89 @@ export default async function handler(req: any, res: any): Promise<void> {
             console.warn('[run-build] LESSONS.md creation failed (non-fatal):', e)
           }
 
+          // ── Seed demo data into generated app's schema ──────────────
+          // Fires after deploy succeeds. Inserts realistic demo rows so
+          // the app looks alive on first load. Non-fatal — never blocks
+          // build completion.
+          try {
+            const anthropic      = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+            const sovereignRef   = process.env.SOVEREIGN_SUPABASE_REF
+            const sovereignToken = process.env.SOVEREIGN_SUPABASE_MANAGEMENT_TOKEN
+            const appSchema      = `b${buildId.replace(/-/g, '').slice(0, 8)}`
+
+            if (sovereignRef && sovereignToken && build.supabase_schema) {
+              console.log('[run-build] generating seed data...')
+
+              // Ask Haiku to generate category-specific INSERT statements
+              const seedMsg = await anthropic.messages.create({
+                model: 'claude-haiku-4-5-20251001',
+                max_tokens: 2000,
+                messages: [{
+                  role: 'user',
+                  content: `You are seeding a demo database for a new app so it looks alive on first load.
+
+App idea: ${build.idea ?? 'unknown'}
+App category: ${build.app_category ?? 'saas'}
+Database schema (the CREATE TABLE statements):
+${build.supabase_schema}
+
+Generate realistic, specific INSERT statements for this app.
+Rules:
+- Use schema prefix: ${appSchema}. before every table name
+- Insert 3-6 rows per table (skip auth/users tables entirely)
+- Data must be specific to the app idea — not generic "Sample Item 1"
+- Use realistic names, amounts, dates, statuses for this industry
+- Dates: use NOW() - INTERVAL for past dates, NOW() + INTERVAL for future
+- UUIDs: use gen_random_uuid()
+- Skip any table with "user" or "account" or "auth" in the name
+- Return ONLY valid PostgreSQL INSERT statements, nothing else
+- No markdown, no explanation, no CREATE statements`,
+                }],
+              })
+
+              const seedSql = seedMsg.content
+                .filter((b) => b.type === 'text')
+                .map((b) => (b as { type: 'text'; text: string }).text)
+                .join('')
+                .trim()
+                .replace(/^```sql\s*/i, '')
+                .replace(/\s*```\s*$/, '')
+                .trim()
+
+              if (seedSql && seedSql.toLowerCase().includes('insert')) {
+                // Execute seed SQL against the shared Supabase instance
+                const seedRes = await fetch(
+                  `https://api.supabase.com/v1/projects/${sovereignRef}/database/query`,
+                  {
+                    method: 'POST',
+                    headers: {
+                      Authorization: `Bearer ${sovereignToken}`,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: seedSql }),
+                  },
+                )
+
+                if (seedRes.ok) {
+                  console.log('[run-build] seed data inserted successfully')
+                  await updateBuild(supabaseUrl, serviceKey, buildId, {
+                    step: 'Seeding demo data…',
+                  })
+                } else {
+                  const seedErr = await seedRes.text().catch(() => '')
+                  console.warn('[run-build] seed data insert failed (non-fatal):', seedRes.status, seedErr.slice(0, 200))
+                }
+              } else {
+                console.warn('[run-build] Haiku returned no valid INSERT statements — skipping seed')
+              }
+            } else {
+              console.log('[run-build] seed skipped — missing sovereign credentials or no schema')
+            }
+          } catch (seedErr) {
+            console.warn('[run-build] seed data step failed (non-fatal):', seedErr)
+          }
+          // ── End seed data ────────────────────────────────────────────
+
           // ── Mark build complete ──────────────────────────────────────────
           // Always re-write deploy_url alongside status so retries never leave
           // a stale 'error' status next to a valid URL (or vice versa).
