@@ -359,7 +359,18 @@ RULES:
 - If the instruction is ambiguous, set risk to "high" and explain in risk_reason.
 - Never hallucinate file paths. Every path in relevant_files must exist in the tree above.
 - If instruction_type is "new_page" or "multi_system", relevant_files MUST include the router file and any nav component.
-- If instruction_type is "schema_change", set risk to "high" always.`
+- If instruction_type is "schema_change", set risk to "high" always.
+
+PAGE-SPECIFIC NAVIGATION RULE:
+If the instruction asks to add navigation to a specific page (sign in, login, signup, pricing, etc), you MUST add that PAGE's file to relevant_files — not the nav component. The nav component already exists. The gap is that the target page does not import or render it. Look up the page file in the topology and file tree.
+
+AUTH PAGE ISOLATION RULE:
+Auth pages (Login.tsx, SignIn.tsx, Signup.tsx, Register.tsx) are standalone layouts with no Navbar. Always include the auth page file in relevant_files when navigation is mentioned. Never assume editing Navbar.tsx is sufficient.
+
+atomic_requirements for this case must include:
+- "import Navbar in [page file]"
+- "render <Navbar /> at top of [page file] return statement"
+- "add paddingTop or mt to clear fixed navbar height"`
 
       const classifierMsg = await anthropic.messages.create({
         model: MODEL_FAST,
