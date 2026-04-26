@@ -360,6 +360,7 @@ RULES:
 - Never hallucinate file paths. Every path in relevant_files must exist in the tree above.
 - If instruction_type is "new_page" or "multi_system", relevant_files MUST include the router file and any nav component.
 - If instruction_type is "schema_change", set risk to "high" always.
+- TOPOLOGY ORPHAN RULE: The topology context includes orphanPages. If the instruction targets a page and that page file appears in orphanPages, it is an isolated layout with no shared nav — it MUST be added to relevant_files directly. Do not edit the nav component instead.
 
 PAGE-SPECIFIC NAVIGATION RULE:
 If the instruction asks to add navigation to a specific page (sign in, login, signup, pricing, etc), you MUST add that PAGE's file to relevant_files — not the nav component. The nav component already exists. The gap is that the target page does not import or render it. Look up the page file in the topology and file tree.
