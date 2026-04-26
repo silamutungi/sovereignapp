@@ -412,7 +412,6 @@ export default function EditApp() {
             bustUrl.searchParams.set('_t', Date.now().toString())
             setIframeSrc(bustUrl.toString())
             setIframeLoaded(false)
-            setPreviewKey((k) => k + 1)
           }
           // Flash green border for 2000ms
           setPreviewFlash(true)
