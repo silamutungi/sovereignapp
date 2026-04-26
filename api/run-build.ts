@@ -28,6 +28,7 @@
 // → Vercel auto-deploys via GitHub integration → poll for READY status.
 //
 import Anthropic from '@anthropic-ai/sdk'
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit } from './_rateLimit.js'
 import { scoreApp } from './_scoreApp.js'
@@ -1741,7 +1742,7 @@ export default async function handler(req: any, res: any): Promise<void> {
                 auditResult.breakdown,
                 ghOwner,
                 repoName,
-                new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! }),
+                anthropic,
                 build.github_token,
               )
               console.log(`[run-build] quality gate: ${gateResult} (was ${auditResult.score}/100)`)
@@ -1797,11 +1798,10 @@ export default async function handler(req: any, res: any): Promise<void> {
           // ── Index components for Brain ─────────────────────────────────
           await step('Indexing components…')
           try {
-            const idxAnthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
             const idxSupabase = createClient(supabaseUrl!, serviceKey!)
             const count = await indexComponents(
               buildId as string, ghOwner, repoName,
-              idxAnthropic, idxSupabase, build.github_token,
+              anthropic, idxSupabase, build.github_token,
             )
             console.log(`[run-build] component index: ${count} components`)
           } catch (e) {
@@ -1851,13 +1851,15 @@ export default async function handler(req: any, res: any): Promise<void> {
           // the app looks alive on first load. Non-fatal — never blocks
           // build completion.
           try {
-            const anthropic      = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
             const sovereignRef   = process.env.SOVEREIGN_SUPABASE_REF
             const sovereignToken = process.env.SOVEREIGN_SUPABASE_MANAGEMENT_TOKEN
             const appSchema      = `b${buildId.replace(/-/g, '').slice(0, 8)}`
 
             if (sovereignRef && sovereignToken && build.supabase_schema) {
               console.log('[run-build] generating seed data...')
+              await updateBuild(supabaseUrl, serviceKey, buildId, {
+                step: 'Seeding demo data…',
+              })
 
               // Ask Haiku to generate category-specific INSERT statements
               const seedMsg = await anthropic.messages.create({
@@ -1911,9 +1913,6 @@ Rules:
 
                 if (seedRes.ok) {
                   console.log('[run-build] seed data inserted successfully')
-                  await updateBuild(supabaseUrl, serviceKey, buildId, {
-                    step: 'Seeding demo data…',
-                  })
                 } else {
                   const seedErr = await seedRes.text().catch(() => '')
                   console.warn('[run-build] seed data insert failed (non-fatal):', seedRes.status, seedErr.slice(0, 200))
