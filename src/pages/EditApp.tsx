@@ -1721,6 +1721,7 @@ export default function EditApp() {
                     key={showHistory && historyPreviewUrl ? `history-${selectedVersion?.id}` : previewKey}
                     src={showHistory && historyPreviewUrl ? historyPreviewUrl : (iframeSrc || previewUrl)}
                     title={`${build!.app_name} preview`}
+                    allow="mailto"
                     style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
                     onLoad={() => setIframeLoaded(true)}
                     onError={() => setIframeLoaded(true)}
