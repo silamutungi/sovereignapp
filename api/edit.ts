@@ -858,33 +858,61 @@ Return only valid JSON. No markdown fences. No preamble. First character must be
       console.log('[edit] deploy list status:', deployListRes.status, new Date().toISOString())
 
       if (deployListRes.ok) {
-        const deployList = await deployListRes.json() as { deployments?: Array<{ uid: string; name?: string; state?: string }> }
+        const deployList = await deployListRes.json() as { deployments?: Array<{ uid: string; name?: string; state?: string; readyState?: string; meta?: { githubRepoId?: string | number } }> }
         const latest = deployList.deployments?.[0]
         console.log('[edit] latestDeployment shape:', JSON.stringify(latest ?? {}).slice(0, 500), new Date().toISOString())
 
         if (latest?.uid) {
-          const redeployRes = await fetch(
-            `https://api.vercel.com/v13/deployments?forceNew=1&teamId=${encodeURIComponent(vcTeamId)}`,
-            {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${vcToken}`,
-                'Content-Type': 'application/json',
+          if (latest?.state === 'ERROR' || latest?.readyState === 'ERROR') {
+            // Latest deployment is broken — deploy fresh from main instead
+            console.log('[edit] latest deployment is ERROR — deploying fresh from git')
+            const freshDeployRes = await fetch(
+              `https://api.vercel.com/v13/deployments?teamId=${encodeURIComponent(vcTeamId)}`,
+              {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${vcToken}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  name: latest.name,
+                  project: vcProjectId,
+                  gitSource: {
+                    type: 'github',
+                    repoId: latest.meta?.githubRepoId ?? '',
+                    ref: 'main',
+                  },
+                  target: 'production',
+                }),
+              }
+            )
+            const freshBody = await freshDeployRes.text().catch(() => '')
+            console.log('[edit] fresh deploy status:', freshDeployRes.status, freshBody.slice(0, 200))
+          } else {
+            // Normal redeploy path — existing code
+            const redeployRes = await fetch(
+              `https://api.vercel.com/v13/deployments?forceNew=1&teamId=${encodeURIComponent(vcTeamId)}`,
+              {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${vcToken}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  name:         latest.name,
+                  deploymentId: latest.uid,
+                  target:       'production',
+                }),
               },
-              body: JSON.stringify({
-                name:         latest.name,
-                deploymentId: latest.uid,
-                target:       'production',
-              }),
-            },
-          )
+            )
 
-          const redeployBody = await redeployRes.text().catch(() => '')
-          console.log('[edit] redeploy response status:', redeployRes.status, new Date().toISOString())
-          console.log('[edit] redeploy body:', JSON.stringify(redeployBody).slice(0, 300), new Date().toISOString())
+            const redeployBody = await redeployRes.text().catch(() => '')
+            console.log('[edit] redeploy response status:', redeployRes.status, new Date().toISOString())
+            console.log('[edit] redeploy body:', JSON.stringify(redeployBody).slice(0, 300), new Date().toISOString())
 
-          if (!redeployRes.ok) {
-            console.warn('[edit] Vercel redeploy non-fatal:', redeployRes.status, redeployBody)
+            if (!redeployRes.ok) {
+              console.warn('[edit] Vercel redeploy non-fatal:', redeployRes.status, redeployBody)
+            }
           }
         } else {
           console.warn('[edit] no existing deployment found for project:', vcProjectId, new Date().toISOString())
