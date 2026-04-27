@@ -1530,12 +1530,21 @@ export default async function handler(req: any, res: any): Promise<void> {
           // visual indicator that security has been applied
           await step('Securing your tables…')
 
+          // Re-fetch schema name to ensure we use the actual migrated value
+          const sbForSchema = createClient(supabaseUrl!, serviceKey!)
+          const { data: schemaRow } = await sbForSchema
+            .from('builds')
+            .select('supabase_schema_name')
+            .eq('id', buildId)
+            .single()
+          const confirmedSchema = schemaRow?.supabase_schema_name ?? 'public'
+
           // Inject Supabase env vars into Vercel project before file push so
           // they're available during the Vite build that Vercel triggers
           await injectVercelEnvVars(vcProjectId, vcTeamId, [
             { key: 'VITE_SUPABASE_URL',  value: deploySupabaseUrl },
             { key: 'VITE_SUPABASE_ANON_KEY', value: deployAnonKey },
-            { key: 'VITE_SUPABASE_SCHEMA', value: build.supabase_schema ? `b${buildId.replace(/-/g, '').slice(0, 8)}` : 'public' },
+            { key: 'VITE_SUPABASE_SCHEMA', value: confirmedSchema },
             { key: 'SUPABASE_URL',        value: deploySupabaseUrl },
           ])
           await step('Database ready ✓')
