@@ -92,6 +92,35 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   const appSchema = `b${String(buildId).replace(/-/g, '').slice(0, 8)}`
 
+  // Resolve the most recent auth user for this app's schema
+  // so seed rows are visible to whoever just signed up
+  let seedUserId: string | null = null
+  try {
+    const sovereignRef = process.env.SOVEREIGN_SUPABASE_REF
+    const sovereignToken = process.env.SOVEREIGN_SUPABASE_MANAGEMENT_TOKEN
+    if (sovereignRef && sovereignToken) {
+      const userRes = await fetch(
+        `https://api.supabase.com/v1/projects/${sovereignRef}/database/query`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${sovereignToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: `SELECT id FROM auth.users ORDER BY created_at DESC LIMIT 1`
+          }),
+        }
+      )
+      if (userRes.ok) {
+        const userRows = await userRes.json() as Array<{ id: string }>
+        seedUserId = userRows[0]?.id ?? null
+      }
+    }
+  } catch {
+    // non-fatal — seed without user_id if lookup fails
+  }
+
   try {
     // Haiku generates category-specific INSERT statements
     const seedMsg = await anthropic.messages.create({
@@ -115,7 +144,10 @@ Rules:
 - Dates: use NOW() - INTERVAL for past dates, NOW() + INTERVAL for future
 - UUIDs: use gen_random_uuid()
 - Skip any table with "user" or "account" or "auth" in the name
-- For any column named user_id, owner_id, created_by, or any FK to auth.users — omit that column entirely from the INSERT. Do not generate a value for it.
+${seedUserId
+  ? `- For any column named user_id, owner_id, or created_by: use the value '${seedUserId}'`
+  : `- For any column named user_id, owner_id, or created_by: omit that column entirely`
+}
 - Return ONLY valid PostgreSQL INSERT statements, nothing else
 - No markdown, no explanation, no CREATE statements`,
       }],
