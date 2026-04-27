@@ -104,6 +104,8 @@ Section padding: py-20 md:py-32. Content: max-w-5xl mx-auto px-6.
 
 Every table: UUID PK, user_id REFERENCES auth.users(id) ON DELETE CASCADE, created_at, deleted_at. RLS enabled. Policies for SELECT/INSERT/UPDATE. Index on user_id.
 
+CRITICAL — TABLE NAMING CONSISTENCY: The table names in CREATE TABLE statements MUST exactly match the table names used in supabase.from() calls in every page and context file. Never prefix table names with the app name (e.g. never weir_detections — use detections). The schema prefix is handled by the Supabase client db.schema option. All supabase.from('tablename') calls use bare table names only.
+
 ## RESPONSE FORMAT
 
 Include tier, activeStandards, and nextSteps (3 objects with title, description, action, priority) alongside files and supabaseSchema.
