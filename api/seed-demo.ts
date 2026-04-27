@@ -167,24 +167,53 @@ ${seedUserId
       return
     }
 
-    const seedRes = await fetch(
-      `https://api.supabase.com/v1/projects/${sovereignRef}/database/query`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${sovereignToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query: seedSql }),
-      },
-    )
+    console.log('[seed-demo] SQL:', seedSql.slice(0, 500))
 
-    if (!seedRes.ok) {
-      const seedErr = await seedRes.text().catch(() => '')
-      console.error('[seed-demo] insert failed:', seedRes.status, seedErr.slice(0, 200))
-      res.status(500).json({ error: 'Failed to insert demo data' })
+    // Split into individual statements and execute each separately
+    // The Supabase Management API only accepts one statement per call
+    const statements = seedSql
+      .split(/;\s*\n/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0 && s.toLowerCase().includes('insert'))
+
+    if (statements.length === 0) {
+      res.status(500).json({ error: 'Could not generate seed data' })
       return
     }
+
+    console.log(`[seed-demo] executing ${statements.length} INSERT statements`)
+
+    let successCount = 0
+    let lastError = ''
+    for (const stmt of statements) {
+      const sql = stmt.endsWith(';') ? stmt : stmt + ';'
+      console.log('[seed-demo] SQL:', sql.slice(0, 300))
+      const stmtRes = await fetch(
+        `https://api.supabase.com/v1/projects/${sovereignRef}/database/query`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${sovereignToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ query: sql }),
+        }
+      )
+      if (stmtRes.ok) {
+        successCount++
+      } else {
+        const errText = await stmtRes.text().catch(() => '')
+        console.warn('[seed-demo] statement failed:', stmtRes.status, errText.slice(0, 200))
+        lastError = errText.slice(0, 200)
+      }
+    }
+
+    if (successCount === 0) {
+      res.status(500).json({ error: `Failed to insert demo data: ${lastError}` })
+      return
+    }
+
+    console.log(`[seed-demo] inserted ${successCount}/${statements.length} statements successfully`)
 
     // Mark as seeded — non-fatal if column does not exist yet
     try {
