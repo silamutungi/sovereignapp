@@ -1580,3 +1580,7 @@ Correct behaviour: the list endpoint always returns Vercel's encrypted envelope 
 Fix: always two-step. (1) List env vars with no decrypt flag to get IDs, types, and targets. (2) For each entry you care about, `GET /v1/projects/{id}/env/{envId}?decrypt=true` — the single-env endpoint does decrypt and returns a `decrypted: boolean` field. Treat `decrypted: false` as `sensitive` (user enabled the sensitive flag; plaintext is not readable by the API). Classify by the *real* plaintext value, not by the list response.
 Triage: → CLAUDE.md ✓ → RULES.md ✓
 Learned: 2026-04-19.
+
+**supabase-js does not throw on DB errors — always inspect { data, error }**
+supabase-js client returns { data, error } on most failures (column not found, RLS denial, type mismatch) — it does NOT throw. A bare try/catch around a supabase update() call swallows nothing useful. To catch real failures, check error.code after the call (42703 = column does not exist). Network errors and aborted requests are the only cases that actually throw.
+Learned: 2026-04-26.
