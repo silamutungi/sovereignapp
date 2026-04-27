@@ -212,6 +212,11 @@ export default function EditApp() {
   const [tone, setTone] = useState<'professional' | 'friendly' | 'bold' | 'minimal'>('professional')
   const [brandApplying, setBrandApplying] = useState(false)
 
+  // Seed demo data
+  const [seedLoading, setSeedLoading] = useState(false)
+  const [seedStatus, setSeedStatus] = useState<'idle' | 'success' | 'already' | 'error'>('idle')
+  const [seedError, setSeedError] = useState<string | null>(null)
+
   // Refs
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -673,6 +678,42 @@ export default function EditApp() {
     setClaimError(null)
     setClaimMissing([])
     void runSecurityScan()
+  }
+
+  // ── Seed demo data ───────────────────────────────────────────────────────
+  // POST /api/seed-demo — Haiku generates category-specific INSERTs.
+  // Idempotent server-side via builds.seeded_at; the button shows
+  // "Already seeded" if a previous run already populated the schema.
+  async function handleSeedDemo() {
+    if (!buildId || seedLoading) return
+    setSeedLoading(true)
+    setSeedStatus('idle')
+    setSeedError(null)
+    try {
+      const res = await fetch('/api/seed-demo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildId }),
+      })
+      const data = await res.json().catch(() => ({})) as { ok?: boolean; alreadySeeded?: boolean; error?: string }
+      if (res.ok && data.ok) {
+        if (data.alreadySeeded) {
+          setSeedStatus('already')
+        } else {
+          setSeedStatus('success')
+          // Reset back to idle after 3s so the button is reusable in this session
+          setTimeout(() => setSeedStatus('idle'), 3000)
+        }
+      } else {
+        setSeedStatus('error')
+        setSeedError(data.error ?? 'Could not seed demo data')
+      }
+    } catch {
+      setSeedStatus('error')
+      setSeedError('Network error. Please try again.')
+    } finally {
+      setSeedLoading(false)
+    }
   }
 
   // POST /api/claim-build — surface missing_tokens as actionable OAuth buttons
@@ -1430,6 +1471,30 @@ export default function EditApp() {
                       deploys in ~60s
                     </p>
                   </div>
+                  {/* Row 3: seed demo data — only visible once build is complete */}
+                  {build && build.status === 'complete' && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: 6, gap: 8 }}>
+                      {seedStatus === 'error' && seedError && (
+                        <span style={{ font: '10px/1.4 DM Mono, Courier New, monospace', color: '#FF1F6E', textAlign: 'right', maxWidth: 200 }}>
+                          {seedError}
+                        </span>
+                      )}
+                      <button
+                        className="ea-btn-ghost"
+                        onClick={() => void handleSeedDemo()}
+                        disabled={seedLoading || seedStatus === 'success' || seedStatus === 'already'}
+                        aria-label="Seed demo data into your app's database"
+                      >
+                        {seedLoading
+                          ? 'Seeding…'
+                          : seedStatus === 'success'
+                            ? 'Demo data added ✓'
+                            : seedStatus === 'already'
+                              ? 'Already seeded'
+                              : '✦ Seed demo data'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </>
             )}
