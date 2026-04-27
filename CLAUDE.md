@@ -1584,3 +1584,7 @@ Learned: 2026-04-19.
 **supabase-js does not throw on DB errors — always inspect { data, error }**
 supabase-js client returns { data, error } on most failures (column not found, RLS denial, type mismatch) — it does NOT throw. A bare try/catch around a supabase update() call swallows nothing useful. To catch real failures, check error.code after the call (42703 = column does not exist). Network errors and aborted requests are the only cases that actually throw.
 Learned: 2026-04-26.
+
+**Supabase Management API /database/query accepts only ONE statement per call**
+A multi-statement SQL body separated by semicolons either silently runs only the first statement or rejects the whole batch with a syntax error. Pattern for any SQL-by-API code: split generated SQL on ;\n, filter for the expected operation (INSERT, CREATE, etc.), loop one POST per statement, track per-statement success/failure. Applies to seed-demo.ts, run-build.ts seed step, and any future endpoint that POSTs Haiku/Sonnet-generated multi-statement SQL.
+Learned: 2026-04-26.
