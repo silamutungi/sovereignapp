@@ -1900,21 +1900,41 @@ Rules:
                 .trim()
 
               if (seedSql && seedSql.toLowerCase().includes('insert')) {
-                // Execute seed SQL against the shared Supabase instance
-                const seedRes = await fetch(
-                  `https://api.supabase.com/v1/projects/${sovereignRef}/database/query`,
-                  {
-                    method: 'POST',
-                    headers: {
-                      Authorization: `Bearer ${sovereignToken}`,
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ query: seedSql }),
-                  },
-                )
+                // Split into individual statements and execute each separately
+                // The Supabase Management API only accepts one statement per call
+                const statements = seedSql
+                  .split(/;\s*\n/)
+                  .map((s) => s.trim())
+                  .filter((s) => s.length > 0 && s.toLowerCase().includes('insert'))
 
-                if (seedRes.ok) {
-                  console.log('[run-build] seed data inserted successfully')
+                console.log(`[run-build] executing ${statements.length} INSERT statements`)
+
+                let successCount = 0
+                let lastError = ''
+                for (const stmt of statements) {
+                  const sql = stmt.endsWith(';') ? stmt : stmt + ';'
+                  const stmtRes = await fetch(
+                    `https://api.supabase.com/v1/projects/${sovereignRef}/database/query`,
+                    {
+                      method: 'POST',
+                      headers: {
+                        Authorization: `Bearer ${sovereignToken}`,
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({ query: sql }),
+                    },
+                  )
+                  if (stmtRes.ok) {
+                    successCount++
+                  } else {
+                    const errText = await stmtRes.text().catch(() => '')
+                    console.warn('[run-build] statement failed (non-fatal):', stmtRes.status, errText.slice(0, 200))
+                    lastError = errText.slice(0, 200)
+                  }
+                }
+
+                if (successCount > 0) {
+                  console.log(`[run-build] seed data: ${successCount}/${statements.length} statements inserted`)
                   try {
                     await updateBuild(supabaseUrl, serviceKey, buildId, {
                       seeded_at: new Date().toISOString(),
@@ -1923,8 +1943,7 @@ Rules:
                     // non-fatal — seeded_at is a best-effort marker
                   }
                 } else {
-                  const seedErr = await seedRes.text().catch(() => '')
-                  console.warn('[run-build] seed data insert failed (non-fatal):', seedRes.status, seedErr.slice(0, 200))
+                  console.warn('[run-build] seed data insert failed (non-fatal): all statements failed —', lastError)
                 }
               } else {
                 console.warn('[run-build] Haiku returned no valid INSERT statements — skipping seed')

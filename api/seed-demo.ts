@@ -167,8 +167,6 @@ ${seedUserId
       return
     }
 
-    console.log('[seed-demo] SQL:', seedSql.slice(0, 500))
-
     // Split into individual statements and execute each separately
     // The Supabase Management API only accepts one statement per call
     const statements = seedSql
