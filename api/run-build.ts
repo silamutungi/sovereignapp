@@ -234,6 +234,7 @@ interface BuildRecord {
   completeness_score: number | null
   completeness_gaps: string[] | null
   app_topology: AppTopology | null
+  seeded_at: string | null
 }
 
 async function getBuild(
@@ -1913,6 +1914,13 @@ Rules:
 
                 if (seedRes.ok) {
                   console.log('[run-build] seed data inserted successfully')
+                  try {
+                    await updateBuild(supabaseUrl, serviceKey, buildId, {
+                      seeded_at: new Date().toISOString(),
+                    })
+                  } catch {
+                    // non-fatal — seeded_at is a best-effort marker
+                  }
                 } else {
                   const seedErr = await seedRes.text().catch(() => '')
                   console.warn('[run-build] seed data insert failed (non-fatal):', seedRes.status, seedErr.slice(0, 200))
