@@ -115,6 +115,7 @@ Rules:
 - Dates: use NOW() - INTERVAL for past dates, NOW() + INTERVAL for future
 - UUIDs: use gen_random_uuid()
 - Skip any table with "user" or "account" or "auth" in the name
+- For any column named user_id, owner_id, created_by, or any FK to auth.users — omit that column entirely from the INSERT. Do not generate a value for it.
 - Return ONLY valid PostgreSQL INSERT statements, nothing else
 - No markdown, no explanation, no CREATE statements`,
       }],
