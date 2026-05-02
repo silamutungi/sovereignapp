@@ -365,13 +365,8 @@ RULES:
 PAGE-SPECIFIC NAVIGATION RULE:
 If the instruction asks to add navigation to a specific page (sign in, login, signup, pricing, etc), you MUST add that PAGE's file to relevant_files — not the nav component. The nav component already exists. The gap is that the target page does not import or render it. Look up the page file in the topology and file tree.
 
-AUTH PAGE ISOLATION RULE:
-Auth pages (Login.tsx, SignIn.tsx, Signup.tsx, Register.tsx) are standalone layouts with no Navbar. Always include the auth page file in relevant_files when navigation is mentioned. Never assume editing Navbar.tsx is sufficient.
-
-atomic_requirements for this case must include:
-- "import Navbar in [page file]"
-- "render <Navbar /> at top of [page file] return statement"
-- "add paddingTop or mt to clear fixed navbar height"`
+AUTH PAGE NAVBAR RULE:
+Auth pages (Login.tsx, Signup.tsx, password-reset, etc.) MUST render <Navbar /> at the top, identical to marketing pages. If a user reports missing nav on an auth page, the fix is to add <Navbar /> to that file's JSX. Do NOT treat auth pages as standalone — that pattern was a defect, not a design choice.`
 
       const classifierMsg = await anthropic.messages.create({
         model: MODEL_FAST,

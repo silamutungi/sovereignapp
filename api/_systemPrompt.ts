@@ -58,6 +58,12 @@ Required files in order:
 
 Do not exceed 27 files. Generate supabaseSchema LAST after all files.
 
+## AUTH PAGE COMPOSITION (binding rule, all categories)
+
+Auth pages (Login.tsx, Signup.tsx, and any password-reset, magic-link, or verification page) MUST render the same <Navbar /> component used by the marketing landing page. Auth pages are NOT standalone layouts. The Navbar import and render is required at the top of every auth page's JSX. The auth form itself sits below the Navbar in a centered container. A user arriving at /login must always be able to navigate back to / and to other public pages (Pricing, Features) without using the browser back button.
+
+The Navbar on auth pages SHOULD show "Sign in" and "Start free" CTAs in the unauthenticated state, identical to the marketing page. Do NOT hide these CTAs on /login or /signup.
+
 ## FILE RULES
 
 - No comments. No console.log. Tailwind classes only, no inline styles. Components under 100 lines.

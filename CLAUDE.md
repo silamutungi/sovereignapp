@@ -1588,3 +1588,11 @@ Learned: 2026-04-26.
 **Supabase Management API /database/query accepts only ONE statement per call**
 A multi-statement SQL body separated by semicolons either silently runs only the first statement or rejects the whole batch with a syntax error. Pattern for any SQL-by-API code: split generated SQL on ;\n, filter for the expected operation (INSERT, CREATE, etc.), loop one POST per statement, track per-statement success/failure. Applies to seed-demo.ts, run-build.ts seed step, and any future endpoint that POSTs Haiku/Sonnet-generated multi-statement SQL.
 Learned: 2026-04-26.
+
+**Auth pages MUST render <Navbar /> — they are NOT standalone layouts**
+Wrong assumption: auth pages (Login.tsx, Signup.tsx, password-reset) ship as a centered card on a blank background, with the auth form being the entire page.
+Correct behaviour: auth pages render the same global <Navbar /> as marketing pages. A user arriving at /login from any source must be able to navigate back to / and to other public pages (Pricing, Features) without using the browser back button. The "centered card on empty background" pattern LLMs default to is a defect, not a design.
+Audit: 7 of 10 most recent complete builds pre-fix shipped Login.tsx with no Navbar; 3/10 had zero affordance back to home. Defect was encoded in three reinforcing places — (1) api/_systemPrompt.ts had no composition rule, (2) api/edit.ts:368 contained an "AUTH PAGE ISOLATION RULE" that told the edit engine auth pages have no Navbar (actively defending the bug at edit time), (3) UX_KNOWLEDGE_LAYER said "global navigation always visible" but the rule didn't bind because the system prompt never restated it.
+Fix: AUTH PAGE COMPOSITION binding rule added to _systemPrompt.ts after file scaffold list. edit.ts:368 inverted — auth pages MUST render Navbar; missing Navbar is a defect to fix, not preserve. UX layer strengthened with explicit auth-page exemption clause (lands at char 636, inside slice(0,2000) — binds). LESSONS.md template seeded so generated apps inherit the rule.
+Triage: → CLAUDE.md ✓ → Generation prompt (_systemPrompt.ts) ✓ → Generated app LESSONS.md template ✓ → Edit pipeline (edit.ts) ✓ → UX layer (ux-knowledge.ts) ✓
+Learned: 2026-05-02.

@@ -116,6 +116,7 @@ export async function createLessonsFile(
 ## Lessons Learned
 <!-- Mistakes made and fixed \u2014 never repeat these -->
 <!-- Format: [date] what broke \u2192 what fixed it -->
+- [2026-05-02] **Auth pages MUST render <Navbar />.** Auth pages (Login.tsx, Signup.tsx, password-reset) are NOT standalone layouts. They render the same global <Navbar /> as marketing pages. A user landing on /login from any source must be able to navigate back to / and to other public pages without using the browser back button. The "centered card on empty background" pattern that LLMs default to for auth pages is a defect, not a design. Always wrap the auth form below a <Navbar />. Diagnosed across 7 of 10 recent builds pre-fix; system-prompt rule + edit.ts rule + UX layer all updated to enforce this.
 `
 
     const ok = await ghPutFile(owner, repo, 'LESSONS.md', githubToken, content, 'init: Brain memory file')

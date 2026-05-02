@@ -13,6 +13,12 @@ STRUCTURE
 - Every app has three levels: global navigation (always visible),
   local navigation (section-specific), and contextual navigation
   (inline links and related content). Generate all three.
+- Global navigation appears on EVERY public page including /login,
+  /signup, password-reset, and any other auth surface. Auth pages
+  are not exempt. The only pages that may render without global
+  navigation are authenticated dashboard pages (which have their
+  own sidebar/app nav) and full-screen modal states (e.g.,
+  onboarding flows that explicitly capture attention).
 - Navigation must reflect the user's mental model of the content,
   not the developer's model of the database or codebase.
 - Users should always be able to answer three questions without
