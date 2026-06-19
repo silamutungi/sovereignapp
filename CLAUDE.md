@@ -1596,3 +1596,9 @@ Audit: 7 of 10 most recent complete builds pre-fix shipped Login.tsx with no Nav
 Fix: AUTH PAGE COMPOSITION binding rule added to _systemPrompt.ts after file scaffold list. edit.ts:368 inverted — auth pages MUST render Navbar; missing Navbar is a defect to fix, not preserve. UX layer strengthened with explicit auth-page exemption clause (lands at char 636, inside slice(0,2000) — binds). LESSONS.md template seeded so generated apps inherit the rule.
 Triage: → CLAUDE.md ✓ → Generation prompt (_systemPrompt.ts) ✓ → Generated app LESSONS.md template ✓ → Edit pipeline (edit.ts) ✓ → UX layer (ux-knowledge.ts) ✓
 Learned: 2026-05-02.
+
+## Lesson — spec.files.map crash (2026-06-19)
+**Symptom:** `spec.files.map is not a function` on homepage idea submission.
+**Root cause:** AppSpec interface missing NextStep type + nextSteps field; bare `spec.files` reference at line 851 had no array guard.
+**Fix:** Added NextStep type, typed nextSteps/appCategory/competitors/parityFeatures/leapfrogFeatures to AppSpec, guarded spec.files with `?? []`. Commit 5cc2218.
+**Rule:** Client AppSpec interface must match the server SSE `done` payload exactly. When generate API adds new fields, update the interface in the same PR.
