@@ -395,6 +395,8 @@ interface AppBrief {
   tone: 'minimal' | 'bold' | 'playful' | 'professional' | 'warm'
 }
 
+interface NextStep { label: string; description: string }
+
 interface AppSpec {
   appName: string
   tagline: string
@@ -406,6 +408,11 @@ interface AppSpec {
   tier?: 'SIMPLE' | 'STANDARD' | 'COMPLEX'
   activeStandards?: string[]
   heroImageUrl?: string | null
+  nextSteps?: NextStep[]
+  appCategory?: string
+  competitors?: string[]
+  parityFeatures?: string[]
+  leapfrogFeatures?: string[]
 }
 
 // ── callGenerateAPI — polling with SSE fast-path ──────────────────────
@@ -848,7 +855,7 @@ function NdevPanel({ locale }: { locale: Locale }) {
           email,
           appName: spec.appName,
           idea: resolvedIdea || value.trim(),
-          files: spec.files,
+          files: spec.files ?? [],
           supabaseSchema: spec.supabaseSchema,
           setupInstructions: spec.setupInstructions,
           try_mode: true,
